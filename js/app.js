@@ -125,12 +125,11 @@ async function lookupShikimori(d){
 function applyRussianName(d){document.querySelectorAll('[data-title-id="'+d.id+'"]').forEach(el=>el.textContent=d.n)}
 async function resolveTitle(d){
  var saved=await dbGet("anime",d.id);
- if(saved&&saved.n&&!(saved.n==="Русское название пока недоступно"&&Date.now()-(saved.at||0)>86400000)){d.n=saved.n;d.shikiId=saved.shikiId||null;applyRussianName(d);return saved}
- var old=(S.ruV6||{})[d.id];
- if(old&&old.n){d.n=old.n;d.shikiId=old.shikiId||null;var migrated={id:d.id,n:d.n,shikiId:d.shikiId,at:Date.now()};await dbPut("anime",migrated);applyRussianName(d);return migrated}
- var record={id:d.id,n:"",shikiId:null,at:Date.now(),nameChecked:true},hit=await lookupAniLibria(d);
- if(hit){record.n=hit.names.ru;record.source="AniLibria"}
- if(!record.n){hit=await lookupShikimori(d);if(hit){record.n=hit.russian;record.shikiId=hit.id;record.source="Shikimori"}}
+ if(saved&&saved.n&&saved.lookupVersion===2&&!(saved.n==="Русское название пока недоступно"&&Date.now()-(saved.at||0)>86400000)){d.n=saved.n;d.shikiId=saved.shikiId||null;applyRussianName(d);return saved}
+ var record=Object.assign({},saved||{},{id:d.id,n:"",shikiId:saved&&saved.shikiId||null,at:Date.now(),nameChecked:true,lookupVersion:2});
+ var hit=await lookupShikimori(d);
+ if(hit){record.n=hit.russian;record.shikiId=hit.id;record.source="Shikimori"}
+ if(!record.n){hit=await lookupAniLibria(d);if(hit){record.n=hit.names.ru;record.source="AniLibria"}}
  if(!record.n)record.n="Русское название пока недоступно";
  record.at=Date.now();await dbPut("anime",record);d.n=record.n;d.shikiId=record.shikiId;applyRussianName(d);return record;
 }
