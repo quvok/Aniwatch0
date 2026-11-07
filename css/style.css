@@ -722,3 +722,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 
 /* Catalog discovery and pagination */
 .catalog-more{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;padding:28px 0 40px}.catalog-more small{color:var(--mt);font-size:12px}.catalog-more .btn{min-width:220px}
+
+
+/* Hide banner carousel controls on mobile; swipe remains available. */
+@media(max-width:700px){.hero-arrow,.hero-dots{display:none!important}}
