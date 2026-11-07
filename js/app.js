@@ -18,7 +18,7 @@ var D=[
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
 var M={},H=[];
 
-var $=s=>document.querySelector(s),app=$("#app"),S=ld(),F={g:"",s:"r",q:""},T=[],P=null,AP=false,V={};
+var $=s=>document.querySelector(s),app=$("#app"),S=ld(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function ld(){try{return JSON.parse(localStorage.getItem("aw"))||{}}catch(e){return{}}}
 function sv(){try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
@@ -29,18 +29,27 @@ var bg=d=>(d.img?"url('"+d.img+"') center/cover no-repeat,":"")+gr(d);
 var bn=d=>"linear-gradient(0deg,#000 5%,transparent 70%),"+(d.ban?"url('"+d.ban+"') center/cover no-repeat,":"")+gr(d);
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
-function card(d,pr,href){return'<a class="card" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span>★ '+d.r+'</span>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b>'+d.n+'</b><small>'+d.g[0]+' · '+d.y+'</small></a>'}
-var row=(t,a)=>'<h2>'+t+'</h2><div class="row">'+a.join("")+'</div>';
+function card(d,pr,href){
+ var score=Number(d.r||0),status=d.s||"Аниме";
+ return '<a class="card" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span class="rating">★ '+(score?score.toFixed(1):"—")+'</span><em class="poster-status">'+status+'</em>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b>'+d.n+'</b><small>'+d.g.slice(0,2).join(" · ")+" · "+d.y+'</small></a>'
+}
+var row=(t,a,sub)=>'<section class="shelf"><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var eps=(d,cur)=>Array.from({length:d.e},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join("");
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
 
-V.home=()=>{var hi=0,hero=()=>{var d=H[hi%H.length];return'<div class="hero" style="background:'+bn(d)+'"><small>'+d.g.join(" · ")+' · '+d.y+'</small><h1>'+d.n+'</h1><p>'+d.d+'</p><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div>'};
+V.home=()=>{var hi=0;
+ var featured=()=>{var d=H[hi%H.length]||D[0];return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p>'+d.d+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span>'+d.e+' серий</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div></section>'};
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
- app.innerHTML='<div id="hw">'+hero()+'</div>'+(cont.length?row("Продолжить просмотр",cont):"")+row("Новинки",srt("y").slice(0,6).map(d=>card(d)))+row("Популярное",srt("r").slice(0,6).map(d=>card(d)));
- T.push(setInterval(()=>{hi++;$("#hw").innerHTML=hero()},6000))};
+ var trending=srt("r").slice(0,8).map(d=>card(d));
+ var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
+ var recent=srt("y").slice(0,8).map(d=>card(d));
+ var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-genre="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
+ app.innerHTML='<div id="hw">'+featured()+'</div><div class="quick-stats"><div><b>'+D.length+'</b><span>тайтлов в подборке</span></div><div><b>'+D.filter(d=>/Онгоинг/i.test(d.s||"")).length+'</b><span>выходят сейчас</span></div><div><b>24/7</b><span>аниме-настроение</span></div></div>'+(cont.length?row("Продолжить просмотр",cont,"Вернись к серии, на которой остановился"):"")+row("Сейчас в топе",trending,"Популярные тайтлы по оценкам")+(ongoing.length?row("Онгоинги",ongoing,"Истории, которые продолжаются прямо сейчас"):"")+row("Недавно добавлено",recent,"Свежие и актуальные тайтлы")+'<section class="genre-section"><div class="shelf-head"><div><h2>Найди своё настроение</h2><p class="shelf-sub">Выбери жанр и погружайся</p></div><a href="#catalog" class="text-link">Весь каталог ↗</a></div><div class="genre-grid">'+genres+'</div></section>';
+ T.push(setInterval(()=>{hi++;var el=$("#hw");if(el)el.innerHTML=featured()},7000))
+};
 
-function rc(){var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.q||(d.n+(d.o||"")+d.g.join()).toLowerCase().includes(F.q)));$("#cr").innerHTML=a.length?a.map(d=>card(d)).join(""):'<p class="empty">Ничего не найдено</p>'}
-V.catalog=()=>{app.innerHTML='<h2>Каталог</h2><div class="chips">'+["",...GN].map(g=>'<button class="'+(F.g==g?"on":"")+'" data-a="g" data-v="'+g+'">'+(g||"Все")+'</button>').join("")+'</div><div class="inl" style="margin-bottom:14px"><select id="so">'+[["r","По рейтингу"],["y","По году"],["n","По названию"]].map(o=>'<option value="'+o[0]+'"'+(F.s==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></div><div class="row" id="cr"></div>';rc()};
+function rc(){var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.status||d.s===F.status)&&(!F.q||(d.n+(d.o||"")+d.g.join()).toLowerCase().includes(F.q)));$("#cr").innerHTML=a.length?a.map(d=>card(d)).join(""):'<p class="empty">Ничего не найдено</p>';var count=$("#result-count");if(count)count.textContent="Найдено: "+a.length}
+V.catalog=()=>{var statuses=[...new Set(D.map(d=>d.s).filter(Boolean))];app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Открой следующую историю</div><h1>Каталог аниме</h1><p>Подборка тайтлов, которые хочется посмотреть дальше.</p></div><div class="catalog-count"><b>'+D.length+'</b><span>тайтлов</span></div></div><div class="catalog-tools"><div class="chips">'+["",...GN].map(g=>'<button class="'+(F.g==g?"on":"")+'" data-a="g" data-v="'+g+'">'+(g||"Все жанры")+'</button>').join("")+'</div><div class="catalog-selects"><label>Статус<select id="status-filter"><option value="">Любой статус</option>'+statuses.map(s=>'<option value="'+s+'"'+(F.status===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label><label>Сортировка<select id="so">'+[["r","По рейтингу"],["y","По году"],["n","По названию"]].map(o=>'<option value="'+o[0]+'"'+(F.s==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label></div></div><div class="results-line"><b id="result-count"></b><span>Данные каталога AniList</span></div><div class="row" id="cr"></div>';rc()};
 
 V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0;
  app.innerHTML=(d.ban?'<div class="tb" style="background:'+bn(d)+'"></div>':"")+'<div class="tt"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><div><h1 id="tn">'+d.n+'</h1><p class="m">'+(d.o?d.o+" · ":"")+d.g.join(" · ")+' · '+d.y+' · ★ '+d.r+' · '+d.e+' эп. · '+d.s+'</p><p id="td">'+d.d+'</p><div class="acts"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Смотреть")+'</a><button class="btn ghost" data-a="fav" data-i="'+d.id+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><p class="m">Ваша оценка: '+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</p></div></div><h2>Серии</h2><div class="eps">'+eps(d,0)+'</div>'+row("Похожее",D.filter(x=>x.id!=d.id&&x.g.some(g=>d.g.includes(g))).slice(0,6).map(x=>card(x)));ru(d)};
@@ -100,7 +109,7 @@ document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
 document.addEventListener("input",e=>{var i=e.target.id;
  if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(location.hash!="#catalog")location.hash="catalog";else rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
-document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}});
+document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}});
 addEventListener("keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
  if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0)}else if(e.code=="ArrowRight")tick(10);else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0)}});
 addEventListener("hashchange",()=>{draw();scrollTo(0,0)});
