@@ -379,7 +379,7 @@ async function xaniPosters(L){
    (res.Page.media||[]).forEach(a=>{map[a.idMal]=a});
   }
   L.forEach(d=>{var a=map[d.mal];if(!a)return;d.aniId=a.id;d.img=a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large)||d.img;d.ban=a.bannerImage||d.ban;M[d.id]=d;S.shikiAnime[d.id]=d});
-  var cards=$$("#cr .card[data-anime-id]");
+  var cards=Array.from(document.querySelectorAll("#cr .card[data-anime-id]"));
   cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var p=c.querySelector(".poster");if(p){p.style.background=bg(d);var letter=p.querySelector("i");if(letter)letter.remove()}});
   sv();
  }catch(e){console.warn("[AniWatch] AniList poster lookup failed:",e)}
@@ -473,7 +473,7 @@ function renderHomeAiring(){
  if(!(location.hash===""||location.hash==="#home")||!xSC)return;
  var now=Date.now()/1000,upcoming={};
  xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
- $$(".card[data-anime-id]").forEach(c=>{
+ Array.from(document.querySelectorAll(".card[data-anime-id]")).forEach(c=>{
   var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
   var old=poster.querySelector(".poster-airing");if(old)old.remove();if(!x)return;
   var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
