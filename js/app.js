@@ -6,6 +6,7 @@ import { activePage as getActivePage, updateNavigation, renderRoute } from "./co
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
 import { renderCatalogPage } from "./pages/catalog.js";
 import { renderHomePage } from "./pages/home.js";
+import { renderAnimePage } from "./pages/anime.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -62,8 +63,11 @@ V.home=()=>{
 
 var rc;
 
-V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0,desc=cleanDesc(d.d),count=d.e>0?d.e+" эпизодов":"Количество серий уточняется";
- app.innerHTML='<section class="title-page"><div class="title-backdrop" style="background:'+bn(d)+'"></div><div class="title-layout"><div class="title-cover"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><span class="cover-caption">ANIME DETAILS</span></div><div class="title-info"><div class="title-kicker"><span class="live-dot"></span> ИНФОРМАЦИЯ ОБ АНИМЕ</div><h1 id="tn">'+d.n+'</h1><p class="title-original">'+(d.o||"")+'</p><div class="title-tags">'+d.g.map(g=>'<span>'+g+'</span>').join("")+'</div><div class="title-metrics"><div><b>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</b><small>РЕЙТИНГ</small></div><div><b>'+d.y+'</b><small>ГОД</small></div><div><b id="title-count" data-id="'+d.id+'">'+count+'</b><small>ЭПИЗОДЫ</small></div><div><b>'+(d.s||"Аниме")+'</b><small>СТАТУС</small></div></div><div class="title-description"><p id="td" class="desc-text'+(desc.length>260?" collapsed":"")+'">'+(d.source?esc(desc):desc)+'</p>'+(desc.length>260?'<button class="desc-toggle" type="button" data-a="desc" aria-expanded="false">Читать полностью <span>⌄</span></button>':"")+'</div><div class="title-list-status"><label for="anime-list-status">Мой статус</label><select id="anime-list-status" data-id="'+d.id+'"><option value="">Не добавлено</option>'+LISTS.map(x=>'<option value="'+x[0]+'"'+(S.watchlist[d.id]===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></div><div class="title-actions"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Начать просмотр")+'</a><button class="btn ghost title-fav-btn'+(f?" is-favorite":"")+'" data-a="fav" data-i="'+d.id+'" aria-pressed="'+f+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button><button class="btn ghost" type="button" data-a="random">🎲 Ещё случайное</button></div><div class="title-rating"><span>Ваша оценка</span>'+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</div></div></div></section><section class="title-episodes"><div class="title-section-head"><div><span class="title-kicker">ПРОСМОТР</span><h2>Список серий</h2></div><span class="episode-count">'+(d.e>0?d.e+" серий":"Серии")+'</span></div><div class="eps">'+eps(d,0)+'</div></section><div id="related-anime" class="related-loading"><section class="shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div><p class="related-state">Загружаем связи…</p></section><section class="shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации по этому тайтлу</p></div></div><p class="related-state">Подбираем похожие тайтлы…</p></section></div>';ru(d);loadRelated(d)};
+V.title=p=>{
+ var d=M[p[0]];if(!d)return V.home();
+ renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:eps});
+ ru(d);loadRelated(d)
+};
 
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
  var tc=$("#tc"),pg=$("#pg"),pl=$(".play");if(!tc||!pg||!pl)return;tc.textContent=fm(P.t);pg.style.width=P.t/DUR*100+"%";pl.textContent=P.on?"❚❚":"▶";if(s){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.now()};if(!tick.l||Date.now()-tick.l>5000){tick.l=Date.now();sv()}}}
