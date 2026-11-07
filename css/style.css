@@ -727,3 +727,69 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 
 /* Mobile featured carousel: show pagination dots, keep arrow buttons hidden. */
 @media(max-width:700px){.hero-arrow{display:none!important}.hero-dots{display:flex!important;bottom:8px;left:50%;gap:6px}.hero-dots button{display:block;width:6px;height:6px;min-width:6px;padding:0;background:rgba(255,255,255,.48)}.hero-dots button.on{width:19px;background:#fff}}
+
+
+/* Watch page refresh */
+.watch-page{display:grid;gap:20px;max-width:1440px;margin:0 auto}
+.watch-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;padding:4px 2px}
+.watch-back{display:inline-flex;align-items:center;gap:7px;color:#b9a2ef;font-size:12px;font-weight:700;margin-bottom:10px}
+.watch-head h1{font-size:clamp(23px,3vw,34px);line-height:1.15;letter-spacing:-.7px;margin:0 0 8px}
+.watch-head p{margin:0;color:var(--mt);font-size:12px}
+.watch-head p span{padding:0 5px;color:#8b6bce}
+.watch-mode{font-size:11px;font-weight:750;color:#b7a0e9;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.23);padding:9px 13px;border-radius:999px}
+.watch-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
+.watch-layout.has-chat{grid-template-columns:minmax(0,1fr) 320px}
+.watch-main{min-width:0;display:grid;gap:14px}
+.player-wrap{padding:7px;background:#090910;border:1px solid rgba(190,170,240,.14);border-radius:19px;box-shadow:0 18px 48px rgba(0,0,0,.28)}
+.player{border:0;border-radius:13px;box-shadow:none}
+.player-label{position:absolute;top:15px;left:17px;z-index:2;font-size:9px;font-weight:850;letter-spacing:1.4px;color:rgba(255,255,255,.78);text-shadow:0 2px 8px #000}
+.player-label i{font-style:normal;color:#b99aff;padding:0 4px}
+.play{width:68px;height:68px;background:rgba(125,83,220,.92);backdrop-filter:blur(8px)}
+.cap{font-size:13px;font-weight:700}
+.watch-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:4px 2px}
+.watch-toolbar>div:first-child{display:flex;align-items:baseline;gap:7px}
+.watch-toolbar>div:first-child b{font-size:15px}
+.watch-toolbar>div:first-child span{font-size:11px;color:var(--mt)}
+.watch-toolbar .nv{margin:0;gap:8px}
+.watch-toolbar .btn{padding:9px 13px;font-size:11px}
+.watch-hint{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:rgba(255,255,255,.025);border:1px solid var(--ln);border-radius:12px}
+.watch-hint>span{color:#b99aff;font-size:15px}
+.watch-hint p{margin:0;color:var(--mt);font-size:11px;line-height:1.6}
+.watch-episodes{padding:16px;background:linear-gradient(145deg,rgba(25,25,40,.88),rgba(15,15,24,.88));border:1px solid var(--ln);border-radius:16px}
+.watch-section-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.watch-section-title .eyebrow{font-size:9px;letter-spacing:1.4px}
+.watch-section-title h2{font-size:19px;margin:4px 0 0}
+.watch-section-title>span{font-size:11px;color:var(--mt)}
+.watch-episodes .eps{margin:14px 0 0}
+.watch-room{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid rgba(139,92,246,.28);background:rgba(139,92,246,.09);border-radius:13px}
+.watch-room>div{display:grid;gap:3px}
+.watch-room b{font-size:11px}
+.watch-room small{font-size:10px;color:var(--mt)}
+.room-leave{font-size:10px;color:#d6c8f5;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:7px 9px;margin-left:4px}
+.chat{height:min(620px,calc(100vh - 190px));min-height:390px;border-radius:16px;background:linear-gradient(160deg,#171622,#101019)}
+.chat-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--ln)}
+.chat-head>div{display:flex;align-items:center;gap:9px}
+.chat-head h3{padding:0;border:0;font-size:12px}
+.chat-head small{display:block;font-size:9px;color:var(--mt);margin-top:3px}
+.chat-online{font-size:9px;color:#a6e3b5;white-space:nowrap}
+.chat-online:first-letter{color:#5bd58a}
+#ms .chat-empty{font-size:11px;line-height:1.6;color:var(--mt);text-align:center;margin:auto;padding:20px}
+@media(max-width:1000px){.watch-layout.has-chat{grid-template-columns:minmax(0,1fr) 280px}}
+@media(max-width:760px){
+ .watch-page{gap:14px}
+ .watch-head{align-items:flex-start}
+ .watch-head h1{font-size:22px}
+ .watch-layout.has-chat{grid-template-columns:minmax(0,1fr)}
+ .player-wrap{padding:4px;border-radius:14px}
+ .player{border-radius:10px}
+ .play{width:54px;height:54px;font-size:20px}
+ .cap{left:12px;top:12px;font-size:11px}
+ .player-label{left:12px;top:10px;font-size:8px}
+ .ctl{left:10px;right:10px;bottom:9px;gap:8px}
+ .watch-toolbar{align-items:flex-start}
+ .watch-toolbar .nv{width:100%}
+ .watch-toolbar .btn{flex:1;justify-content:center;text-align:center}
+ .watch-episodes{padding:12px}
+ .chat{height:330px;min-height:330px}
+ .watch-room{padding:7px 9px}
+}
