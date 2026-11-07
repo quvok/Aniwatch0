@@ -89,7 +89,7 @@ function touchWatchHistory(completed){if(!P||!P.d)return;var id=P.d.id,ep=P.n,li
 function saveWatchProgress(){if(!P||!P.d)return;if(P.t>0)S.hist[P.d.id]={ep:P.n,t:Math.min(DUR,P.t),at:Date.now()};touchWatchHistory(false);sv()}
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
  $("#tc").textContent=fm(P.t);$("#pg").style.width=P.t/DUR*100+"%";$(".play").textContent=P.on?"❚❚":"▶";if(P.t>0)saveWatchProgress()}
-function nextEp(){var d=P.d,n=P.n;touchWatchHistory(true);if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};P.n=n+1;P.t=0;AP=true;sv();toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];P=null;sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
+function nextEp(){var d=P.d,n=P.n;touchWatchHistory(true);if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};P.n=n+1;P.t=0;P.on=true;AP=true;sv();roomSync();toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];P=null;sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
 V.watch=p=>{
  var d=M[p[0]];if(!d)return V.home();
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(d.e>0)n=Math.min(n,d.e);
@@ -104,7 +104,7 @@ V.watch=p=>{
  '</div>'+
  (inRoom?'<aside class="chat"><div class="chat-head"><div><span class="live-dot"></span><div><h3>Чат комнаты</h3><small>Совместный просмотр · '+esc(S.room)+'</small></div></div><span class="chat-online">● В комнате</span></div><div id="ms"><p class="chat-empty">Начните общение — сообщения появятся здесь.</p></div><form id="cf"><input id="ci" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">➤</button></form></aside>':"")+
  '</div></section>';
- tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000))
+ tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000));if(inRoom)T.push(setInterval(()=>{if(P&&P.on)roomSync()},5000))
 };
 
 var roomSocket=null,roomSocketRoom="",roomNeedInitialState=false;
