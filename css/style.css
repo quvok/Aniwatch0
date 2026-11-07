@@ -652,3 +652,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
  .title-actions{flex-direction:column;align-items:stretch;width:100%}
  .title-actions .btn{justify-content:center}
 }
+
+
+/* Strong, unmistakable saved-to-favorites state */
+.poster-fav{color:#fff!important;background:rgba(10,11,19,.88)!important;border:1px solid rgba(255,255,255,.42)!important;text-shadow:0 1px 5px rgba(0,0,0,.8)}
+.poster-fav.active,.poster-fav.is-favorite{color:#fff!important;background:#e83e83!important;border:2px solid #ff9ac2!important;box-shadow:0 0 0 3px rgba(232,62,131,.2),0 0 22px rgba(255,65,145,.62)!important;text-shadow:0 1px 4px rgba(90,0,40,.6);transform:scale(1.06)}
+.poster-fav.active:hover,.poster-fav.is-favorite:hover{background:#ff5598!important;transform:scale(1.13)}
+.title-fav-btn.is-favorite{background:#e83e83!important;border-color:#ff9ac2!important;color:#fff!important;box-shadow:0 0 18px rgba(255,65,145,.3)}
