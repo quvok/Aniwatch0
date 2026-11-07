@@ -579,3 +579,76 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 
 /* Mobile hero swipe: keep vertical page scrolling native while tracking horizontal gestures. */
 #hw .hero-editorial{touch-action:pan-y;}
+
+
+/* Anime title page — cinematic detail layout */
+.title-page{position:relative;isolation:isolate;overflow:hidden;margin:0 0 34px;border:1px solid rgba(190,197,230,.13);border-radius:24px;background:#10111b;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.title-backdrop{position:absolute;inset:0;z-index:-2;background-size:cover!important;background-position:center 35%!important;filter:saturate(.8)}
+.title-page:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(8,9,16,.97) 0%,rgba(8,9,16,.9) 44%,rgba(8,9,16,.67) 100%),linear-gradient(0deg,#080910 0%,transparent 70%)}
+.title-layout{display:grid;grid-template-columns:245px minmax(0,1fr);gap:clamp(25px,4vw,54px);align-items:center;padding:clamp(25px,4vw,48px)}
+.title-cover{display:grid;gap:12px;justify-items:center}
+.title-cover .poster.big{width:100%;aspect-ratio:2/3;max-width:245px;border-radius:16px;border:1px solid rgba(255,255,255,.2);box-shadow:0 24px 55px rgba(0,0,0,.55);background-size:cover!important;background-position:center!important}
+.cover-caption{font-size:9px;letter-spacing:.22em;color:rgba(231,225,255,.6);font-weight:800}
+.title-info{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:15px}
+.title-kicker{display:flex;align-items:center;gap:8px;color:#c4b5fd;font-size:10px;font-weight:850;letter-spacing:.17em}
+.title-info h1{font-size:clamp(30px,4.4vw,54px);line-height:1.04;letter-spacing:-.045em;text-wrap:balance;overflow-wrap:anywhere}
+.title-original{margin:-8px 0 0;color:#a7a9bb;font-size:13px}
+.title-tags{display:flex;flex-wrap:wrap;gap:7px}
+.title-tags span{padding:6px 11px;border-radius:999px;border:1px solid rgba(196,181,253,.2);background:rgba(139,92,246,.13);color:#e3d9ff;font-size:10px;font-weight:700}
+.title-metrics{display:flex;flex-wrap:wrap;gap:0;border-block:1px solid rgba(255,255,255,.11);width:100%;padding:13px 0}
+.title-metrics div{display:grid;gap:4px;padding:0 22px;border-left:1px solid rgba(255,255,255,.1)}
+.title-metrics div:first-child{padding-left:0;border-left:0}
+.title-metrics b{font-size:15px;color:#f5f1ff}
+.title-metrics small{font-size:8px;letter-spacing:.14em;color:#9295a9;font-weight:800}
+.title-description{max-width:850px}
+.title-description .desc-text{font-size:13px;line-height:1.75;color:#d0d1df}
+.title-description .desc-text.collapsed{-webkit-line-clamp:3}
+.title-description .desc-toggle{margin-top:5px}
+.title-actions{display:flex;gap:10px;flex-wrap:wrap}
+.title-rating{display:flex;align-items:center;gap:4px}
+.title-rating>span{font-size:11px;color:#a4a7b9;margin-right:8px}
+.title-rating .st{font-size:21px}
+.title-episodes{padding:3px 2px 12px}
+.title-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 15px}
+.title-section-head h2{margin:5px 0 0;font-size:25px;letter-spacing:-.04em}
+.episode-count{color:#a8aabc;font-size:11px;padding:7px 11px;border:1px solid var(--ln);border-radius:9px;background:rgba(255,255,255,.035)}
+.title-episodes .eps{padding:16px;background:rgba(19,21,33,.7);border:1px solid var(--ln);border-radius:15px;margin:0}
+.title-episodes .eps a{min-width:48px;padding:10px 13px;border-radius:9px;background:#191a29}
+@media(max-width:700px){
+ .title-page{margin:0 -2px 27px;border-radius:17px}
+ .title-page:before{background:linear-gradient(180deg,rgba(8,9,16,.64),rgba(8,9,16,.96) 33%,#080910 100%)}
+ .title-backdrop{background-position:center top!important}
+ .title-layout{grid-template-columns:104px minmax(0,1fr);gap:15px;align-items:start;padding:17px 14px 20px}
+ .title-cover{gap:7px}
+ .title-cover .poster.big{width:104px;border-radius:10px;box-shadow:0 12px 28px rgba(0,0,0,.5)}
+ .cover-caption{font-size:7px;letter-spacing:.12em}
+ .title-info{gap:10px}
+ .title-kicker{font-size:8px;letter-spacing:.11em}
+ .title-info h1{font-size:clamp(21px,6vw,29px);line-height:1.08}
+ .title-original{font-size:10px;margin-top:-5px}
+ .title-tags{gap:5px}
+ .title-tags span{font-size:8px;padding:5px 7px}
+ .title-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:10px 0}
+ .title-metrics div{padding:0 0 0 9px;border-left:1px solid rgba(255,255,255,.1)}
+ .title-metrics div:nth-child(odd){padding-left:0;border-left:0}
+ .title-metrics b{font-size:11px}
+ .title-metrics small{font-size:7px}
+ .title-description{grid-column:1/-1}
+ .title-description .desc-text{font-size:11px;line-height:1.55}
+ .title-description .desc-text.collapsed{-webkit-line-clamp:4}
+ .title-actions{gap:7px}
+ .title-actions .btn{font-size:10px;padding:9px 10px}
+ .title-rating{gap:2px;flex-wrap:wrap}
+ .title-rating>span{font-size:9px;margin-right:3px}
+ .title-rating .st{font-size:18px}
+ .title-section-head h2{font-size:20px}
+ .title-episodes .eps{padding:11px;gap:7px}
+ .title-episodes .eps a{min-width:40px;padding:9px 10px;font-size:11px}
+}
+@media(max-width:390px){
+ .title-layout{grid-template-columns:88px minmax(0,1fr);gap:11px;padding:14px 11px}
+ .title-cover .poster.big{width:88px}
+ .title-info h1{font-size:21px}
+ .title-actions{flex-direction:column;align-items:stretch;width:100%}
+ .title-actions .btn{justify-content:center}
+}
