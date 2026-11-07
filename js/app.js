@@ -423,7 +423,7 @@ async function xcq(reset){if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=
   var cr=$("#cr");if(!cr)return;cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
   xrn(L).then(()=>{if(k!=xCF.k)return;L.forEach(d=>{var el=document.querySelector('.card[href="#title-'+d.id+'"] b');if(el)el.textContent=d.n})}).catch(()=>{});
   xCF.p++;xCF.more=!v.m&&pg.pageInfo.hasNextPage;xCF.busy=false;
-  $("#cc").textContent=v.m?L.length:pg.pageInfo.total;box.textContent=(L.length||xCF.p>2)?(xCF.more?"":"Это все результаты"):"Ничего не найдено"
+  $("#cc").textContent=v.m?L.length:pg.pageInfo.total;box.innerHTML=xCF.more?'<button class="btn ghost" type="button" data-xr="1">Загрузить ещё</button>':((L.length||xCF.p>2)?"Это все результаты":"Ничего не найдено")
  }catch(e){if(k==xCF.k){xCF.busy=false;var b=$("#more");if(b)b.innerHTML='Не удалось загрузить. <button class="btn ghost" data-xr="1">Повторить</button>'}}}
 document.addEventListener("change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o"}[e.target.id];if(m){xCF[m]=e.target.value;xcq(true)}});
 document.addEventListener("input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
@@ -464,7 +464,7 @@ function awEnsureCollections(){if(!Array.isArray(S.collections))S.collections=[]
 function awCollectionPage(){
  var list=awEnsureCollections();
  app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">ТВОИ ПОДБОРКИ</div><h1>Коллекции</h1><p>Создавай тематические подборки и складывай в них любимые тайтлы.</p></div><button class="btn" type="button" data-a="collection-create">＋ Новая коллекция</button></div>'+
- (list.length?'<div class="aw-collection-grid">'+list.map(c=>'<section class="aw-collection"><div><b>'+esc(c.name)+'</b><small>'+c.ids.length+' аниме</small></div><div class="row">'+c.ids.filter(id=>M[id]).slice(0,4).map(id=>card(M[id])).join('')+'</div><div class="aw-collection-actions"><button class="btn ghost" data-a="collection-open" data-v="'+esc(c.id)+'">Открыть</button><button class="btn ghost" data-a="collection-delete" data-v="'+esc(c.id)+'">Удалить</button></div></section>').join(''):'<p class="empty">Пока нет коллекций. Создай первую подборку.</p>');
+ (list.length?'<div class="aw-collection-grid">'+list.map(c=>'<section class="aw-collection"><div><b>'+esc(c.name)+'</b><small>'+c.ids.length+' аниме</small></div><div class="row">'+c.ids.filter(id=>M[id]).slice(0,4).map(id=>card(M[id])).join('')+'</div><div class="aw-collection-actions"><button class="btn ghost" data-a="collection-open" data-v="'+esc(c.id)+'">Открыть</button><button class="btn ghost" data-a="collection-delete" data-v="'+esc(c.id)+'">Удалить</button></div></section>').join('')+'</div>':'<p class="empty">Пока нет коллекций. Создай первую подборку.</p>');
 }
 function awCollectionDetail(id){
  var c=awEnsureCollections().find(x=>String(x.id)===String(id));if(!c)return awCollectionPage();
@@ -532,7 +532,7 @@ V.profile=()=>{awOldProfile();var root=$(".profile-notice");if(root)root.insertA
 var awOldTitle=V.title;
 V.title=p=>{awOldTitle(p);var actions=$(".title-actions");if(actions)actions.insertAdjacentHTML("beforeend",'<button class="btn ghost" type="button" data-a="collection-add" data-i="'+Number(p[0])+'">＋ В коллекцию</button>')};
 V.catalog=()=>{
- xCF.q=F.q||"";xCF.g=F.g||"";xCF.y="";xCF.st=F.status||"";xCF.f="";xCF.o=F.s==="r"?"POPULARITY_DESC":F.s==="y"?"START_DATE_DESC":"TITLE_ROMAJI";
+ xCF.q=F.q||"";xCF.g=Object.keys(GR).find(k=>GR[k]===F.g)||F.g||"";xCF.y="";xCF.st=F.status==="Онгоинг"?"RELEASING":F.status==="Завершён"?"FINISHED":F.status==="Скоро"?"NOT_YET_RELEASED":F.status||"";xCF.f="";xCF.o=F.s==="r"?"POPULARITY_DESC":F.s==="y"?"START_DATE_DESC":"TITLE_ROMAJI";
  app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">ПОИСК ПО ANILIST</div><h1>Каталог аниме</h1><p>Ищи по названию и настраивай подборку по жанру, году, статусу и формату.</p></div><div class="catalog-count"><b id="cc">—</b><span>результатов</span></div></div><input class="cat-search" id="cs" value="'+esc(xCF.q)+'" placeholder="Название аниме…" autocomplete="off">'+
  '<div class="catalog-tools aw-catalog-filters">'+xsel("cf-g","Жанр",xCF.g,xGL.map(g=>[g,GR[g]||g]),"Все жанры")+xsel("cf-y","Год",xCF.y,Array.from({length:40},(_,i)=>{var y=new Date().getFullYear()-i;return[String(y),String(y)]}),"Любой год")+xsel("cf-st","Статус",xCF.st,xST,"Любой статус")+xsel("cf-f","Формат",xCF.f,xFM,"Любой формат")+xsel("cf-o","Сортировка",xCF.o,xSO)+'</div><div class="results-line"><b>Результаты поиска</b><span>Данные AniList · исключая 18+</span></div><div class="row" id="cr"></div><div id="more" class="aw-more"><button class="btn ghost" type="button" data-xr="1">Загрузить ещё</button></div>';
  xcq(true);
