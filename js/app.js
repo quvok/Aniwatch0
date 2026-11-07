@@ -298,22 +298,23 @@ async function translateRelated(list){
 }
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
- var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
+ var sid=Number(d.source==="shikimori"?d.id:d.mal)||Number(d.id);if(!sid)return;
+ var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[sid];
  if(saved&&saved.v===5&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
- if(relatedPending[d.id])return relatedPending[d.id];
- relatedPending[d.id]=(async()=>{
+ if(relatedPending[sid])return relatedPending[sid];
+ relatedPending[sid]=(async()=>{
   try{
-   var pair=await Promise.all([shikiGet("/animes/"+encodeURIComponent(d.id)+"/related",12*3600e3),shikiGet("/animes/"+encodeURIComponent(d.id)+"/similar",12*3600e3)]);
+   var pair=await Promise.all([shikiGet("/animes/"+encodeURIComponent(sid)+"/related",12*3600e3),shikiGet("/animes/"+encodeURIComponent(sid)+"/similar",12*3600e3)]);
    var relMap={sequel:"SEQUEL",prequel:"PREQUEL",side_story:"SIDE_STORY",parent_story:"PARENT_STORY",alternative_version:"ALTERNATIVE",alternative_setting:"ALTERNATIVE_SETTING",spin_off:"SPIN_OFF",summary:"SUMMARY",full_story:"FULL_STORY",other:"OTHER"};
    var relations=(Array.isArray(pair[0])?pair[0]:[]).filter(x=>x&&x.anime).map(x=>({type:relMap[String(x.relation||"").toLowerCase().replace(/\s+/g,"_")]||"OTHER",anime:smp(x.anime)}));
-   var recommendations=(Array.isArray(pair[1])?pair[1]:[]).map(smp).filter(x=>x.id!==d.id).slice(0,12);
+   var recommendations=(Array.isArray(pair[1])?pair[1]:[]).map(smp).filter(x=>x.id!==sid).slice(0,12);
    var data={v:5,relations:relations,recommendations:recommendations,creatorName:"",creatorWorks:[],at:Date.now()};
    relations.forEach(x=>M[x.anime.id]=x.anime);recommendations.forEach(x=>M[x.id]=x);
-   cached[d.id]=data;sv();renderRelated(d,data);
+   cached[sid]=data;sv();renderRelated(d,data);
   }catch(e){var el=$("#related-anime");if(el&&location.hash==="#title-"+d.id)el.innerHTML='<section class="shelf"><h2>Связанные аниме</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p></section>'}
-  finally{delete relatedPending[d.id]}
+  finally{delete relatedPending[sid]}
  })();
- return relatedPending[d.id];
+ return relatedPending[sid];
 }
 function renderRelated(d,data){
  var root=$("#related-anime");if(!root||location.hash!=="#title-"+d.id)return;
@@ -325,7 +326,7 @@ function renderRelated(d,data){
  if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
  var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
- root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации AniList для этого тайтла</p></div></div>'+recHtml+'</section>';
+ root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации Shikimori для этого тайтла</p></div></div>'+recHtml+'</section>';
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
@@ -334,9 +335,10 @@ function refreshEpCount(d){
 }
 async function ru(d){
  if(!d||!d.id)return;
- var c=S.ru=S.ru||{},r=c[d.id];
+ var sid=Number(d.source==="shikimori"?d.id:d.mal)||0;if(!sid)return;
+ var c=S.ru=S.ru||{},r=c[sid];
  if(r&&r.at&&Date.now()-r.at<7*864e5){if(r.n)d.n=esc(r.n);if(r.d)d.d=cleanDesc(r.d);if(r.e&&!d.e)d.e=Number(r.e);d.nextEpisodeAt=r.nextEpisodeAt||d.nextEpisodeAt;refreshEpCount(d);return}
- try{var j=await shikiGet("/animes/"+encodeURIComponent(d.id),7*864e5);r=c[d.id]={n:j.russian||j.name||d.n,d:j.description||d.d,e:Number(j.episodes)||d.e||0,nextEpisodeAt:j.next_episode_at||null,at:Date.now()};if(r.n){d.o=esc(j.name||d.o||"");d.n=esc(r.n)}if(r.d)d.d=cleanDesc(r.d);if(r.e)d.e=r.e;d.nextEpisodeAt=r.nextEpisodeAt;sv()}catch(e){}
+ try{var j=await shikiGet("/animes/"+encodeURIComponent(sid),7*864e5);r=c[sid]={n:j.russian||j.name||d.n,d:j.description||d.d,e:Number(j.episodes)||d.e||0,nextEpisodeAt:j.next_episode_at||null,at:Date.now()};if(r.n){d.o=esc(j.name||d.o||"");d.n=esc(r.n)}if(r.d)d.d=cleanDesc(r.d);if(r.e)d.e=r.e;d.nextEpisodeAt=r.nextEpisodeAt;sv()}catch(e){}
  refreshEpCount(d);var h=$("#tn"),p=$("#td"),fp=$("#featured-desc");
  if(location.hash==="#title-"+d.id){if(h)h.textContent=d.n;if(p&&d.d)p.textContent=cleanDesc(d.d)}
  if(fp&&fp.dataset.id==d.id&&d.d)fp.textContent=shortDesc(d.d,190)
@@ -488,12 +490,12 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-xr]"))xcq();var
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
 async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return xSC;var st=new Date();st.setHours(0,0,0,0);var a=Math.floor(st/1000),out=[];
  for(var p=1;p<=1;p++){var pg=(await xgq(xSQ,{a:a,b:a+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules)}
- out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.id]||(M[x.media.id]=mp(x.media)));
+ out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.idMal]||M[x.media.id]||(M[x.media.id]=mp(x.media)));
  await xrn([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
 function renderHomeAiring(){
  if(!(location.hash===""||location.hash==="#home")||!xSC)return;
  var now=Date.now()/1000,upcoming={};
- xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
+ xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.idMal;if(id&&!upcoming[id])upcoming[id]=x});
  $$(".card[data-anime-id]").forEach(c=>{  var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
   var old=poster.querySelector(".poster-airing");if(old)old.remove();if(!x)return;
   var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});  var tag=document.createElement("span");tag.className="poster-airing";tag.textContent="Серия "+x.episode+" · "+day+", "+time;poster.appendChild(tag);
@@ -509,13 +511,14 @@ V.schedule=()=>{xSD=0;app.innerHTML='<div class="catalog-heading"><div><div clas
 var xvt=V.title;V.title=p=>{xvt(p);xex(+p[0])};
 async function xex(id){
  var d=M[id];if(!d||location.hash!="#title-"+id||!$(".title-info"))return;
+ var sid=Number(d.source==="shikimori"?d.id:d.mal)||0;if(!sid)return;
  await ru(d);var next=d.nextEpisodeAt;
  if(next&&!$("#nx")){
   var ds=$(".title-description"),el=document.createElement("div");el.id="nx";el.className="next-ep";if(ds)ds.parentNode.insertBefore(el,ds);
   var up=()=>{var ts=new Date(next).getTime()/1000,seconds=ts-Date.now()/1000;el.textContent=seconds>0?"Следующая серия выйдет через "+xcd(seconds):"Следующая серия уже вышла"};up();T.push(setInterval(up,3e4))
  }
  if(!$("#trl")){try{
-  var videos=await shikiGet("/animes/"+encodeURIComponent(id)+"/videos",24*3600e3);
+  var videos=await shikiGet("/animes/"+encodeURIComponent(sid)+"/videos",24*3600e3);
   var v=(Array.isArray(videos)?videos:[]).find(x=>x&&x.url&&(/pv|trailer/i.test((x.kind||"")+" "+(x.name||""))||/youtube|youtu/i.test(x.url)));
   if(v&&location.hash==="#title-"+id){
    var url=String(v.url),vid="",parts;
@@ -528,7 +531,7 @@ async function xex(id){
 }
 
 
-// ---- AniWatch: расширение платформы// ---- AniWatch: расширение платформы (локальные коллекции, статистика, достижения, discovery, backup) ----
+// ---- AniWatch: расширение платформы// ---- AniWatch: расширение платформы// ---- AniWatch: расширение платформы (локальные коллекции, статистика, достижения, discovery, backup) ----
 function awEnsureCollections(){if(!Array.isArray(S.collections))S.collections=[];return S.collections}
 function awCollectionPage(){
  var list=awEnsureCollections();
