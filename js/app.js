@@ -317,8 +317,6 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="acc"){S.acc=v;sv();hd()}
- else if(a=="auth-mode"){authMode=authMode==="login"?"register":"login";renderProfile()}
- else if(a=="signout"&&sbClient){sbClient.auth.signOut().then(()=>{currentUser=null;toast("Вы вышли из аккаунта");renderProfile()})}
  else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}});
 document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
