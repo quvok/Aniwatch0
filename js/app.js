@@ -290,7 +290,7 @@ async function boot(){S=await initializeLocalState(S,value=>{S=value});app.inner
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
 HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
-homeCollections=null,
+homeCollections=null;
 async function loadHomeCollections(){
  var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v1")||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
@@ -304,8 +304,8 @@ async function loadHomeCollections(){
  homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent).forEach(d=>M[d.id]=d);
  if(homeCollections.trending.length)H=homeCollections.trending;
  return homeCollections;
-},
-xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
+}
+var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",st:"",f:"",o:"POPULARITY_DESC",q:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
