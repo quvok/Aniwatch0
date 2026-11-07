@@ -472,7 +472,7 @@ async function xcq(reset){
 async function xrandom(){
  app.innerHTML='<section class="random-page"><div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Подберём случайный тайтл из каталога Shikimori.</p><div class="random-loader"><span class="live-dot"></span> Ищем аниме…</div></section>';
  try{
-  var res=await fetch("https://shikimori.io/api/animes/random",{headers:{Accept:"application/json"}});
+  var res=await fetch("https://shikimori.io/api/animes?limit=1&order=random",{headers:{Accept:"application/json"}});
   if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
   var a=await res.json();if(Array.isArray(a))a=a[0];
   if(a&&a.anime)a=a.anime;
