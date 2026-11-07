@@ -1,1 +1,1 @@
-window.ANIWATCH_CONFIG=Object.assign({websocketUrl:"",anilistProxyUrl:""},window.ANIWATCH_CONFIG||{});
+window.ANIWATCH_CONFIG=Object.assign({websocketUrl:""},window.ANIWATCH_CONFIG||{});
