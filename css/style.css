@@ -721,3 +721,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 /* Personal anime lists */
 .list-status-label{display:flex;flex-direction:column;gap:6px;color:#b9b4ca;font-size:10px;font-weight:750;letter-spacing:.04em}.list-status-label select{min-width:155px;padding:10px 12px;border:1px solid rgba(196,181,253,.22);border-radius:10px;background:#171827;color:#f1edff;font:inherit;font-size:12px;letter-spacing:0}.list-chips{margin:12px 0 22px}.list-chips button span{display:inline-grid;place-items:center;min-width:19px;height:19px;margin-left:5px;padding:0 5px;border-radius:20px;background:rgba(255,255,255,.1);font-size:10px}.list-results{margin-top:18px}
 @media(max-width:700px){.list-status-label{width:100%}.list-status-label select{width:100%}}
+
+/* Hide hero action buttons on mobile; keep swipe navigation available. */
+@media(max-width:700px){.hero-editorial .acts{display:none!important}}
