@@ -1,0 +1,28 @@
+name: Validate AniWatch
+
+on:
+  push:
+    branches: [redesign/product-audit-2026-11-08]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check all JavaScript modules
+        run: |
+          set -e
+          for file in $(find js -type f -name '*.js' | sort); do
+            echo "Checking $file"
+            node --check "$file"
+          done
