@@ -163,7 +163,7 @@ function shikiWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function shikiGet(path,ttl){
  ttl=ttl==null?15*60e3:ttl;var key=path,now=Date.now(),hit=shikiMemory[key];
  if(ttl>0&&hit&&now-hit.at<ttl)return hit.data;
- if(ttl>0){try{var store=JSON.parse(localStorage.getItem("aw-shiki-cache")||"{}"),saved=store[key];if(saved&&now-saved.at<Math.max(ttl,6*3600e3)){shikiMemory[key]=saved;return saved.data}}catch(e){}}
+ if(ttl>0){try{var store=JSON.parse(localStorage.getItem("aw-shiki-cache")||"{}"),saved=store[key];if(saved&&now-saved.at<ttl){shikiMemory[key]=saved;return saved.data}}catch(e){}}
  if(shikiInflight[key])return shikiInflight[key];
  var task=shikiQueue.then(async()=>{var gap=700-(Date.now()-shikiLast);if(gap>0)await shikiWait(gap);var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000),res;try{res=await fetch(shikiUrl(path),{signal:ctl.signal,headers:{Accept:"application/json"}})}finally{clearTimeout(tm)}shikiLast=Date.now();if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);var data=await res.json();if(ttl>0){var entry={at:Date.now(),data:data};shikiMemory[key]=entry;try{var all=JSON.parse(localStorage.getItem("aw-shiki-cache")||"{}");all[key]=entry;var keys=Object.keys(all).sort((a,b)=>all[b].at-all[a].at).slice(0,8),out={};keys.forEach(k=>out[k]=all[k]);localStorage.setItem("aw-shiki-cache",JSON.stringify(out))}catch(e){}}return data});
  shikiQueue=task.catch(()=>{});shikiInflight[key]=task;try{return await task}catch(e){if(ttl>0){try{var old=JSON.parse(localStorage.getItem("aw-shiki-cache")||"{}")[key];if(old&&Date.now()-old.at<7*864e5)return old.data}catch(err){}}throw e}finally{delete shikiInflight[key]}
@@ -366,7 +366,7 @@ async function boot(){
  idx();var migrated=await xMigrateLegacyIds();if(migrated)await xhyd();draw()
 }
 
-// ---- v2: каталог по всей базе Shikimori// ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
+// ---- v2: каталог Shikimori; расписание AniList и трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
 xCQ="query($p:Int,$s:String,$g:String,$y:Int,$st:MediaStatus,$f:MediaFormat,$o:[MediaSort],$m:[Int]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre:$g,seasonYear:$y,status:$st,format:$f,sort:$o,idMal_in:$m){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
