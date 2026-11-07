@@ -8,6 +8,7 @@ import { renderCatalogPage } from "./pages/catalog.js";
 import { renderHomePage } from "./pages/home.js";
 import { renderAnimePage } from "./pages/anime.js";
 import { renderWatchPage } from "./pages/watch.js";
+import { renderSchedulePage, renderRandomLoading, renderRandomError } from "./pages/discovery.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -387,7 +388,7 @@ async function xcq(reset){
  }
 }
 async function xrandom(){
- app.innerHTML='<section class="random-page"><div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Подберём случайный тайтл из каталога Shikimori.</p><div class="random-loader"><span class="live-dot"></span> Ищем аниме…</div></section>';
+ renderRandomLoading(app);
  try{
   var a=await fetchRandomAnime();
   var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
@@ -398,7 +399,7 @@ async function xrandom(){
   if(location.hash==="#random")location.hash="title-"+id;
  }catch(e){
   console.error("[AniWatch] Random anime:",e);
-  var box=$(".random-page");if(box)box.innerHTML='<div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Не получилось получить случайный тайтл из Shikimori.</p><button class="btn" type="button" data-a="random">Попробовать ещё раз</button><a class="btn ghost" href="#catalog">Открыть каталог</a>';
+  renderRandomError(app);
   toast("Не удалось выбрать случайное аниме");
  }
 }
@@ -428,7 +429,7 @@ function loadHomeAiring(){xloadSch().then(()=>renderHomeAiring()).catch(e=>conso
 function xsch(){if(!xSC||!$("#slist"))return;var st=new Date();st.setHours(0,0,0,0);var b=st/1000+xSD*86400,now=Date.now()/1000,L=xSC.a.filter(x=>x.airingAt>=b&&x.airingAt<b+86400);
  $("#sdays").innerHTML=[0,1,2,3,4,5,6].map(i=>'<button class="'+(i==xSD?"on":"")+'" data-sd="'+i+'">'+(i==0?"Сегодня":i==1?"Завтра":new Date((st/1000+i*86400)*1000).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric"}))+'</button>').join("");
  $("#slist").innerHTML=L.length?L.map(x=>{var d=x.m;return'<a class="sch-row" href="#title-'+d.id+'"><b class="sch-t">'+new Date(x.airingAt*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</b><div class="sch-p" style="background:'+bg(d)+'"></div><div class="sch-i"><span>'+d.n+'</span><small>Серия '+x.episode+' · '+(x.airingAt>now?"через "+xcd(x.airingAt-now):"вышла")+'</small></div></a>'}).join(""):'<p class="empty">В этот день серий нет</p>'}
-V.schedule=()=>{xSD=0;app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Время вашего устройства</div><h1>Расписание серий</h1><p>Что выходит ближайшие 7 дней и сколько осталось до новой серии.</p></div></div><div class="chips" id="sdays"></div><div id="slist"><p class="empty">Загрузка…</p></div>';
+V.schedule=()=>{xSD=0;renderSchedulePage(app);
  xloadSch().then(()=>{if(location.hash=="#schedule"){xsch();T.push(setInterval(xsch,6e4))}}).catch(()=>{var s=$("#slist");if(s)s.innerHTML='<p class="empty">Не удалось загрузить расписание. Попробуйте позже.</p>'})};
 // страница тайтла: таймер следующей серии и трейлер
 var xvt=V.title;V.title=p=>{xvt(p);xex(+p[0])};
