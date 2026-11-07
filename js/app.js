@@ -19,6 +19,19 @@ var M={},H=[];
 var $=s=>document.querySelector(s),app=$("#app"),S=ld(),F={g:"",s:"r",q:""},T=[],P=null,AP=false,V={};
 function ld(){try{return JSON.parse(localStorage.getItem("aw"))||{}}catch(e){return{}}}
 function sv(){try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}}
+
+var DBP=null;
+function openDB(){
+ if(!("indexedDB" in window))return Promise.resolve(null);
+ if(DBP)return DBP;
+ DBP=new Promise(resolve=>{var q=indexedDB.open("AniWatchDB",1);
+ q.onupgradeneeded=()=>{var db=q.result;if(!db.objectStoreNames.contains("catalog"))db.createObjectStore("catalog");if(!db.objectStoreNames.contains("anime"))db.createObjectStore("anime",{keyPath:"id"})};
+ q.onsuccess=()=>resolve(q.result);q.onerror=()=>resolve(null)});
+ return DBP;
+}
+async function dbGet(store,key){var db=await openDB();if(!db)return null;return new Promise(resolve=>{try{var q=db.transaction(store,"readonly").objectStore(store).get(key);q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>resolve(null)}catch(e){resolve(null)}})}
+async function dbPut(store,value,key){var db=await openDB();if(!db)return false;return new Promise(resolve=>{try{var tx=db.transaction(store,"readwrite"),st=tx.objectStore(store);if(store==="catalog")st.put(value,key);else st.put(value);tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false)}catch(e){resolve(false)}})}
+async function saveCatalog(){await dbPut("catalog",{id:"current",t:Date.now(),a:D,nextPage:nextAniPage},"current");try{localStorage.setItem("awc",JSON.stringify({t:Date.now(),a:D,nextPage:nextAniPage}))}catch(e){}}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 var esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -27,7 +40,7 @@ var bg=d=>(d.img?"url('"+d.img+"') center/cover no-repeat,":"")+gr(d);
 var bn=d=>"linear-gradient(0deg,#000 5%,transparent 70%),"+(d.ban?"url('"+d.ban+"') center/cover no-repeat,":"")+gr(d);
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
-function card(d,pr,href){return'<a class="card" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span>★ '+d.r+'</span>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b>'+d.n+'</b><small>'+d.g[0]+' · '+d.y+'</small></a>'}
+function card(d,pr,href){return'<a class="card" data-card-id="'+d.id+'" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span>★ '+d.r+'</span>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b data-title-id="'+d.id+'">'+d.n+'</b><small>'+d.g[0]+' · '+d.y+'</small></a>'}
 var row=(t,a)=>'<h2>'+t+'</h2><div class="row">'+a.join("")+'</div>';
 var eps=(d,cur)=>Array.from({length:d.e},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join("");
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
