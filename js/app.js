@@ -327,7 +327,35 @@ xSO=[["POPULARITY_DESC","Популярные"],["TRENDING_DESC","В тренд�
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
 GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
-async function xgq(q,v){var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})}),j=await r.json();if(!j.data)throw 0;return j.data}
+var xApiQueue=Promise.resolve(),xApiLast=0;
+function xApiWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function xgq(q,v){
+ var run=async()=>{
+  var last;
+  for(var attempt=0;attempt<4;attempt++){
+   var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
+   try{
+    var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
+    xApiLast=Date.now();var j=await r.json(),err=j.errors&&j.errors.map(x=>x.message).filter(Boolean).join("; ");
+    var limited=r.status===429||(j.errors||[]).some(x=>x.status===429);
+    var temporary=r.status>=500&&r.status<600;
+    if((limited||temporary)&&attempt<3){
+     var retry=Number(r.headers.get("Retry-After"))||Math.min(15,2*Math.pow(2,attempt));
+     await xApiWait(Math.min(30000,retry*1000));continue;
+    }
+    if(!r.ok||!j.data)throw new Error(err||("AniList API: HTTP "+r.status));
+    return j.data;
+   }catch(e){
+    last=e;
+    if(attempt>=3)break;
+    if(e&&/AniList API: HTTP/.test(e.message))throw e;
+    await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
+   }
+  }
+  throw last||new Error("Не удалось связаться с AniList");
+ };
+ var task=xApiQueue.then(run,run);xApiQueue=task.catch(()=>{});return task;
+}
 // русские названия для произвольного списка (пачками по 50, кэш awr2)
 async function xrn(L){var m=L.filter(d=>d.mal&&!d.o),c;try{c=JSON.parse(localStorage.getItem("awr2")||"{}")}catch(e){c={}}
  var need=m.filter(d=>!(d.mal in c));
