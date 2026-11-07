@@ -84,9 +84,10 @@ V.catalog=()=>{var statuses=[...new Set(D.map(d=>d.s).filter(Boolean))];app.inne
 V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0,desc=cleanDesc(d.d),count=d.e>0?d.e+" эпизодов":"Количество серий уточняется";
  app.innerHTML='<section class="title-page"><div class="title-backdrop" style="background:'+bn(d)+'"></div><div class="title-layout"><div class="title-cover"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><span class="cover-caption">ANIME DETAILS</span></div><div class="title-info"><div class="title-kicker"><span class="live-dot"></span> ИНФОРМАЦИЯ ОБ АНИМЕ</div><h1 id="tn">'+d.n+'</h1><p class="title-original">'+(d.o||"")+'</p><div class="title-tags">'+d.g.map(g=>'<span>'+g+'</span>').join("")+'</div><div class="title-metrics"><div><b>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</b><small>РЕЙТИНГ</small></div><div><b>'+d.y+'</b><small>ГОД</small></div><div><b>'+count+'</b><small>ЭПИЗОДЫ</small></div><div><b>'+(d.s||"Аниме")+'</b><small>СТАТУС</small></div></div><div class="title-description"><p id="td" class="desc-text'+(desc.length>260?" collapsed":"")+'">'+esc(desc)+'</p>'+(desc.length>260?'<button class="desc-toggle" type="button" data-a="desc" aria-expanded="false">Читать полностью <span>⌄</span></button>':"")+'</div><div class="title-list-status"><label for="anime-list-status">Мой статус</label><select id="anime-list-status" data-id="'+d.id+'"><option value="">Не добавлено</option>'+LISTS.map(x=>'<option value="'+x[0]+'"'+(S.watchlist[d.id]===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></div><div class="title-actions"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Начать просмотр")+'</a><button class="btn ghost title-fav-btn'+(f?" is-favorite":"")+'" data-a="fav" data-i="'+d.id+'" aria-pressed="'+f+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><div class="title-rating"><span>Ваша оценка</span>'+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</div></div></div></section><section class="title-episodes"><div class="title-section-head"><div><span class="title-kicker">ПРОСМОТР</span><h2>Список серий</h2></div><span class="episode-count">'+(d.e>0?d.e+" серий":"Серии")+'</span></div><div class="eps">'+eps(d,0)+'</div></section><div id="related-anime" class="related-loading"><section class="shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div><p class="related-state">Загружаем связи…</p></section><section class="shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации по этому тайтлу</p></div></div><p class="related-state">Подбираем похожие тайтлы…</p></section></div>';ru(d);loadRelated(d)};
 
+function saveWatchProgress(){if(!P||!P.d||!(P.t>0))return;S.hist[P.d.id]={ep:P.n,t:Math.min(DUR,P.t),at:Date.now()};sv()}
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
- $("#tc").textContent=fm(P.t);$("#pg").style.width=P.t/DUR*100+"%";$(".play").textContent=P.on?"❚❚":"▶";if(s){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.now()};sv()}}
-function nextEp(){var d=P.d,n=P.n;if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();AP=true;toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
+ $("#tc").textContent=fm(P.t);$("#pg").style.width=P.t/DUR*100+"%";$(".play").textContent=P.on?"❚❚":"▶";if(P.t>0)saveWatchProgress()}
+function nextEp(){var d=P.d,n=P.n;if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();P.n=n+1;P.t=0;AP=true;toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];sv();P=null;toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
 V.watch=p=>{
  var d=M[p[0]];if(!d)return V.home();
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(d.e>0)n=Math.min(n,d.e);
@@ -97,8 +98,7 @@ V.watch=p=>{
  (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Совместный просмотр</b><small>Комната '+esc(S.room)+'</small></div><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
  '</div><div class="watch-layout'+(inRoom?' has-chat':'')+'"><div class="watch-main">'+
  '<div class="player-wrap"><div class="player" style="background:'+bn(d)+'"><div class="shade"></div><span class="player-label">ANIWATCH <i>•</i> '+(inRoom?'WATCH PARTY':'PLAYER')+'</span><button class="play" data-a="pp" aria-label="Воспроизвести или поставить на паузу">▶</button><b class="cap">'+d.n+' · серия '+n+'</b><div class="ctl"><span id="tc"></span><div class="bar" data-a="seek"><i id="pg"></i></div><span>'+fm(DUR)+'</span><button data-a="sp" id="sp">1×</button></div></div></div>'+
- '<div class="watch-toolbar"><div><b>Серия '+n+'</b><span>из '+(d.e||'?')+'</span></div><div class="nv">'+(n>1?'<a class="btn ghost" href="#watch-'+d.id+'-'+(n-1)+'">← Предыдущая</a>':"")+'<a class="btn ghost" href="#title-'+d.id+'">Об аниме</a>'+(n<d.e?'<a class="btn" href="#watch-'+d.id+'-'+(n+1)+'">Следующая серия →</a>':"")+'</div></div>'+
- '<div class="watch-hint"><span>ⓘ</span><p>Это демонстрационный плеер AniWatch. Пробел — пауза, ←/→ — перемотка на 10 секунд. Видеоисточник пока не подключён.</p></div>'+
+ '<div class="watch-toolbar"><div><b>Серия '+n+'</b><span>из '+(d.e||'?')+'</span></div><div class="nv">'+(n>1?'<a class="btn ghost" href="#watch-'+d.id+'-'+(n-1)+'">← Предыдущая</a>':"")+'<a class="btn ghost" href="#title-'+d.id+'">Об аниме</a>'+(n<d.e?'<a class="btn" href="#watch-'+d.id+'-'+(n+1)+'">Следующая серия →</a>':"")+'</div></div>'+ '<div class="watch-hint"><span>ⓘ</span><p>Это демонстрационный плеер AniWatch. Пробел — пауза, ←/→ — перемотка на 10 секунд. Видеоисточник пока не подключён.</p></div>'+
  '<section class="watch-episodes"><div class="watch-section-title"><div><span class="eyebrow">ПРОСМОТР</span><h2>Все серии</h2></div><span>'+(d.e||"—")+' серий</span></div><div class="eps">'+eps(d,n)+'</div></section>'+
  '</div>'+
  (inRoom?'<aside class="chat"><div class="chat-head"><div><span class="live-dot"></span><div><h3>Чат комнаты</h3><small>Совместный просмотр · '+esc(S.room)+'</small></div></div><span class="chat-online">● В комнате</span></div><div id="ms"><p class="chat-empty">Начните общение — сообщения появятся здесь.</p></div><form id="cf"><input id="ci" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">➤</button></form></aside>':"")+
@@ -197,8 +197,7 @@ async function kitsuCount(d){
  var result=await kitsuPending[d.mal];delete kitsuPending[d.mal];return result;
 }
 var jikanPending={};
-async function jikanCount(d,force){
- if(!d.mal)return;
+async function jikanCount(d,force){ if(!d.mal)return;
  var cache=S.jikanEpisodes=S.jikanEpisodes||{},saved=cache[d.mal];
  if(saved&&Date.now()-saved.at<30*864e5){
   if(!d.e&&saved.total>0)d.e=saved.total;
@@ -297,8 +296,7 @@ async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[
   if(!d.e&&r.e>0)d.e=r.e;
   if(!d.e)await jikanCount(d,false);
   if(!d.e||!d.ae)await aniZipCount(d);
-  if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d);
-  refreshEpCount(d)
+  if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d);  refreshEpCount(d)
   r.d=cleanDesc(r.d);
   if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
   var fp=$("#featured-desc");if(fp&&fp.dataset.id==d.id&&r.d)fp.textContent=shortDesc(r.d,190)}
@@ -397,8 +395,7 @@ function renderHomeAiring(){
  if(!(location.hash===""||location.hash==="#home")||!xSC)return;
  var now=Date.now()/1000,upcoming={};
  xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
- $$(".card[data-anime-id]").forEach(c=>{
-  var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
+ $$(".card[data-anime-id]").forEach(c=>{  var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
   var old=poster.querySelector(".poster-airing");if(old)old.remove();if(!x)return;
   var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   var tag=document.createElement("span");tag.className="poster-airing";tag.textContent="Серия "+x.episode+" · "+day+", "+time;poster.appendChild(tag);
@@ -420,7 +417,7 @@ async function xex(id){var x=xXC[id];if(!x){try{x=xXC[id]=(await xgq(xXQ,{id:id}
   if(u){var s=document.createElement("section");s.id="trl";s.className="trailer";s.innerHTML='<h2>Трейлер</h2><div class="tr-frame"><iframe src="'+u+'" title="Трейлер" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';var epsSection=$(".title-episodes");if(epsSection)app.insertBefore(s,epsSection);else app.appendChild(s)}}}
 
 function hd(){var b=location.hash.slice(1).split("-")[0]||"home",a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")=="#"+b))}
-function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
+function draw(){saveWatchProgress();T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,t);m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;document.addEventListener("touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});document.addEventListener("touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
@@ -449,6 +446,8 @@ document.addEventListener("input",e=>{var i=e.target.id;
 document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 addEventListener("keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
  if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0)}else if(e.code=="ArrowRight")tick(10);else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0)}});
+addEventListener("pagehide",saveWatchProgress);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)saveWatchProgress()});
 addEventListener("hashchange",()=>{draw();scrollTo(0,0)});
 idx();boot();
 })();
