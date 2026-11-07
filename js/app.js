@@ -266,7 +266,7 @@ async function jikanCount(d,force){ if(!d.mal)return; var cache=S.jikanEpisodes=
 async function verifyOnePiece(){
  var d=D.find(x=>Number(x.mal)===21);
  try{
-  var q=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
+  var q=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
   if(q.ok){var j=await q.json(),m=j.data&&j.data.Media;if(m&&!d){d=mp(m);D.unshift(d);M[d.id]=d;idx();}else if(m&&d&&!d.e&&Number(m.episodes)>0)d.e=Number(m.episodes);}
  }catch(e){}
  if(!d)d={id:"one-piece-check",mal:21,n:"One Piece",e:0};
@@ -297,9 +297,7 @@ async function loadRelated(d){
  relatedPending[d.id]=(async()=>{
   try{
    var query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:30){nodes{"+relatedFields+"}}}}}}}";
-   var res=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:query,variables:{id:Number(d.id)}})});
-   if(!res.ok)throw new Error("AniList response");
-   var payload=await res.json(),media=payload.data&&payload.data.Media;
+   var payload=await xgq(query,{id:Number(d.id)}),media=payload&&payload.Media;
    if(!media)throw new Error("No related data");
    var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
    var recSeen={},recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==d.id&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
@@ -362,7 +360,7 @@ async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Заг
   }catch(e){console.warn("[AniWatch] Не удалось обновить стартовый каталог:",e&&e.message||e)}
  }
  if(c&&Array.isArray(c.a)&&c.a.length)D=c.a;
- await rn();idx();await xhyd();draw();verifyOnePiece()
+ await rn();idx();await xhyd();draw()
 }
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
@@ -376,41 +374,56 @@ xSO=[["POPULARITY_DESC","Популярные"],["TRENDING_DESC","В тренд�
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
 GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
-var xApiQueue=Promise.resolve(),xApiLast=0;
+// Единый шлюз AniList: кэш запросов + максимум 10 фактических HTTP-запросов за скользящую минуту.
+var xApiQueue=Promise.resolve(),xApiLast=0,xApiInflight={},xApiMemory={},X_API_LIMIT=10,X_API_WINDOW=60000;
 function xApiWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function xApiKey(q,v){return q+"::"+JSON.stringify(v||{})}
+function xApiReadCache(key){
+ var now=Date.now(),hit=xApiMemory[key];
+ if(hit&&now-hit.at<30*60e3)return hit.data;
+ try{var c=JSON.parse(localStorage.getItem("aw-anilist-cache")||"{}"),x=c[key];if(x&&now-x.at<6*3600e3){xApiMemory[key]=x;return x.data}}catch(e){}
+ return null
+}
+function xApiWriteCache(key,data){
+ var item={at:Date.now(),data:data};xApiMemory[key]=item;
+ try{var c=JSON.parse(localStorage.getItem("aw-anilist-cache")||"{}");c[key]=item;var keys=Object.keys(c).sort((a,b)=>c[b].at-c[a].at).slice(0,30),out={};keys.forEach(k=>out[k]=c[k]);localStorage.setItem("aw-anilist-cache",JSON.stringify(out))}catch(e){}
+}
+function xApiTakeSlot(){
+ var now=Date.now(),times=[];
+ try{times=JSON.parse(localStorage.getItem("aw-anilist-requests")||"[]")}catch(e){}
+ times=times.filter(t=>now-t<X_API_WINDOW);
+ if(times.length>=X_API_LIMIT)return Math.max(250,times[0]+X_API_WINDOW-now);
+ times.push(now);try{localStorage.setItem("aw-anilist-requests",JSON.stringify(times))}catch(e){}
+ return 0
+}
 async function xgq(q,v){
+ var key=xApiKey(q,v),cached=xApiReadCache(key);if(cached)return cached;
+ if(xApiInflight[key])return xApiInflight[key];
  var run=async()=>{
   var last;
-  for(var attempt=0;attempt<4;attempt++){
-   var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
+  for(var attempt=0;attempt<2;attempt++){
+   var wait=xApiTakeSlot();if(wait){await xApiWait(wait);attempt--;continue}
+   var gap=1200-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
    try{
-    var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);
-    var r=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    clearTimeout(tm);xApiLast=Date.now();
+    var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000),r;
+    try{r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})})}finally{clearTimeout(tm)}
+    xApiLast=Date.now();
     var j;try{j=await r.json()}catch(parseError){j={}}
-    var apiErrors=Array.isArray(j.errors)?j.errors:[];
-    var err=apiErrors.map(x=>x.message).filter(Boolean).join("; ");
-    var apiStatus=apiErrors.reduce((n,x)=>Math.max(n,Number(x.status)||0),0);
-    var limited=r.status===429||apiStatus===429;
-    var temporary=(r.status>=500&&r.status<600)||(apiStatus>=500&&apiStatus<600);
-    if((limited||temporary)&&attempt<3){
-     var header=r.headers.get("Retry-After"),retry=header&&/^\d+(?:\.\d+)?$/.test(header)?Number(header):Math.min(15,2*Math.pow(2,attempt));
-     console.warn("[AniWatch] AniList временно недоступен; повтор",attempt+1,"из 3",r.status||apiStatus,err);
-     await xApiWait(Math.min(30000,retry*1000));continue;
+    var apiErrors=Array.isArray(j.errors)?j.errors:[],err=apiErrors.map(x=>x.message).filter(Boolean).join("; "),apiStatus=apiErrors.reduce((n,x)=>Math.max(n,Number(x.status)||0),0);
+    var retryable=r.status===429||apiStatus===429||(r.status>=500&&r.status<600)||(apiStatus>=500&&apiStatus<600);
+    if(retryable&&attempt===0){
+     var header=r.headers.get("Retry-After"),retry=header&&/^\d+(?:\.\d+)?$/.test(header)?Number(header):8;
+     console.warn("[AniWatch] AniList временно недоступен; одна повторная попытка",r.status||apiStatus,err);
+     await xApiWait(Math.min(30000,retry*1000));continue
     }
     if(!r.ok||!j.data||apiErrors.length)throw new Error(err||("AniList API: HTTP "+r.status));
-    return j.data;
-   }catch(e){
-    last=e;
-    if(attempt>=3)break;
-    if(e&&/AniList API: HTTP/.test(e.message)&&!/HTTP 5\d\d|HTTP 429/.test(e.message))throw e;
-    console.warn("[AniWatch] Ошибка запроса AniList, повтор",attempt+1,e&&e.message||e);
-    await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
-   }
+    xApiWriteCache(key,j.data);return j.data
+   }catch(e){last=e;if(attempt===0&&!(e&&/AniList API: HTTP/.test(e.message)&&!/HTTP 5\d\d|HTTP 429/.test(e.message))){await xApiWait(1500);continue}break}
   }
-  throw last||new Error("AniList временно не отвечает. Попробуйте позже.");
+  throw last||new Error("AniList временно не отвечает. Попробуйте позже.")
  };
- var task=xApiQueue.then(run,run);xApiQueue=task.catch(()=>{});return task;
+ var task=xApiQueue.then(run,run);xApiQueue=task.catch(()=>{});xApiInflight[key]=task;
+ try{return await task}finally{delete xApiInflight[key]}
 }
 // русские названия для произвольного списка (пачками по 50, кэш awr2)
 async function xrn(L){var m=L.filter(d=>d.mal&&!d.o),c;try{c=JSON.parse(localStorage.getItem("awr2")||"{}")}catch(e){c={}}
@@ -445,7 +458,7 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-xr]"))xcq();var
 // расписание
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
 async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return xSC;var st=new Date();st.setHours(0,0,0,0);var a=Math.floor(st/1000),out=[];
- for(var p=1;p<=6;p++){var pg=(await xgq(xSQ,{a:a,b:a+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules);if(!pg.pageInfo.hasNextPage)break}
+ for(var p=1;p<=1;p++){var pg=(await xgq(xSQ,{a:a,b:a+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules)}
  out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.id]||(M[x.media.id]=mp(x.media)));
  await xrn([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
 function renderHomeAiring(){
