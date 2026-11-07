@@ -410,7 +410,7 @@ async function xcq(reset){
   // Scan more pages only when a genre filter needs local matching.
   var maxPages=needGenre?4:1;
   for(var step=0;step<maxPages;step++){
-   var page=sourcePage+step,key="awshiki:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st]),cached=null;
+   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st]),cached=null;
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
    if(!data){
@@ -421,8 +421,8 @@ async function xcq(reset){
     if(xCF.f)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[xCF.f]);
     if(xCF.y)url.searchParams.set("season",String(xCF.y));
     if(xCF.st)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[xCF.st]);
-    url.searchParams.set("fields","id,myanimelist_id,name,russian,image,kind,score,status,episodes,aired_on,genres,description");
-    var res=await fetch(url.toString(),{headers:{Accept:"application/json"}});
+    var ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000),res;
+    try{res=await fetch(url.toString(),{signal:ctl.signal,headers:{Accept:"application/json"}})}finally{clearTimeout(timer)}
     if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
     data=await res.json();if(!Array.isArray(data))throw new Error("Некорректный ответ Shikimori");
     try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
