@@ -4,6 +4,7 @@ import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { activePage as getActivePage, updateNavigation, renderRoute } from "./core/router.js";
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
+import { renderCatalogPage } from "./pages/catalog.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -324,15 +325,11 @@ async function xaniPosters(L){
 }
 V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
- app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Каталог Shikimori</div><h1>Каталог аниме</h1><p>Данные и русские названия — Shikimori. Постеры загружаются только из AniList.</p></div><div class="catalog-count"><b>SHIKIMORI</b><span>каталог</span></div></div>'+
- '<div class="catalog-tools"><label class="catalog-search-label">Поиск по названию<input id="cs" type="search" value="'+esc(xCF.q||'')+'" placeholder="Например, Наруто или Frieren…" autocomplete="off"></label>'+
- '<div class="catalog-selects">'+xsel("cf-g","Жанр",xCF.g,xGL.map(g=>[g,GR[g]||g]),"Все жанры")+
- xsel("cf-y","Год",xCF.y,Array.from({length:2027-1970+1},(_,i)=>[String(2027-i),String(2027-i)]),"Любой год")+
- xsel("cf-st","Статус",xCF.st,xST,"Любой статус")+
- xsel("cf-f","Формат",xCF.f,xFM,"Любой формат")+
- xsel("cf-o","Сортировка",xCF.o,xSO)+'</div></div>'+
- '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Данные: Shikimori · постеры: AniList</span></div>'+
- '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
+ renderCatalogPage({
+  app,filters:xCF,escapeHtml:esc,genreOptions:xGL,genreLabels:GR,
+  yearOptions:Array.from({length:2027-1970+1},(_,i)=>[String(2027-i),String(2027-i)]),
+  statusOptions:xST,formatOptions:xFM,sortOptions:xSO
+ });
  xCF.q=F.q||xCF.q||"";xCF.g=(F.g?(Object.keys(GR).find(k=>GR[k]===F.g)||F.g):xCF.g)||"";F.q=xCF.q;F.g=xCF.g;var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
  xcq(true);
 };
