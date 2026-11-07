@@ -263,18 +263,6 @@ async function jikanCount(d,force){ if(!d.mal)return; var cache=S.jikanEpisodes=
  })();
  var result=await jikanPending[d.mal];delete jikanPending[d.mal];return result;
 }
-async function verifyOnePiece(){
- var d=D.find(x=>Number(x.mal)===21);
- try{
-  var q=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
-  if(q.ok){var j=await q.json(),m=j.data&&j.data.Media;if(m&&!d){d=mp(m);D.unshift(d);M[d.id]=d;idx();}else if(m&&d&&!d.e&&Number(m.episodes)>0)d.e=Number(m.episodes);}
- }catch(e){}
- if(!d)d={id:"one-piece-check",mal:21,n:"One Piece",e:0};
- var a=await jikanCount(d,true),z=await aniZipCount(d),k=await kitsuCount(d);
- console.info("[AniWatch] One Piece check:",{foundInCatalog:!!M[d.id],episodesAniList:d.e||0,jikan:a||0,aniZip:z||0,kitsu:k||0});
- if(M[d.id]){refreshEpCount(d);if(location.hash==="#home")draw()}
-}
-
 var relatedPending={};
 var relationNames={SEQUEL:"Продолжение",PREQUEL:"Приквел",SIDE_STORY:"Побочная история",PARENT_STORY:"Основная история",ALTERNATIVE:"Альтернативная версия",ALTERNATIVE_SETTING:"Альтернативный сюжет",SPIN_OFF:"Спин-офф",SUMMARY:"Пересказ",FULL_STORY:"Полная версия",CHARACTER:"Связанные персонажи",OTHER:"Связанный тайтл",SOURCE:"Первоисточник",COMPILATION:"Сборник"};
 var relatedFields="id idMal type format title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color} bannerImage";
@@ -375,7 +363,7 @@ xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RE
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
 GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
 // Единый шлюз AniList: кэш запросов + максимум 10 фактических HTTP-запросов за скользящую минуту.
-var xApiQueue=Promise.resolve(),xApiLast=0,xApiInflight={},xApiMemory={},X_API_LIMIT=10,X_API_WINDOW=60000;
+var xApiQueue=Promise.resolve(),xApiLast=0,xApiInflight={},xApiMemory={},xApiRequestTimes=[],X_API_LIMIT=10,X_API_WINDOW=60000;
 function xApiWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function xApiKey(q,v){return q+"::"+JSON.stringify(v||{})}
 function xApiReadCache(key){
@@ -386,14 +374,15 @@ function xApiReadCache(key){
 }
 function xApiWriteCache(key,data){
  var item={at:Date.now(),data:data};xApiMemory[key]=item;
- try{var c=JSON.parse(localStorage.getItem("aw-anilist-cache")||"{}");c[key]=item;var keys=Object.keys(c).sort((a,b)=>c[b].at-c[a].at).slice(0,30),out={};keys.forEach(k=>out[k]=c[k]);localStorage.setItem("aw-anilist-cache",JSON.stringify(out))}catch(e){}
+ try{var c=JSON.parse(localStorage.getItem("aw-anilist-cache")||"{}");c[key]=item;var keys=Object.keys(c).sort((a,b)=>c[b].at-c[a].at).slice(0,8),out={};keys.forEach(k=>out[k]=c[k]);localStorage.setItem("aw-anilist-cache",JSON.stringify(out))}catch(e){}
 }
 function xApiTakeSlot(){
- var now=Date.now(),times=[];
- try{times=JSON.parse(localStorage.getItem("aw-anilist-requests")||"[]")}catch(e){}
- times=times.filter(t=>now-t<X_API_WINDOW);
+ var now=Date.now(),times=xApiRequestTimes.slice();
+ try{times=times.concat(JSON.parse(localStorage.getItem("aw-anilist-requests")||"[]"))}catch(e){}
+ times=[...new Set(times)].filter(t=>now-t<X_API_WINDOW).sort((a,b)=>a-b);
  if(times.length>=X_API_LIMIT)return Math.max(250,times[0]+X_API_WINDOW-now);
- times.push(now);try{localStorage.setItem("aw-anilist-requests",JSON.stringify(times))}catch(e){}
+ times.push(now);xApiRequestTimes=times;
+ try{localStorage.setItem("aw-anilist-requests",JSON.stringify(times))}catch(e){}
  return 0
 }
 async function xgq(q,v){
