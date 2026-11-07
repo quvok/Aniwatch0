@@ -825,5 +825,5 @@ nav{overflow-x:auto;scrollbar-width:none}nav a{white-space:nowrap}
 
 /* Upcoming episode badge directly on existing home anime posters */
 .poster{position:relative}
-.poster-airing{position:absolute;z-index:4;left:6px;right:6px;bottom:7px;padding:6px 7px;border:1px solid rgba(196,169,255,.34);border-radius:7px;background:rgba(13,10,23,.9);color:#eadfff;font-size:9px;line-height:1.25;font-weight:800;text-align:center;backdrop-filter:blur(7px);font-variant-numeric:tabular-nums;pointer-events:none}
-@media(max-width:700px){.poster-airing{left:4px;right:4px;bottom:5px;padding:5px 3px;font-size:8px;border-radius:6px}}
+.poster .poster-airing{position:absolute;z-index:4;top:auto;left:6px;right:48px;bottom:8px;padding:6px 7px;border:1px solid rgba(196,169,255,.34);border-radius:7px;background:rgba(13,10,23,.9);color:#eadfff;font-size:9px;line-height:1.25;font-weight:800;text-align:left;backdrop-filter:blur(7px);font-variant-numeric:tabular-nums;pointer-events:none}
+@media(max-width:700px){.poster .poster-airing{top:auto;left:4px;right:42px;bottom:6px;padding:4px 4px;font-size:8px;border-radius:6px}}
