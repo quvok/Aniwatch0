@@ -1,4 +1,4 @@
-var V="aw-v32",IMG="aw-img",SHELL=["./","index.html","css/style.css","js/app.js","js/api/anilist.js","js/api/shikimori.js","js/components/anime-card.js","js/core/storage.js","js/core/router.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
+var V="aw-v33",IMG="aw-img",SHELL=["./","index.html","css/style.css","js/app.js","js/api/anilist.js","js/api/shikimori.js","js/components/anime-card.js","js/core/storage.js","js/core/router.js","js/pages/collection.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=V&&x!=IMG).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 // своё: stale-while-revalidate; картинки AniList: кэш с лимитом; API не трогаем
