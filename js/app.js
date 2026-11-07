@@ -458,6 +458,99 @@ async function xex(id){var x=xXC[id];if(!x){try{x=xXC[id]=(await xgq(xXQ,{id:id}
  if(tr&&tr.id&&!$("#trl")){var u=tr.site=="youtube"?"https://www.youtube-nocookie.com/embed/"+encodeURIComponent(tr.id):tr.site=="dailymotion"?"https://www.dailymotion.com/embed/video/"+encodeURIComponent(tr.id):"";
   if(u){var s=document.createElement("section");s.id="trl";s.className="trailer";s.innerHTML='<h2>Трейлер</h2><div class="tr-frame"><iframe src="'+u+'" title="Трейлер" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';var epsSection=$(".title-episodes");if(epsSection)app.insertBefore(s,epsSection);else app.appendChild(s)}}}
 
+
+// ---- AniWatch: расширение платформы (локальные коллекции, статистика, достижения, discovery, backup) ----
+function awEnsureCollections(){if(!Array.isArray(S.collections))S.collections=[];return S.collections}
+function awCollectionPage(){
+ var list=awEnsureCollections();
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">ТВОИ ПОДБОРКИ</div><h1>Коллекции</h1><p>Создавай тематические подборки и складывай в них любимые тайтлы.</p></div><button class="btn" type="button" data-a="collection-create">＋ Новая коллекция</button></div>'+
+ (list.length?'<div class="aw-collection-grid">'+list.map(c=>'<section class="aw-collection"><div><b>'+esc(c.name)+'</b><small>'+c.ids.length+' аниме</small></div><div class="row">'+c.ids.filter(id=>M[id]).slice(0,4).map(id=>card(M[id])).join('')+'</div><div class="aw-collection-actions"><button class="btn ghost" data-a="collection-open" data-v="'+esc(c.id)+'">Открыть</button><button class="btn ghost" data-a="collection-delete" data-v="'+esc(c.id)+'">Удалить</button></div></section>').join(''):'<p class="empty">Пока нет коллекций. Создай первую подборку.</p>');
+}
+function awCollectionDetail(id){
+ var c=awEnsureCollections().find(x=>String(x.id)===String(id));if(!c)return awCollectionPage();
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">КОЛЛЕКЦИЯ</div><h1>'+esc(c.name)+'</h1><p>'+c.ids.length+' аниме в подборке</p></div><button class="btn ghost" data-a="collection-back">← Все коллекции</button></div><div class="row">'+(c.ids.filter(id=>M[id]).map(id=>card(M[id])).join('')||'<p class="empty">Коллекция пока пуста. Добавляй аниме со страниц тайтлов.</p>')+'</div>';
+}
+V.collections=()=>awCollectionPage();
+V.stats=()=>{
+ var h=S.history||[],unique=[...new Set(h.map(x=>Number(x.id)))],episodes=new Set(h.map(x=>Number(x.id)+':'+Number(x.ep))).size;
+ var seconds=h.reduce((n,x)=>n+Math.max(0,Number(x.t)||0),0),genres={};
+ unique.forEach(id=>{var d=M[id];if(d)(d.g||[]).forEach(g=>genres[g]=(genres[g]||0)+1)});
+ var top=Object.keys(genres).sort((a,b)=>genres[b]-genres[a]).slice(0,8),max=top.length?genres[top[0]]:1;
+ app.innerHTML='<div class="profile-heading"><div><div class="eyebrow">ТВОЯ АКТИВНОСТЬ</div><h1>Статистика</h1><p>Сводка по просмотрам, оценкам и любимым жанрам.</p></div><span class="profile-local">Данные этого браузера</span></div>'+
+ '<div class="profile-stats"><div><b>'+unique.length+'</b><span>разных аниме</span></div><div><b>'+episodes+'</b><span>серий в истории</span></div><div><b>'+S.fav.length+'</b><span>избранное</span></div><div><b>'+fm(seconds)+'</b><span>зафиксировано в истории</span></div></div>'+
+ '<section class="profile-section"><h2>Любимые жанры</h2>'+(top.length?'<div class="aw-bars">'+top.map(g=>'<div><span>'+esc(g)+'</span><i><b style="width:'+(genres[g]/max*100)+'%"></b></i><small>'+genres[g]+'</small></div>').join('')+'</div>':'<p class="m">Статистика жанров появится после просмотров.</p>')+'</section>'+
+ '<section class="profile-section"><h2>Последние просмотры</h2>'+(h.length?'<div class="profile-recent">'+h.slice().sort((a,b)=>b.at-a.at).slice(0,8).map(x=>'<a href="#watch-'+x.id+'-'+x.ep+'"><b>'+esc(M[x.id]?M[x.id].n:'Аниме')+'</b><span>Серия '+x.ep+'</span></a>').join('')+'</div>':'<p class="m">История пока пуста.</p>')+'</section>'+
+ '<p class="profile-notice">Время рассчитано по сохранённым позициям серий, поэтому это ориентировочная статистика, а не точный таймер просмотра.</p>';
+};
+V.achievements=()=>{
+ var h=S.history||[],done=h.filter(x=>x.completed).length,unique=new Set(h.map(x=>Number(x.id))).size,favs=(S.fav||[]).length,ratings=Object.keys(S.rate||{}).length,genres=new Set();
+ unique&&[...new Set(h.map(x=>Number(x.id)))].forEach(id=>{if(M[id])(M[id].g||[]).forEach(g=>genres.add(g))});
+ var items=[
+  ["Первый шаг","Посмотри первую серию",h.length>=1,Math.min(h.length,1),1],
+  ["Знакомство с миром","Добавь в историю 5 разных аниме",unique>=5,Math.min(unique,5),5],
+  ["Аниме-марафон","Посмотри 25 разных аниме",unique>=25,Math.min(unique,25),25],
+  ["Десятка серий","Заверши просмотр 10 серий",done>=10,Math.min(done,10),10],
+  ["Коллекционер","Добавь 10 тайтлов в избранное",favs>=10,Math.min(favs,10),10],
+  ["Критик","Поставь оценки 10 тайтлам",ratings>=10,Math.min(ratings,10),10],
+  ["Всеядный зритель","Познакомься с 5 жанрами",genres.size>=5,Math.min(genres.size,5),5]
+ ];
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">ТВОИ ДОСТИЖЕНИЯ</div><h1>Достижения</h1><p>Открывай значки по мере просмотра аниме.</p></div><div class="catalog-count"><b>'+items.filter(x=>x[2]).length+'/'+items.length+'</b><span>открыто</span></div></div><div class="aw-achievements">'+items.map(x=>'<article class="aw-achievement '+(x[2]?'unlocked':'')+'"><span class="aw-ach-icon">'+(x[2]?'🏆':'🔒')+'</span><div><b>'+x[0]+'</b><p>'+x[1]+'</p><small>'+x[3]+' / '+x[4]+'</small><i><b style="width:'+(x[3]/x[4]*100)+'%"></b></i></div></article>').join('')+'</div>';
+};
+V.discover=()=>{
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Подберём случайный тайтл из каталога AniList. Уже просмотренное можно исключить.</p></div></div><section class="aw-discover"><label><input type="checkbox" id="discover-unseen" checked> Не показывать просмотренные и избранное</label><button class="btn" type="button" data-a="discover-roll">🎲 Подобрать аниме</button><div id="discover-result" class="row"><p class="empty">Нажми кнопку — подберём следующую историю.</p></div></section>';
+};
+async function awRoll(){
+ var box=$("#discover-result");if(!box)return;box.innerHTML='<p class="empty">Ищем случайный тайтл…</p>';
+ try{
+  var page=1+Math.floor(Math.random()*30),data=await xgq(xCQ,{p:page,s:null,g:null,y:null,st:null,f:null,o:["POPULARITY_DESC"],m:null});
+  var list=(data.Page.media||[]).map(m=>M[m.id]||(M[m.id]=mp(m)));
+  await xrn(list);
+  var unseen=$("#discover-unseen"),skip=unseen&&unseen.checked,seen=new Set([...(S.fav||[]),...Object.keys(S.hist||{}).map(Number),...(S.history||[]).map(x=>Number(x.id))]);
+  if(skip)list=list.filter(d=>!seen.has(Number(d.id)));
+  if(!list.length)throw new Error("Нет подходящих тайтлов");
+  var pick=list[Math.floor(Math.random()*list.length)];
+  box.innerHTML=card(pick);
+ }catch(e){box.innerHTML='<p class="empty">Не удалось подобрать аниме. Попробуй ещё раз.</p>'}
+}
+function awExport(){
+ var payload={format:"AniWatch backup",version:1,createdAt:new Date().toISOString(),data:S};
+ var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="aniwatch-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Резервная копия подготовлена");
+}
+function awImport(file){
+ if(!file)return;var reader=new FileReader();
+ reader.onload=()=>{try{
+  var raw=JSON.parse(reader.result),data=raw&&raw.data?raw.data:raw;
+  if(!data||typeof data!=="object"||Array.isArray(data))throw new Error("invalid");
+  if(!confirm("Заменить текущие локальные данные содержимым резервной копии?"))return;
+  S=data;df();sv();toast("Резервная копия восстановлена");draw();
+ }catch(e){toast("Файл резервной копии не распознан")}};
+ reader.onerror=()=>toast("Не удалось прочитать файл");reader.readAsText(file);
+}
+var awOldProfile=V.profile;
+V.profile=()=>{awOldProfile();var root=$(".profile-notice");if(root)root.insertAdjacentHTML("beforebegin",'<div class="profile-links"><a href="#stats">Статистика ↗</a><a href="#collections">Коллекции ↗</a><a href="#achievements">Достижения ↗</a></div><section class="profile-section aw-backup"><h2>Резервная копия</h2><p class="m">Экспортируй локальные списки, историю, оценки и настройки. Храни файл отдельно — очистка браузера может удалить эти данные.</p><div class="acts"><button class="btn" type="button" data-a="backup-export">Экспортировать данные</button><button class="btn ghost" type="button" data-a="backup-import">Восстановить из файла</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div></section>')};
+var awOldTitle=V.title;
+V.title=p=>{awOldTitle(p);var actions=$(".title-actions");if(actions)actions.insertAdjacentHTML("beforeend",'<button class="btn ghost" type="button" data-a="collection-add" data-i="'+Number(p[0])+'">＋ В коллекцию</button>')};
+V.catalog=()=>{
+ xCF.q=F.q||"";xCF.g=F.g||"";xCF.y="";xCF.st=F.status||"";xCF.f="";xCF.o=F.s==="r"?"POPULARITY_DESC":F.s==="y"?"START_DATE_DESC":"TITLE_ROMAJI";
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">ПОИСК ПО ANILIST</div><h1>Каталог аниме</h1><p>Ищи по названию и настраивай подборку по жанру, году, статусу и формату.</p></div><div class="catalog-count"><b id="cc">—</b><span>результатов</span></div></div><input class="cat-search" id="cs" value="'+esc(xCF.q)+'" placeholder="Название аниме…" autocomplete="off">'+
+ '<div class="catalog-tools aw-catalog-filters">'+xsel("cf-g","Жанр",xCF.g,xGL.map(g=>[g,GR[g]||g]),"Все жанры")+xsel("cf-y","Год",xCF.y,Array.from({length:40},(_,i)=>{var y=new Date().getFullYear()-i;return[String(y),String(y)]}),"Любой год")+xsel("cf-st","Статус",xCF.st,xST,"Любой статус")+xsel("cf-f","Формат",xCF.f,xFM,"Любой формат")+xsel("cf-o","Сортировка",xCF.o,xSO)+'</div><div class="results-line"><b>Результаты поиска</b><span>Данные AniList · исключая 18+</span></div><div class="row" id="cr"></div><div id="more" class="aw-more"><button class="btn ghost" type="button" data-xr="1">Загрузить ещё</button></div>';
+ xcq(true);
+};
+document.addEventListener("click",e=>{
+ var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,v=t.dataset.v,i=Number(t.dataset.i);
+ if(a==="collection-create"){var name=prompt("Название новой коллекции:");if(name&&name.trim()){var list=awEnsureCollections();list.push({id:Date.now().toString(36),name:name.trim().slice(0,50),ids:[]});sv();awCollectionPage()}}
+ if(a==="collection-open")awCollectionDetail(v);
+ if(a==="collection-back")awCollectionPage();
+ if(a==="collection-delete"&&confirm("Удалить эту коллекцию?")){S.collections=awEnsureCollections().filter(c=>String(c.id)!==String(v));sv();awCollectionPage()}
+ if(a==="collection-add"){var list=awEnsureCollections();if(!list.length){var name=prompt("Сначала создай коллекцию. Как её назвать?");if(name&&name.trim())list.push({id:Date.now().toString(36),name:name.trim().slice(0,50),ids:[]})}
+  if(list.length){var choice=prompt("В какую коллекцию добавить?\n"+list.map((c,n)=>(n+1)+". "+c.name).join("\n")+"\nВведи номер:");var c=list[Number(choice)-1];if(c){if(!c.ids.includes(i))c.ids.push(i);sv();toast("Добавлено в коллекцию")}}}
+ if(a==="discover-roll")awRoll();
+ if(a==="backup-export")awExport();
+ if(a==="backup-import"){$("#backup-file")?.click()}
+});
+document.addEventListener("change",e=>{if(e.target.id==="backup-file"){awImport(e.target.files&&e.target.files[0]);e.target.value=""}});
+
 function hd(){var b=location.hash.slice(1).split("-")[0]||"home",a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")=="#"+b))}
 function draw(){saveWatchProgress();T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,t);m.append(d);m.scrollTop=1e5}
