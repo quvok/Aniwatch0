@@ -94,8 +94,19 @@ export default {
 
     if (upstream.ok && upstream.status === 200) {
       const copy = response.clone();
-      copy.headers.set("Cache-Control", "public, max-age=" + CACHE_TTL);
-      ctx.waitUntil(cache.put(key, copy));
+      ctx.waitUntil(copy.json().then(payload => {
+        if (payload && payload.data && !payload.errors) {
+          const cachedResponse = new Response(JSON.stringify(payload), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              "Cache-Control": "public, max-age=" + CACHE_TTL,
+              ...cors(origin)
+            }
+          });
+          return cache.put(key, cachedResponse);
+        }
+      }).catch(() => {}));
     }
     return response;
   }
