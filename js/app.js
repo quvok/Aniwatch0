@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { activePage as getActivePage, updateNavigation, renderRoute } from "./core/router.js";
@@ -350,17 +350,14 @@ async function xcq(reset){
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
    if(!data){
-    var url=new URL("https://shikimori.io/api/animes");
-    url.searchParams.set("limit","50");url.searchParams.set("page",String(page));
-    url.searchParams.set("order",xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity");
-    if(q)url.searchParams.set("search",q);
-    if(xCF.f)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[xCF.f]);
-    if(xCF.y)url.searchParams.set("season",String(xCF.y));
-    if(xCF.st)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[xCF.st]);
-    var ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000),res;
-    try{res=await fetch(url.toString(),{signal:ctl.signal,headers:{Accept:"application/json"}})}finally{clearTimeout(timer)}
-    if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
-    data=await res.json();if(!Array.isArray(data))throw new Error("Некорректный ответ Shikimori");
+    var ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
+    try{
+     data=await fetchCatalogPage({
+      query:q,page:page,
+      order:xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity",
+      format:xCF.f,year:xCF.y,status:xCF.st,signal:ctl.signal
+     });
+    }finally{clearTimeout(timer)}
     try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
    }
    if(k!==xCF.k)return;
