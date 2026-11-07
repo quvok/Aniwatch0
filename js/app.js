@@ -85,7 +85,7 @@ V.home=()=>{featuredIndex=0;
  var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
  var recent=srt("y").slice(0,8).map(d=>card(d));
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-a="g" data-v="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- app.innerHTML='<div id="hw">'+featured()+'</div><div class="quick-stats"><div><b>'+D.length+'</b><span>тайтлов в подборке</span></div><div><b>'+D.filter(d=>/Онгоинг/i.test(d.s||"")).length+'</b><span>выходят сейчас</span></div><div><b>24/7</b><span>аниме-настроение</span></div></div>'+(cont.length?row("Продолжить просмотр",cont,"Вернись к серии, на которой остановился"):"")+row("Сейчас в топе",trending,"Популярные тайтлы по оценкам")+(ongoing.length?row("Онгоинги",ongoing,"Истории, которые продолжаются прямо сейчас"):"")+row("Недавно добавлено",recent,"Свежие и актуальные тайтлы")+'<section class="genre-section"><div class="shelf-head"><div><h2>Найди своё настроение</h2><p class="shelf-sub">Выбери жанр и погружайся</p></div><a href="#catalog" class="text-link">Весь каталог ↗</a></div><div class="genre-grid">'+genres+'</div></section>';
+ app.innerHTML='<div id="hw">'+featured()+'</div><div class="home-discovery"><a class="btn" href="#random">🎲 Случайное аниме</a><a class="btn ghost" href="#catalog">Открыть каталог</a></div><div class="quick-stats"><div><b>'+D.length+'</b><span>тайтлов в подборке</span></div><div><b>'+D.filter(d=>/Онгоинг/i.test(d.s||"")).length+'</b><span>выходят сейчас</span></div><div><b>24/7</b><span>аниме-настроение</span></div></div>'+(cont.length?row("Продолжить просмотр",cont,"Вернись к серии, на которой остановился"):"")+row("Сейчас в топе",trending,"Популярные тайтлы по оценкам")+(ongoing.length?row("Онгоинги",ongoing,"Истории, которые продолжаются прямо сейчас"):"")+row("Недавно добавлено",recent,"Свежие и актуальные тайтлы")+'<section class="genre-section"><div class="shelf-head"><div><h2>Найди своё настроение</h2><p class="shelf-sub">Выбери жанр и погружайся</p></div><a href="#catalog" class="text-link">Весь каталог ↗</a></div><div class="genre-grid">'+genres+'</div></section>';
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
  loadHomeAiring();
 };
@@ -469,6 +469,27 @@ async function xcq(reset){
   if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог Shikimori")}
  }
 }
+async function xrandom(){
+ app.innerHTML='<section class="random-page"><div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Подберём случайный тайтл из каталога Shikimori.</p><div class="random-loader"><span class="live-dot"></span> Ищем аниме…</div></section>';
+ try{
+  var res=await fetch("https://shikimori.io/api/animes/random",{headers:{Accept:"application/json"}});
+  if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
+  var a=await res.json();if(Array.isArray(a))a=a[0];
+  if(a&&a.anime)a=a.anime;
+  if(!a||!Number(a.id))throw new Error("Shikimori вернул пустой результат");
+  var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
+  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
+  var d={id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
+  M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;sv();
+  xaniPosters([d]);
+  if(location.hash==="#random")location.hash="title-"+id;
+ }catch(e){
+  console.error("[AniWatch] Random anime:",e);
+  var box=$(".random-page");if(box)box.innerHTML='<div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Не получилось получить случайный тайтл из Shikimori.</p><button class="btn" type="button" data-a="random">Попробовать ещё раз</button><a class="btn ghost" href="#catalog">Открыть каталог</a>';
+  toast("Не удалось выбрать случайное аниме");
+ }
+}
+V.random=()=>{xrandom()};
 document.addEventListener("change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
 document.addEventListener("input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
 document.addEventListener("scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
@@ -515,6 +536,7 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a=="desc"){var p=$("#td"),open=t.getAttribute("aria-expanded")==="true";if(p){p.classList.toggle("collapsed",open);t.setAttribute("aria-expanded",String(!open));t.textContent=open?"Читать полностью":"Свернуть"}}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
+ else if(a=="random"){if(location.hash!=="#random")location.hash="random";else xrandom()}
  else if(a=="g"){F.g=v;if(location.hash!=="#catalog")location.hash="catalog";else draw()}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
