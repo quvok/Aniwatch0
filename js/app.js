@@ -400,7 +400,7 @@ function renderHomeAiring(){
  var list=root.querySelector(".home-airing-list");if(!list||!xSC)return;
  var now=Date.now()/1000,L=xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).slice(0,8);
  if(!L.length){list.innerHTML='<p class="empty">На ближайшие дни новых серий пока нет.</p>';return}
- list.innerHTML=L.map(x=>{var d=x.m,dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});return'<a class="home-airing-item" href="#title-'+d.id+'"><div class="home-airing-date"><b>'+time+'</b><small>'+day+'</small></div><div class="home-airing-poster" style="background:'+bg(d)+'"></div><div class="home-airing-info"><b>'+esc(d.n)+'</b><small>Серия '+x.episode+' · через '+xcd(x.airingAt-now)+'</small></div><span class="home-airing-arrow">›</span></a>'}).join("");
+ list.innerHTML=L.map(x=>{var d=x.m,dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});return'<a class="home-airing-card" href="#title-'+d.id+'"><div class="home-airing-cover" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+esc(d.n[0]||"А")+"</i>")+'<span class="home-airing-clock">'+time+'</span></div><div class="home-airing-release">Новая серия · '+x.episode+'</div><b>'+esc(d.n)+'</b><small>'+day+' · через '+xcd(x.airingAt-now)+'</small></a>'}).join("");
  if(!root.dataset.timer){root.dataset.timer="1";T.push(setInterval(renderHomeAiring,60000))}
 }
 function loadHomeAiring(){
