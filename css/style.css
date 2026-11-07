@@ -822,3 +822,17 @@ nav{overflow-x:auto;scrollbar-width:none}nav a{white-space:nowrap}
 .home-airing-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-airing-arrow{margin-left:auto;color:#b99aff;font-size:22px}
 @media(max-width:680px){.home-airing{padding:13px;margin:22px 0}.home-airing-list{grid-template-columns:1fr;gap:7px}.home-airing-item{padding:8px}.home-airing-info b{font-size:12px}}
+
+
+/* Home airing: poster cards with episode info directly underneath */
+.home-airing-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.home-airing-card{display:flex;flex-direction:column;min-width:0;padding:9px;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.025);transition:transform .18s,border-color .18s,background .18s}
+.home-airing-card:hover{transform:translateY(-3px);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.07)}
+.home-airing-cover{position:relative;overflow:hidden;aspect-ratio:2/3;width:100%;border-radius:9px;background-size:cover!important;background-position:center!important;display:grid;place-items:center}
+.home-airing-cover>i{font-size:42px;font-style:normal;font-weight:800;color:rgba(255,255,255,.65)}
+.home-airing-clock{position:absolute;right:7px;bottom:7px;padding:5px 7px;border-radius:7px;background:rgba(8,8,15,.86);color:#e7dcff;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;backdrop-filter:blur(8px)}
+.home-airing-release{margin:9px 0 5px;color:#c4a7ff;font-size:11px;font-weight:800}
+.home-airing-card>b{font-size:12px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.home-airing-card>small{margin-top:5px;color:var(--mt);font-size:10px}
+@media(max-width:760px){.home-airing-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.home-airing-card{padding:6px}.home-airing-release{font-size:10px;margin-top:7px}.home-airing-card>b{font-size:10px}.home-airing-card>small{font-size:9px}}
+@media(max-width:430px){.home-airing-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
