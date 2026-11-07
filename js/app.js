@@ -395,9 +395,12 @@ async function xcq(reset){
   var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
   if(!data){
    var url=new URL("https://shikimori.io/api/animes");
-   url.searchParams.set("limit","24");url.searchParams.set("page",String(xCF.p));
+   url.searchParams.set("limit","50");url.searchParams.set("page",String(xCF.p));
    url.searchParams.set("order",xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity");
    if(q)url.searchParams.set("search",q);
+   if(xCF.st)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[xCF.st]);
+   if(xCF.f)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[xCF.f]);
+   if(xCF.y)url.searchParams.set("season",String(xCF.y));
    url.searchParams.set("fields","id,name,russian,image,kind,score,status,episodes,aired_on,genres,description");
    var res=await fetch(url.toString(),{headers:{Accept:"application/json"}});
    if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
@@ -410,11 +413,11 @@ async function xcq(reset){
    var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
    var image=a.image&&a.image.original||"";
    return {id:id,shikiId:Number(a.id),source:"shikimori",mal:null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:image?(image.startsWith("http")?image:"https://shikimori.one"+image):"",ban:"",kind:kind};
-  }).filter(d=>(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&(!xCF.y||String(d.y)===String(xCF.y))&&(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"}[xCF.st]))&&(!xCF.f||d.kind===({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"}[xCF.f])));
+  }).filter(d=>(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g)));
   L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xCF.p++;xCF.more=data.length===24;xCF.busy=false;
+  xCF.p++;xCF.more=data.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог Shikimori";
   box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
   if(!L.length&&!xCF.more)box.textContent="Ничего не найдено";
@@ -425,6 +428,7 @@ async function xcq(reset){
 }
 document.addEventListener("change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o"}[e.target.id];if(m){xCF[m]=e.target.value;xcq(true)}});
 document.addEventListener("input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
+document.addEventListener("scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
 document.addEventListener("click",e=>{if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
 // расписание
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
