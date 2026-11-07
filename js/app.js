@@ -99,74 +99,91 @@ var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Коме�
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
 function mp(m){return{id:m.id,mal:m.idMal,n:"Загрузка русского названия…",romaji:m.title.romaji||"",en:m.title.english||"",g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:"",c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
-async function translateCatalog(){
-var cache=S.ruV6=S.ruV6||{},now=Date.now();
-var items=D.filter(d=>d.mal&&(!cache[d.id]||(!cache[d.id].n&&now-(cache[d.id].at||0)>86400000)));
-var cursor=0,changed=false;
-var norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9а-яё]+/gi," ").trim();
+var titleQueue=[],titlePromises={},titleWorkers=0,titleObserver=null;
+var normTitle=s=>String(s||"").toLowerCase().replace(/[^a-z0-9а-яё]+/gi," ").trim();
 async function getJson(url){
-var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);
-try{var r=await fetch(url,{signal:ctl.signal,headers:{Accept:"application/json"}});
-if(!r.ok)return null;return await r.json()}finally{clearTimeout(tm)}
+ var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);
+ try{var r=await fetch(url,{signal:ctl.signal,headers:{Accept:"application/json"}});if(!r.ok)return null;return await r.json()}
+ finally{clearTimeout(tm)}
 }
 async function lookupAniLibria(d){
-var q=d.en||d.romaji;if(!q)return null;
-try{
-var url="https://api.anilibria.tv/v3/title/search?search="+encodeURIComponent(q)+"&items_per_page=10&filter=id,names,description";
-var data=await getJson(url),list=Array.isArray(data)?data:(data&&Array.isArray(data.list)?data.list:[]);
-var target=[d.en,d.romaji].filter(Boolean).map(norm);
-return list.find(x=>{
-var n=x.names||{},candidates=[n.en,n.alternative,n.ru,x.name,x.code].filter(Boolean).map(norm);
-return candidates.some(v=>target.includes(v))&&n.ru;
-})||null;
-}catch(e){return null}
+ var q=d.en||d.romaji;if(!q)return null;
+ try{
+  var data=await getJson("https://api.anilibria.tv/v3/title/search?search="+encodeURIComponent(q)+"&items_per_page=10&filter=id,names");
+  var list=Array.isArray(data)?data:(data&&Array.isArray(data.list)?data.list:[]),targets=[d.en,d.romaji].filter(Boolean).map(normTitle);
+  return list.find(x=>{var n=x.names||{},c=[n.en,n.alternative,x.name,x.code].filter(Boolean).map(normTitle);return n.ru&&c.some(v=>targets.includes(v))})||null;
+ }catch(e){return null}
 }
 async function lookupShikimori(d){
-var q=d.romaji||d.en;if(!q)return null;
-try{
-var url="https://shikimori.one/api/animes?search="+encodeURIComponent(q)+"&limit=10";
-var list=await getJson(url);if(!Array.isArray(list))return null;
-var targets=[d.romaji,d.en].filter(Boolean).map(norm);
-return list.find(x=>{
-var candidates=[x.name,x.english,x.russian].filter(Boolean).map(norm);
-return candidates.some(v=>targets.includes(v))&&x.russian;
-})||null;
-}catch(e){return null}
+ var q=d.romaji||d.en;if(!q)return null;
+ try{
+  var list=await getJson("https://shikimori.one/api/animes?search="+encodeURIComponent(q)+"&limit=10");
+  if(!Array.isArray(list))return null;var targets=[d.romaji,d.en].filter(Boolean).map(normTitle);
+  return list.find(x=>{var c=[x.name,x.english,x.russian].filter(Boolean).map(normTitle);return x.russian&&c.some(v=>targets.includes(v))})||null;
+ }catch(e){return null}
 }
-async function worker(){
-while(cursor<items.length){
-var d=items[cursor++],hit=null,source="";
-hit=await lookupAniLibria(d);
-if(hit){source="anilibria";cache[d.id]={n:hit.names.ru,d:(hit.description||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),source:source,at:Date.now()};}
-else{
-hit=await lookupShikimori(d);
-if(hit){source="shikimori";cache[d.id]={n:hit.russian,d:(hit.description||"").replace(/\[\/?[a-z_]+(=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),source:source,at:Date.now()};}
-else cache[d.id]={n:"",d:"",source:"not-found",at:Date.now()};
+function applyRussianName(d){document.querySelectorAll('[data-title-id="'+d.id+'"]').forEach(el=>el.textContent=d.n)}
+async function resolveTitle(d){
+ var saved=await dbGet("anime",d.id);
+ if(saved&&saved.n){d.n=saved.n;d.shikiId=saved.shikiId||null;applyRussianName(d);return saved}
+ var old=(S.ruV6||{})[d.id];
+ if(old&&old.n){d.n=old.n;d.shikiId=old.shikiId||null;var migrated={id:d.id,n:d.n,shikiId:d.shikiId,at:Date.now()};await dbPut("anime",migrated);applyRussianName(d);return migrated}
+ var record={id:d.id,n:"",shikiId:null,at:Date.now(),nameChecked:true},hit=await lookupAniLibria(d);
+ if(hit){record.n=hit.names.ru;record.source="AniLibria"}
+ if(!record.n){hit=await lookupShikimori(d);if(hit){record.n=hit.russian;record.shikiId=hit.id;record.source="Shikimori"}}
+ if(!record.n)record.n="Русское название пока недоступно";
+ record.at=Date.now();await dbPut("anime",record);d.n=record.n;d.shikiId=record.shikiId;applyRussianName(d);return record;
 }
-changed=true;sv();
+function queueTitle(d){
+ if(!d||!d.mal)return Promise.resolve(null);
+ if(titlePromises[d.id])return titlePromises[d.id];
+ titlePromises[d.id]=new Promise(resolve=>{titleQueue.push({d:d,resolve:resolve});pumpTitleQueue()});
+ return titlePromises[d.id];
 }
+function pumpTitleQueue(){
+ while(titleWorkers<2&&titleQueue.length){
+  var item=titleQueue.shift();titleWorkers++;
+  resolveTitle(item.d).then(item.resolve).catch(()=>item.resolve(null)).finally(()=>{titleWorkers--;pumpTitleQueue()});
+ }
 }
-await Promise.all([worker(),worker()]);
-D.forEach(d=>{
-var r=cache[d.id];
-d.n=r&&r.n?r.n:"Русское название пока недоступно";
-d.d=r&&r.d?r.d:"Описание на русском пока недоступно.";
-});
-if(location.hash.indexOf("#watch-")!==0)draw();
+function observeTitles(){
+ if(titleObserver)titleObserver.disconnect();
+ var els=document.querySelectorAll("[data-title-id]");
+ if(!("IntersectionObserver" in window)){els.forEach(el=>{var d=M[+el.dataset.titleId];if(d)queueTitle(d)});return}
+ titleObserver=new IntersectionObserver(entries=>entries.forEach(entry=>{
+  if(entry.isIntersecting){var d=M[+entry.target.dataset.titleId];if(d)queueTitle(d);titleObserver.unobserve(entry.target)}
+ }),{rootMargin:"250px"});
+ els.forEach(el=>titleObserver.observe(el));
 }
-function ru(d){
-var r=(S.ruV6||{})[d.id];if(!r)return;
-var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;
-if(p)p.textContent=r.d||"Описание на русском пока недоступно.";
+function cleanDescription(s){return String(s||"").replace(/\\[\\/?[a-z_]+(=[^\\]]*)?\\]/gi,"").replace(/\\[\\[|\\]\\]/g,"").replace(/<[^>]*>/g," ").replace(/&nbsp;/g," ").replace(/\\s+/g," ").trim()}
+async function loadTitleDescription(d){
+ await queueTitle(d);
+ var saved=await dbGet("anime",d.id),node=$("#td");
+ if(saved&&saved.description){if(node)node.textContent=saved.description;return}
+ if(saved&&saved.descriptionChecked&&Date.now()-saved.descriptionChecked<86400000){if(node)node.textContent="Описание пока недоступно.";return}
+ var shikiId=saved&&saved.shikiId;
+ if(!shikiId){var found=await lookupShikimori(d);if(found)shikiId=found.id}
+ if(!shikiId){if(node)node.textContent="Русское описание пока не найдено.";return}
+ try{
+  var detail=await getJson("https://shikimori.one/api/animes/"+shikiId),description=cleanDescription(detail&&detail.description);
+  var record=saved||{id:d.id,n:d.n,shikiId:shikiId};record.shikiId=shikiId;record.description=description;record.descriptionChecked=Date.now();await dbPut("anime",record);
+  node=$("#td");if(node)node.textContent=description||"Описание пока недоступно.";
+ }catch(e){node=$("#td");if(node)node.textContent="Не удалось загрузить описание. Попробуйте позже."}
 }
-async function boot(){app.innerHTML='<p class="empty">Загрузка…</p>';var c;
-try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
-if(!c||!c.a||!c.a.length||!c.a.some(x=>x.romaji)||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
-r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
-if(c&&c.a&&c.a.length)D=c.a;idx();draw();translateCatalog()}
+async function boot(){
+ app.innerHTML='<p class="empty">Загрузка…</p>';
+ var c=await dbGet("catalog","current");
+ if(!c){try{var old=JSON.parse(localStorage.getItem("awc")||"null");if(old&&old.a)c={t:old.t,a:old.a,nextPage:old.nextPage||2}}catch(e){}}
+ if(c&&c.a&&c.a.length){
+  D=c.a;nextAniPage=c.nextPage||2;idx();draw();
+  if(Date.now()-(c.t||0)>21600000){fetchAniListPage(1).then(async a=>{if(a.length){D=a;nextAniPage=2;idx();await saveCatalog();if(!location.hash||location.hash==="#home")draw()}}).catch(()=>{})}
+ }else{
+  try{D=await fetchAniListPage(1);nextAniPage=2;idx();await saveCatalog();draw()}
+  catch(e){idx();draw()}
+ }
+}
 function hd(){var b=location.hash.slice(1).split("-")[0]||"home",a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")=="#"+b))}
-function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
+function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd();observeTitles()}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,t);m.append(d);m.scrollTop=1e5}
 document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
 if(a=="fav"){var k=S.fav.indexOf(i);k<0?S.fav.push(i):S.fav.splice(k,1);sv();toast(k<0?"Добавлено в избранное":"Убрано из избранного");draw()}
