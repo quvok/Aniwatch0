@@ -54,6 +54,7 @@ var featuredIndex=0;
 function featured(){var d=H[featuredIndex%H.length]||D[0];ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 V.home=()=>{
+ if(!D.length){app.innerHTML='<section class="offline-state"><div class="eyebrow">ANILIST API</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
  var source=homeCollections||{trending:D,popular:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
@@ -285,7 +286,7 @@ async function boot(){S=await initializeLocalState(S,value=>{S=value});app.inner
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
   clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;await rn();idx();await xhyd();draw();loadHomeCollections().then(()=>{if(activePage()==="home")draw()}).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e))}
+ if(c&&c.a&&c.a.length)D=c.a;else D=[];await rn();idx();await xhyd();draw();loadHomeCollections().then(()=>{if(activePage()==="home")draw()}).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e))}
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
@@ -481,7 +482,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
  else if(a=="acc"){S.acc=v;sv();hd()}
- else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}});
+ else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
 listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
