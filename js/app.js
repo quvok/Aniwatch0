@@ -337,19 +337,30 @@ async function xgq(q,v){
    var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
    try{
     var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    xApiLast=Date.now();var j=await r.json(),err=j.errors&&j.errors.map(x=>x.message).filter(Boolean).join("; ");if(err)throw new Error("AniList GraphQL: "+err);
-    var limited=r.status===429||(j.errors||[]).some(x=>x.status===429);
+    xApiLast=Date.now();
+    var j;try{j=await r.json()}catch(parseError){throw new Error("AniList вернул некорректный ответ (HTTP "+r.status+")")}
+    var errors=Array.isArray(j.errors)?j.errors:[],err=errors.map(x=>x.message).filter(Boolean).join("; ");
+    // AniList может сообщить о лимите и HTTP 429, и GraphQL-ошибкой в JSON.
+    var limited=r.status===429||errors.some(x=>Number(x.status)===429||/too many requests/i.test(x.message||""));
     var temporary=r.status>=500&&r.status<600;
-    if((limited||temporary)&&attempt<3){
-     var retry=Number(r.headers.get("Retry-After"))||Math.min(15,2*Math.pow(2,attempt));
-     await xApiWait(Math.min(30000,retry*1000));continue;
+    if(limited||temporary){
+     if(attempt>=3)throw new Error(limited?"AniList: превышен лимит запросов. Повторите позже.":"AniList временно недоступен (HTTP "+r.status+")");
+     var retryAfter=Number(r.headers.get("Retry-After"));
+     var resetAt=Number(r.headers.get("X-RateLimit-Reset"));
+     var waitMs=retryAfter>0?retryAfter*1000:resetAt>0?Math.max(1000,resetAt*1000-Date.now()+1000):limited?60000:Math.min(15000,2000*Math.pow(2,attempt));
+     await xApiWait(waitMs);continue;
     }
-    if(!r.ok||!j.data)throw new Error(err||("AniList API: HTTP "+r.status));
+    if(!r.ok)throw new Error("AniList API: HTTP "+r.status+(err?": "+err:""));
+    if(errors.length)throw new Error("AniList GraphQL: "+err);
+    if(!j.data)throw new Error("AniList вернул пустой ответ");
     return j.data;
    }catch(e){
     last=e;
     if(attempt>=3)break;
-    if(e&&/AniList API: HTTP/.test(e.message))throw e;
+    // Ошибки клиента (кроме 429) не исправятся повторным запросом.
+    if(e&&/^AniList API: HTTP 4/.test(e.message))throw e;
+    if(e&&/^AniList GraphQL:/.test(e.message))throw e;
+    if(e&&/превышен лимит запросов|временно недоступен/.test(e.message))throw e;
     await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
    }
   }
