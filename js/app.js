@@ -2,6 +2,7 @@ import { query as xgq } from "./api/anilist.js";
 import { fetchRandomAnime } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
+import { activePage as getActivePage, updateNavigation, renderRoute } from "./core/router.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -447,9 +448,9 @@ async function xex(id){var d=M[id];if(!d)return;var x=xXC[id];if(!x){try{x=xXC[i
  if(tr&&tr.id&&!$("#trl")){var u=tr.site=="youtube"?"https://www.youtube-nocookie.com/embed/"+encodeURIComponent(tr.id):tr.site=="dailymotion"?"https://www.dailymotion.com/embed/video/"+encodeURIComponent(tr.id):"";
   if(u){var s=document.createElement("section");s.id="trl";s.className="trailer";s.innerHTML='<h2>Трейлер</h2><div class="tr-frame"><iframe src="'+u+'" title="Трейлер" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';var epsSection=$(".title-episodes");if(epsSection)app.insertBefore(s,epsSection);else app.appendChild(s)}}}
 
-function activePage(){return location.hash.slice(1).split("-")[0]||"home"}
-function hd(){var b=activePage(),a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")==="#"+b))}
-function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(Object.prototype.hasOwnProperty.call(V,p[0])?V[p[0]]:V.home)(p.slice(1).map(Number));hd()}
+function activePage(){return getActivePage()}
+function hd(){updateNavigation(S)}
+function draw(){renderRoute(V,T,()=>{P=null},S)}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,t);m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;document.addEventListener("touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});document.addEventListener("touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
