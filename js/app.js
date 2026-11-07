@@ -319,7 +319,7 @@ async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Заг
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
-xCQ="query($p:Int,$s:String,$g:String,$y:Int,$st:MediaStatus,$f:MediaFormat,$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre:$g,seasonYear:$y,status:$st,format:$f,sort:$o){"+xMF+"}}}",
+xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int){Media(id:$id){nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",st:"",f:"",o:"POPULARITY_DESC",q:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
@@ -337,7 +337,7 @@ async function xgq(q,v){
    var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
    try{
     var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    xApiLast=Date.now();var j=await r.json(),err=j.errors&&j.errors.map(x=>x.message).filter(Boolean).join("; ");
+    xApiLast=Date.now();var j=await r.json(),err=j.errors&&j.errors.map(x=>x.message).filter(Boolean).join("; ");if(err)throw new Error("AniList GraphQL: "+err);
     var limited=r.status===429||(j.errors||[]).some(x=>x.status===429);
     var temporary=r.status>=500&&r.status<600;
     if((limited||temporary)&&attempt<3){
@@ -386,9 +386,9 @@ rc=()=>{var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.status||d.s===F.
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML=""}
  if(!xCF.more||xCF.busy||!$("#cr"))return;xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
- try{var v={p:xCF.p,s:null,g:xCF.g||null,y:+xCF.y||null,st:xCF.st||null,f:xCF.f||null,o:[xCF.o]},ru=/[а-яё]/i.test(xCF.q);
-  if(xCF.q&&!ru){v.s=xCF.q;v.o=["SEARCH_MATCH"]}
-  if(ru){try{v.m=(await(await fetch("https://shikimori.io/api/animes?limit=24&order=popularity&search="+encodeURIComponent(xCF.q))).json()).map(x=>x.id)}catch(e){v.s=xCF.q}
+ try{var v={p:xCF.p,s:null,g:xCF.g?[xCF.g]:null,y:xCF.y?String(xCF.y):null,st:xCF.st||null,f:xCF.f?[xCF.f]:null,o:[xCF.o]},ru=/[а-яё]/i.test(xCF.q);
+  if(xCF.q&&!ru){v.s=xCF.q.trim();v.o=["SEARCH_MATCH"]}
+  if(ru){try{v.m=(await(await fetch("https://shikimori.io/api/animes?limit=24&order=popularity&search="+encodeURIComponent(xCF.q))).json()).map(x=>Number(x.mal_id||x.malId||x.myanimelist_id)).filter(Number.isFinite)}catch(e){v.s=xCF.q}
    if(v.m&&!v.m.length){if(k==xCF.k){xCF.busy=false;xCF.more=false;$("#cc").textContent=0;box.textContent="Ничего не найдено"}return}}
   var q=xCQ;if(Array.isArray(v.m)&&v.m.length){q=q.replace("$o:[MediaSort]","$o:[MediaSort],$m:[Int]").replace("sort:$o)","sort:$o,idMal_in:$m)")}var pg=(await xgq(q,v)).Page;if(k!=xCF.k)return;
   var L=pg.media.map(x=>M[x.id]||(M[x.id]=mp(x)));
