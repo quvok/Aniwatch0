@@ -386,11 +386,23 @@ rc=()=>{var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.status||d.s===F.
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML=""}
  if(!xCF.more||xCF.busy||!$("#cr"))return;xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
- try{var v={p:xCF.p,s:null,g:xCF.g?[xCF.g]:null,y:xCF.y?String(xCF.y):null,st:xCF.st||null,f:xCF.f?[xCF.f]:null,o:[xCF.o]},ru=/[а-яё]/i.test(xCF.q);
+ try{var v={p:xCF.p,o:[xCF.o]},ru=/[а-яё]/i.test(xCF.q);
   if(xCF.q&&!ru){v.s=xCF.q.trim();v.o=["SEARCH_MATCH"]}
+  if(xCF.g)v.g=[xCF.g];
+  if(xCF.y)v.y=String(xCF.y);
+  if(xCF.st)v.st=xCF.st;
+  if(xCF.f)v.f=[xCF.f];
   if(ru){try{v.m=(await(await fetch("https://shikimori.io/api/animes?limit=24&order=popularity&search="+encodeURIComponent(xCF.q))).json()).map(x=>Number(x.mal_id||x.malId||x.myanimelist_id)).filter(Number.isFinite)}catch(e){v.s=xCF.q}
    if(v.m&&!v.m.length){if(k==xCF.k){xCF.busy=false;xCF.more=false;$("#cc").textContent=0;box.textContent="Ничего не найдено"}return}}
-  var q=xCQ;if(Array.isArray(v.m)&&v.m.length){q=q.replace("$o:[MediaSort]","$o:[MediaSort],$m:[Int]").replace("sort:$o)","sort:$o,idMal_in:$m)")}var pg=(await xgq(q,v)).Page;if(k!=xCF.k)return;
+  var defs=["$p:Int","$o:[MediaSort]"],args=["type:ANIME","isAdult:false","sort:$o"];
+  if(v.s){defs.push("$s:String");args.push("search:$s")}
+  if(v.g){defs.push("$g:[String]");args.push("genre_in:$g")}
+  if(v.y){defs.push("$y:String");args.push("startDate_like:$y")}
+  if(v.st){defs.push("$st:MediaStatus");args.push("status:$st")}
+  if(v.f){defs.push("$f:[MediaFormat]");args.push("format_in:$f")}
+  if(v.m){defs.push("$m:[Int]");args.push("idMal_in:$m")}
+  var q="query("+defs.join(",")+"){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media("+args.join(",")+"){"+xMF+"}}}";
+  var pg=(await xgq(q,v)).Page;if(k!=xCF.k)return;
   var L=pg.media.map(x=>M[x.id]||(M[x.id]=mp(x)));
   var cr=$("#cr");if(!cr)return;cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
   xrn(L).then(()=>{if(k!=xCF.k)return;L.forEach(d=>{var el=document.querySelector('.card[href="#title-'+d.id+'"] b');if(el)el.textContent=d.n})}).catch(()=>{});
