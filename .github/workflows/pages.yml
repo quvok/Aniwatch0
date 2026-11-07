@@ -1,4 +1,4 @@
-name: Deploy AniWatch to GitHub Pages
+name: Deploy AniWatch to GitHub Pages (modular branch)
 on:
   push:
     branches: [main, refactor/modular-architecture-2026-11-08]
