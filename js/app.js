@@ -395,9 +395,9 @@ async function xcq(reset){
   if(!data){
    var url=new URL("https://shikimori.io/api/animes");
    url.searchParams.set("limit","24");url.searchParams.set("page",String(xCF.p));
-   url.searchParams.set("order",xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?" aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity");
+   url.searchParams.set("order",xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity");
    if(q)url.searchParams.set("search",q);
-   url.searchParams.append("fields[]","genres");url.searchParams.append("fields[]","description");
+   url.searchParams.set("fields","id,name,russian,image,kind,score,status,episodes,aired_on,genres,description");
    var res=await fetch(url.toString(),{headers:{Accept:"application/json"}});
    if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
    data=await res.json();if(!Array.isArray(data))throw new Error("Некорректный ответ Shikimori");
@@ -406,10 +406,10 @@ async function xcq(reset){
   if(k!==xCF.k)return;
   var L=data.map(a=>{
    var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-   var genres=Array.isArray(a.genres)?a.genres.map(g=>g.russian||g.name).filter(Boolean):[];
+   var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
    var image=a.image&&a.image.original||"";
-   return {id:id,shikiId:Number(a.id),source:"shikimori",mal:null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:image?(image.startsWith("http")?image:"https://shikimori.io"+image):"",ban:"",kind:kind};
-  }).filter(d=>(!xCF.g||d.g.includes(xCF.g))&&(!xCF.y||String(d.y)===String(xCF.y))&&(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"}[xCF.st]))&&(!xCF.f||d.kind===({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"}[xCF.f])));
+   return {id:id,shikiId:Number(a.id),source:"shikimori",mal:null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:image?(image.startsWith("http")?image:"https://shikimori.one"+image):"",ban:"",kind:kind};
+  }).filter(d=>(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&(!xCF.y||String(d.y)===String(xCF.y))&&(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"}[xCF.st]))&&(!xCF.f||d.kind===({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"}[xCF.f])));
   L.forEach(d=>M[d.id]=d);
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
