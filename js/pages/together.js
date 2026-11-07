@@ -1,0 +1,3 @@
+export function renderTogetherPage({app,state,animeList,escapeHtml,card,row}){
+ app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте комнату и отправьте код друзьям — чат откроется рядом с плеером. Синхронизация между устройствами требует сервера (см. README), сейчас комната работает локально.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(state.room?'<p class="m">Текущая комната: <b>'+escapeHtml(state.room)+'</b></p>':"")+'</div>'+row("Что смотрим?",animeList.slice(0,6).map(card));
+}
