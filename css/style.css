@@ -202,3 +202,136 @@ h2{font-size:clamp(19px,2vw,23px);letter-spacing:-.45px;margin:34px 0 16px;font-
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+/* AniType-inspired visual polish: denser discovery layout, editorial hierarchy */
+:root{
+  --bg:#080910;
+  --sf:#11131e;
+  --sf2:#191c2a;
+  --sf3:#24283a;
+  --tx:#f7f7fc;
+  --mt:#969bad;
+  --ac:#a78bfa;
+  --ac2:#7651d5;
+  --ln:rgba(190,197,230,.12);
+  --glow:rgba(167,139,250,.2);
+}
+body{
+  background:
+    radial-gradient(ellipse at 78% 0%,rgba(89,67,155,.14),transparent 34%),
+    radial-gradient(ellipse at 8% 32%,rgba(31,89,112,.08),transparent 28%),
+    var(--bg);
+}
+header{
+  padding-top:15px;padding-bottom:15px;
+  background:rgba(8,9,16,.9);
+  box-shadow:0 8px 30px rgba(0,0,0,.12);
+}
+.logo{font-size:25px;letter-spacing:-1.3px}
+.logo::after{
+  content:"";display:inline-block;width:6px;height:6px;margin:0 0 2px 3px;
+  border-radius:50%;background:#a78bfa;box-shadow:0 0 12px #a78bfa;
+}
+nav{gap:3px}
+nav a{font-size:13px;padding:9px 13px}
+nav a.on{background:rgba(167,139,250,.16);box-shadow:inset 0 0 0 1px rgba(167,139,250,.13)}
+#q{
+  background:rgba(255,255,255,.055);
+  border-color:rgba(190,197,230,.14);
+}
+#q:focus{background:#151522}
+main{padding-top:32px}
+.hero{
+  min-height:clamp(290px,40vw,455px);
+  border-radius:21px;
+  border-color:rgba(190,197,230,.14);
+  background-position:center 35%!important;
+}
+.hero::before{
+  background:
+    linear-gradient(90deg,rgba(5,6,12,.96) 0%,rgba(5,6,12,.76) 43%,rgba(5,6,12,.12) 100%),
+    linear-gradient(0deg,rgba(5,6,12,.58),transparent 62%);
+}
+.hero small{color:#c4b5fd;letter-spacing:.13em}
+.hero h1{max-width:650px;font-size:clamp(32px,5.2vw,56px)}
+.hero p{color:#d0d2df;max-width:520px}
+h2{
+  display:flex;align-items:center;gap:11px;
+  margin:37px 0 17px;font-size:21px;letter-spacing:-.55px;
+}
+h2::before{
+  content:"";width:4px;height:21px;border-radius:5px;
+  background:linear-gradient(180deg,#c4b5fd,#7651d5);
+  box-shadow:0 0 14px rgba(167,139,250,.28);
+}
+.row{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:24px 17px}
+.card{position:relative}
+.card b{font-size:13.5px;letter-spacing:-.1px}
+.card small{display:block;margin-top:4px;color:#9298ad}
+.poster{
+  border-radius:12px;
+  background-color:#171927;
+  border-color:rgba(210,215,245,.1);
+  box-shadow:0 10px 26px rgba(0,0,0,.25);
+}
+.card:hover .poster{
+  border-color:rgba(196,181,253,.58);
+  box-shadow:0 16px 34px rgba(0,0,0,.42),0 0 22px rgba(124,91,210,.12);
+}
+.poster span{
+  top:8px;left:8px;padding:5px 8px;
+  border-radius:7px;background:rgba(9,10,17,.84);
+  color:#f5d98b;border-color:rgba(245,217,139,.2);
+  font-variant-numeric:tabular-nums;
+}
+.poster u{height:3px}
+.chips{gap:7px}
+.chips button{
+  padding:8px 13px;background:rgba(255,255,255,.045);
+  border-color:rgba(190,197,230,.11);color:#aeb3c6;
+}
+.chips button.on{
+  background:rgba(139,107,220,.22);
+  border-color:rgba(167,139,250,.48);color:#e9ddff;
+  box-shadow:inset 0 0 0 1px rgba(167,139,250,.08);
+}
+select{background-color:#151724;border-radius:10px;color:#e8e9f2}
+.btn{
+  background:linear-gradient(135deg,#a78bfa,#7651d5);
+  box-shadow:0 8px 24px rgba(118,81,213,.2);
+}
+.btn.ghost{
+  background:rgba(255,255,255,.055);
+  border-color:rgba(210,215,245,.16);
+}
+.tt .poster.big{box-shadow:0 18px 38px rgba(0,0,0,.38)}
+.tt h1{letter-spacing:-1px}
+.tt .m{color:#aab0c2}
+.eps a{background:#151724;border-color:rgba(190,197,230,.12)}
+.eps a.on{background:#7651d5;border-color:#a78bfa}
+.player{border-color:rgba(190,197,230,.16)}
+.chat,.panel{
+  background:linear-gradient(145deg,rgba(25,27,42,.97),rgba(14,16,26,.98));
+  border-color:rgba(190,197,230,.13);
+}
+.chat h3{letter-spacing:.1px}
+.chat form button{background:#7651d5}
+.panel{box-shadow:0 18px 45px rgba(0,0,0,.22)}
+.empty{
+  background:rgba(255,255,255,.025);
+  border-color:rgba(190,197,230,.16);
+}
+#toast{background:#202235;border-color:rgba(167,139,250,.3)}
+@media(max-width:700px){
+  header{padding:10px 14px 12px}
+  .logo{font-size:22px}
+  nav{background:rgba(10,11,19,.96);border-top-color:rgba(190,197,230,.16)}
+  nav a{font-size:11px;padding:8px 10px}
+  main{padding-top:17px}
+  .hero{min-height:290px}
+  .hero h1{font-size:clamp(28px,8vw,38px)}
+  .row{gap:18px 11px}
+  h2{font-size:19px;margin:29px 0 14px}
+  h2::before{height:19px}
+  .poster{border-radius:10px}
+}
