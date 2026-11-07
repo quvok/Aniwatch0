@@ -43,7 +43,7 @@ function sv(){
  try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}
  openLocalDB().then(db=>{if(!db)return;try{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app")}catch(e){console.warn("[AniWatch] Local database write failed",e)}});
 }
-function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
+function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.history=Array.isArray(S.history)?S.history:[];S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
 var esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -84,21 +84,21 @@ V.catalog=()=>{var statuses=[...new Set(D.map(d=>d.s).filter(Boolean))];app.inne
 V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0,desc=cleanDesc(d.d),count=d.e>0?d.e+" эпизодов":"Количество серий уточняется";
  app.innerHTML='<section class="title-page"><div class="title-backdrop" style="background:'+bn(d)+'"></div><div class="title-layout"><div class="title-cover"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><span class="cover-caption">ANIME DETAILS</span></div><div class="title-info"><div class="title-kicker"><span class="live-dot"></span> ИНФОРМАЦИЯ ОБ АНИМЕ</div><h1 id="tn">'+d.n+'</h1><p class="title-original">'+(d.o||"")+'</p><div class="title-tags">'+d.g.map(g=>'<span>'+g+'</span>').join("")+'</div><div class="title-metrics"><div><b>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</b><small>РЕЙТИНГ</small></div><div><b>'+d.y+'</b><small>ГОД</small></div><div><b>'+count+'</b><small>ЭПИЗОДЫ</small></div><div><b>'+(d.s||"Аниме")+'</b><small>СТАТУС</small></div></div><div class="title-description"><p id="td" class="desc-text'+(desc.length>260?" collapsed":"")+'">'+esc(desc)+'</p>'+(desc.length>260?'<button class="desc-toggle" type="button" data-a="desc" aria-expanded="false">Читать полностью <span>⌄</span></button>':"")+'</div><div class="title-list-status"><label for="anime-list-status">Мой статус</label><select id="anime-list-status" data-id="'+d.id+'"><option value="">Не добавлено</option>'+LISTS.map(x=>'<option value="'+x[0]+'"'+(S.watchlist[d.id]===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></div><div class="title-actions"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Начать просмотр")+'</a><button class="btn ghost title-fav-btn'+(f?" is-favorite":"")+'" data-a="fav" data-i="'+d.id+'" aria-pressed="'+f+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><div class="title-rating"><span>Ваша оценка</span>'+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</div></div></div></section><section class="title-episodes"><div class="title-section-head"><div><span class="title-kicker">ПРОСМОТР</span><h2>Список серий</h2></div><span class="episode-count">'+(d.e>0?d.e+" серий":"Серии")+'</span></div><div class="eps">'+eps(d,0)+'</div></section><div id="related-anime" class="related-loading"><section class="shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div><p class="related-state">Загружаем связи…</p></section><section class="shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации по этому тайтлу</p></div></div><p class="related-state">Подбираем похожие тайтлы…</p></section></div>';ru(d);loadRelated(d)};
 
-function saveWatchProgress(){if(!P||!P.d||!(P.t>0))return;S.hist[P.d.id]={ep:P.n,t:Math.min(DUR,P.t),at:Date.now()};sv()}
+function touchWatchHistory(completed){if(!P||!P.d)return;var id=P.d.id,ep=P.n,list=S.history||(S.history=[]),entry=list.find(x=>Number(x.id)===Number(id)&&Number(x.ep)===Number(ep));if(!entry){entry={id:id,ep:ep,t:P.t,at:Date.now(),completed:!!completed};list.unshift(entry)}else{entry.t=P.t;entry.at=Date.now();if(completed)entry.completed=true}S.history=list.sort((a,b)=>b.at-a.at).slice(0,100)}
+function saveWatchProgress(){if(!P||!P.d)return;if(P.t>0)S.hist[P.d.id]={ep:P.n,t:Math.min(DUR,P.t),at:Date.now()};touchWatchHistory(false);sv()}
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
  $("#tc").textContent=fm(P.t);$("#pg").style.width=P.t/DUR*100+"%";$(".play").textContent=P.on?"❚❚":"▶";if(P.t>0)saveWatchProgress()}
-function nextEp(){var d=P.d,n=P.n;if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();P.n=n+1;P.t=0;AP=true;toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];sv();P=null;toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
+function nextEp(){var d=P.d,n=P.n;touchWatchHistory(true);if(n<d.e){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};P.n=n+1;P.t=0;AP=true;sv();toast("Следующая серия");location.hash="watch-"+d.id+"-"+(n+1)}else{delete S.hist[d.id];P=null;sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
 V.watch=p=>{
  var d=M[p[0]];if(!d)return V.home();
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(d.e>0)n=Math.min(n,d.e);
  var inRoom=!!S.room;
- P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;
+ P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;touchWatchHistory(false);sv();
  app.innerHTML='<section class="watch-page">'+
  '<div class="watch-head"><div><a class="watch-back" href="#title-'+d.id+'">← К странице аниме</a><h1>'+d.n+'</h1><p>'+d.g.slice(0,3).join(" · ")+' <span>•</span> '+(d.y||"")+' <span>•</span> '+(d.s||"Аниме")+'</p></div>'+
  (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Совместный просмотр</b><small>Комната '+esc(S.room)+'</small></div><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
  '</div><div class="watch-layout'+(inRoom?' has-chat':'')+'"><div class="watch-main">'+
- '<div class="player-wrap"><div class="player" style="background:'+bn(d)+'"><div class="shade"></div><span class="player-label">ANIWATCH <i>•</i> '+(inRoom?'WATCH PARTY':'PLAYER')+'</span><button class="play" data-a="pp" aria-label="Воспроизвести или поставить на паузу">▶</button><b class="cap">'+d.n+' · серия '+n+'</b><div class="ctl"><span id="tc"></span><div class="bar" data-a="seek"><i id="pg"></i></div><span>'+fm(DUR)+'</span><button data-a="sp" id="sp">1×</button></div></div></div>'+
- '<div class="watch-toolbar"><div><b>Серия '+n+'</b><span>из '+(d.e||'?')+'</span></div><div class="nv">'+(n>1?'<a class="btn ghost" href="#watch-'+d.id+'-'+(n-1)+'">← Предыдущая</a>':"")+'<a class="btn ghost" href="#title-'+d.id+'">Об аниме</a>'+(n<d.e?'<a class="btn" href="#watch-'+d.id+'-'+(n+1)+'">Следующая серия →</a>':"")+'</div></div>'+ '<div class="watch-hint"><span>ⓘ</span><p>Это демонстрационный плеер AniWatch. Пробел — пауза, ←/→ — перемотка на 10 секунд. Видеоисточник пока не подключён.</p></div>'+
+ '<div class="player-wrap"><div class="player" style="background:'+bn(d)+'"><div class="shade"></div><span class="player-label">ANIWATCH <i>•</i> '+(inRoom?'WATCH PARTY':'PLAYER')+'</span><button class="play" data-a="pp" aria-label="Воспроизвести или поставить на паузу">▶</button><b class="cap">'+d.n+' · серия '+n+'</b><div class="ctl"><span id="tc"></span><div class="bar" data-a="seek"><i id="pg"></i></div><span>'+fm(DUR)+'</span><button data-a="sp" id="sp">1×</button></div></div></div>'+ '<div class="watch-toolbar"><div><b>Серия '+n+'</b><span>из '+(d.e||'?')+'</span></div><div class="nv">'+(n>1?'<a class="btn ghost" href="#watch-'+d.id+'-'+(n-1)+'">← Предыдущая</a>':"")+'<a class="btn ghost" href="#title-'+d.id+'">Об аниме</a>'+(n<d.e?'<a class="btn" href="#watch-'+d.id+'-'+(n+1)+'">Следующая серия →</a>':"")+'</div></div>'+ '<div class="watch-hint"><span>ⓘ</span><p>Это демонстрационный плеер AniWatch. Пробел — пауза, ←/→ — перемотка на 10 секунд. Видеоисточник пока не подключён.</p></div>'+
  '<section class="watch-episodes"><div class="watch-section-title"><div><span class="eyebrow">ПРОСМОТР</span><h2>Все серии</h2></div><span>'+(d.e||"—")+' серий</span></div><div class="eps">'+eps(d,n)+'</div></section>'+
  '</div>'+
  (inRoom?'<aside class="chat"><div class="chat-head"><div><span class="live-dot"></span><div><h3>Чат комнаты</h3><small>Совместный просмотр · '+esc(S.room)+'</small></div></div><span class="chat-online">● В комнате</span></div><div id="ms"><p class="chat-empty">Начните общение — сообщения появятся здесь.</p></div><form id="cf"><input id="ci" placeholder="Написать сообщение…" autocomplete="off"><button aria-label="Отправить">➤</button></form></aside>':"")+
@@ -109,6 +109,8 @@ V.watch=p=>{
 V.together=()=>{app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте комнату и отправьте код друзьям — чат откроется рядом с плеером. Синхронизация между устройствами требует сервера (см. README), сейчас комната работает локально.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+S.room+'</b></p>':"")+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
 V.favorites=()=>{var a=S.fav.filter(i=>M[i]).map(i=>card(M[i]));app.innerHTML='<h2>Избранное</h2>'+(a.length?'<div class="row">'+a.join("")+'</div>':'<p class="empty">Пока пусто. Нажмите «♡ В избранное» на странице тайтла.</p>')};
 V.mylist=()=>{var key=F.listStatus||"all",items=S.watchlist||{},ids=Object.keys(items).filter(id=>key==="all"||items[id]===key).map(Number).filter(id=>M[id]).sort((a,b)=>M[a].n.localeCompare(M[b].n));app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Отмечай просмотренное и планируй, что посмотреть дальше.</p></div><b>'+ids.length+'</b></div><div class="list-chips">'+[["all","Все"],...LISTS].map(x=>'<button type="button" data-a="list-filter" data-v="'+x[0]+'" class="'+(key===x[0]?"on":"")+'">'+x[1]+'</button>').join("")+'</div><div class="list-results">'+(ids.length?'<div class="row">'+ids.map(id=>card(M[id])).join("")+'</div>':'<p class="empty">В этом списке пока пусто. Открой страницу любого аниме и выбери статус.</p>')+'</div>'};
+V.history=()=>{var items=(S.history||[]).filter(x=>M[x.id]).sort((a,b)=>b.at-a.at);app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОИ ПРОСМОТРЫ</div><h1>История просмотра</h1><p>Последние просмотренные серии и место, где ты остановился.</p></div><b>'+items.length+'</b></div>'+(items.length?'<div class="history-actions"><button class="btn ghost" data-a="history-clear">Очистить историю</button></div><div class="history-list">'+items.map(x=>{var d=M[x.id];return '<article class="history-item"><a href="#watch-'+d.id+'-'+x.ep+'" class="history-main"><span class="history-poster" style="background:'+bg(d)+'"></span><span class="history-copy"><b>'+d.n+'</b><small>Серия '+x.ep+(x.completed?' · Просмотрена':' · Просмотр')+'</small><small>'+new Date(x.at).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+' · '+fm(x.t||0)+' / '+fm(DUR)+'</small></span></a><button class="history-remove" type="button" data-a="history-remove" data-i="'+d.id+'" data-v="'+x.ep+'" aria-label="Удалить запись">×</button></article>'}).join("")+'</div>':'<p class="empty">История пока пуста. Открой любое аниме и начни просмотр.</p>')};
+
 V.profile=()=>{app.innerHTML='<h2>Локальный профиль</h2><div class="panel account-panel"><div class="account-head"><div class="account-avatar">'+esc((S.name||"Гость").slice(0,1).toUpperCase())+'</div><div><b>'+esc(S.name||"Гость")+'</b><p class="m">Данные хранятся в этом браузере</p></div></div><form id="profile-form" class="auth-form"><label>Ник<input id="nm" value="'+esc(S.name||"Гость")+'" maxlength="20" required></label><button class="btn" type="submit">Сохранить ник</button></form><p class="m">Избранное: '+S.fav.length+' · История: '+Object.keys(S.hist).length+' · Оценки: '+Object.keys(S.rate).length+'</p><p class="m">Пока данные доступны только на этом устройстве. При переносе на сервер добавим регистрацию и синхронизацию.</p><button class="btn ghost" data-a="reset" style="justify-self:start">Сбросить локальные данные</button></div>'};
 // ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
@@ -197,8 +199,7 @@ async function kitsuCount(d){
  var result=await kitsuPending[d.mal];delete kitsuPending[d.mal];return result;
 }
 var jikanPending={};
-async function jikanCount(d,force){ if(!d.mal)return;
- var cache=S.jikanEpisodes=S.jikanEpisodes||{},saved=cache[d.mal];
+async function jikanCount(d,force){ if(!d.mal)return; var cache=S.jikanEpisodes=S.jikanEpisodes||{},saved=cache[d.mal];
  if(saved&&Date.now()-saved.at<30*864e5){
   if(!d.e&&saved.total>0)d.e=saved.total;
   if(force&&d.mal===21)console.info("[AniWatch] One Piece: AniList/Shikimori =",d.e||0,"; Jikan =",saved.total);
@@ -297,8 +298,7 @@ async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[
   if(!d.e)await jikanCount(d,false);
   if(!d.e||!d.ae)await aniZipCount(d);
   if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d);  refreshEpCount(d)
-  r.d=cleanDesc(r.d);
-  if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
+  r.d=cleanDesc(r.d);  if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
   var fp=$("#featured-desc");if(fp&&fp.dataset.id==d.id&&r.d)fp.textContent=shortDesc(r.d,190)}
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){var m=D.filter(d=>d.mal),c;try{c=JSON.parse(localStorage.getItem("awr")||"{}")}catch(e){c={}}
@@ -362,7 +362,7 @@ async function xrn(L){var m=L.filter(d=>d.mal&&!d.o),c;try{c=JSON.parse(localSto
  try{localStorage.setItem("awr2",JSON.stringify(c))}catch(e){}
  m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
 // избранное/история/списки, найденные через каталог, подгружаем по id после перезагрузки
-async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{})).map(Number)),w=S.watchlist;if(w&&!Array.isArray(w))Object.keys(w).forEach(k=>ids.add(+k));
+async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}),(S.history||[]).map(x=>x.id)).map(Number)),w=S.watchlist;if(w&&!Array.isArray(w))Object.keys(w).forEach(k=>ids.add(+k));
  var need=[...ids].filter(i=>i>0&&!M[i]).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
 function xsel(id,lab,cur,opts,all){return'<label>'+lab+'<select id="'+id+'">'+(all?'<option value="">'+all+'</option>':"")+opts.map(o=>'<option value="'+o[0]+'"'+(cur==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label>'}
@@ -397,8 +397,7 @@ function renderHomeAiring(){
  xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
  $$(".card[data-anime-id]").forEach(c=>{  var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
   var old=poster.querySelector(".poster-airing");if(old)old.remove();if(!x)return;
-  var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
-  var tag=document.createElement("span");tag.className="poster-airing";tag.textContent="Серия "+x.episode+" · "+day+", "+time;poster.appendChild(tag);
+  var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});  var tag=document.createElement("span");tag.className="poster-airing";tag.textContent="Серия "+x.episode+" · "+day+", "+time;poster.appendChild(tag);
  });
 }
 function loadHomeAiring(){xloadSch().then(()=>renderHomeAiring()).catch(e=>console.warn("[AniWatch] Home episode labels unavailable",e))}
@@ -427,6 +426,8 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
  else if(a=="g"){F.g=v;draw()}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
+ else if(a=="history-remove"){S.history=(S.history||[]).filter(x=>!(Number(x.id)===i&&Number(x.ep)===Number(v)));sv();V.history()}
+ else if(a=="history-clear"){S.history=[];sv();V.history();toast("История очищена")}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
  else if(a=="slide-to"&&H.length>1){featuredIndex=(+v)%H.length;showFeatured()}
  else if(a=="pp"&&P){P.on=!P.on;tick(0)}
