@@ -353,10 +353,17 @@ async function rn(){var m=D.filter(d=>d.mal),c;try{c=JSON.parse(localStorage.get
  m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
 async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
-  r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-  clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;await rn();idx();await xhyd();draw();verifyOnePiece()}
+ if(!c||!Array.isArray(c.a)||c.a.length>30||Date.now()-c.t>216e5){
+  try{
+   var payload=await xgq(Q,{}),media=payload&&payload.Page&&payload.Page.media;
+   if(!Array.isArray(media)||!media.length)throw new Error("AniList вернул пустой каталог");
+   c={t:Date.now(),a:media.map(mp)};
+   try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}
+  }catch(e){console.warn("[AniWatch] Не удалось обновить стартовый каталог:",e&&e.message||e)}
+ }
+ if(c&&Array.isArray(c.a)&&c.a.length)D=c.a;
+ await rn();idx();await xhyd();draw();verifyOnePiece()
+}
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
@@ -377,24 +384,31 @@ async function xgq(q,v){
   for(var attempt=0;attempt<4;attempt++){
    var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
    try{
-    var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    xApiLast=Date.now();var j=await r.json(),err=j.errors&&j.errors.map(x=>x.message).filter(Boolean).join("; ");
-    var limited=r.status===429||(j.errors||[]).some(x=>x.status===429);
-    var temporary=r.status>=500&&r.status<600;
+    var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);
+    var r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
+    clearTimeout(tm);xApiLast=Date.now();
+    var j;try{j=await r.json()}catch(parseError){j={}}
+    var apiErrors=Array.isArray(j.errors)?j.errors:[];
+    var err=apiErrors.map(x=>x.message).filter(Boolean).join("; ");
+    var apiStatus=apiErrors.reduce((n,x)=>Math.max(n,Number(x.status)||0),0);
+    var limited=r.status===429||apiStatus===429;
+    var temporary=(r.status>=500&&r.status<600)||(apiStatus>=500&&apiStatus<600);
     if((limited||temporary)&&attempt<3){
-     var retry=Number(r.headers.get("Retry-After"))||Math.min(15,2*Math.pow(2,attempt));
+     var header=r.headers.get("Retry-After"),retry=header&&/^\\d+(?:\\.\\d+)?$/.test(header)?Number(header):Math.min(15,2*Math.pow(2,attempt));
+     console.warn("[AniWatch] AniList временно недоступен; повтор",attempt+1,"из 3",r.status||apiStatus,err);
      await xApiWait(Math.min(30000,retry*1000));continue;
     }
-    if(!r.ok||!j.data)throw new Error(err||("AniList API: HTTP "+r.status));
+    if(!r.ok||!j.data||apiErrors.length)throw new Error(err||("AniList API: HTTP "+r.status));
     return j.data;
    }catch(e){
     last=e;
     if(attempt>=3)break;
-    if(e&&/AniList API: HTTP/.test(e.message))throw e;
+    if(e&&/AniList API: HTTP/.test(e.message)&&!/HTTP 5\\d\\d|HTTP 429/.test(e.message))throw e;
+    console.warn("[AniWatch] Ошибка запроса AniList, повтор",attempt+1,e&&e.message||e);
     await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
    }
   }
-  throw last||new Error("Не удалось связаться с AniList");
+  throw last||new Error("AniList временно не отвечает. Попробуйте позже.");
  };
  var task=xApiQueue.then(run,run);xApiQueue=task.catch(()=>{});return task;
 }
