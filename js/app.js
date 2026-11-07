@@ -34,8 +34,9 @@ function card(d,pr,href){
  return '<a class="card" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span class="rating">★ '+(score?score.toFixed(1):"—")+'</span><em class="poster-status">'+status+'</em>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b>'+d.n+'</b><small>'+d.g.slice(0,2).join(" · ")+" · "+d.y+'</small></a>'
 }
 var row=(t,a,sub)=>'<section class="shelf"><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
-var epLabel=d=>d.e>0?d.e+" серий":"Количество серий уточняется";
-var eps=(d,cur)=>d.e>0?Array.from({length:d.e},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join(""):'<p class="m">Количество серий пока не указано источниками.</p>';
+var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
+var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
+var eps=(d,cur)=>epTotal(d)>0?Array.from({length:epTotal(d)},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join(""):'<p class="m">Количество серий пока не указано источниками.</p>';
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
 function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/?[a-z][a-z0-9_]*(?:=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/\s+/g," ").trim()}
 
@@ -73,9 +74,48 @@ var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Коме�
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
 function mp(m){return{id:m.id,mal:m.idMal,n:esc(m.title.english||m.title.romaji),g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
+var aniCountPending={};
+function normTitle(v){return String(v||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/ё/g,"е").replace(/[^a-zа-я0-9]/gi,"")}
+async function anilibriaCount(d){
+ var cache=S.aniEpisodes=S.aniEpisodes||{},saved=cache[d.id];
+ if(saved&&Date.now()-saved.at<30*864e5){d.e=Number(saved.total)||d.e;d.ae=Number(saved.available)||0;refreshEpCount(d);return}
+ if(aniCountPending[d.id])return aniCountPending[d.id];
+ aniCountPending[d.id]=(async()=>{
+  var names=[d.n,d.o].filter(Boolean),match=null;
+  for(var q of names){
+   try{
+    var sr=await fetch("https://api.anilibria.app/api/v1/app/search/releases?query="+encodeURIComponent(q));
+    if(!sr.ok)continue;
+    var list=await sr.json();if(!Array.isArray(list))list=list.list||list.data||[];
+    var wanted=names.map(normTitle).filter(Boolean);
+    match=list.find(x=>{var n=x.name||{};return [n.main,n.english,n.alternative,x.name_ru,x.name_en].some(v=>wanted.includes(normTitle(v)))});
+    if(match)break;
+   }catch(e){}
+  }
+  if(!match)return;
+  try{
+   var rr=await fetch("https://api.anilibria.app/api/v1/anime/releases/"+encodeURIComponent(match.id));
+   if(!rr.ok)return;
+   var data=await rr.json(),total=Number(data.episodes_count||data.episodes_total||(data.type&&data.type.episodes)||0);
+   var available=Array.isArray(data.episodes)?data.episodes.length:0;
+   if(!total&&data.episodes&&typeof data.episodes==="object")available=Object.keys(data.episodes).length;
+   if(!total&&!available)return;
+   cache[d.id]={total:total,available:available,at:Date.now()};sv();
+   if(total)d.e=total;d.ae=available;refreshEpCount(d);
+  }catch(e){}
+ })();
+ await aniCountPending[d.id];delete aniCountPending[d.id];
+}
+function refreshEpCount(d){
+ var ef=$("#featured-count"),et=$("#title-count");
+ if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);
+ if(et&&et.dataset.id==d.id)et.textContent=epLabel(d);
+}
 async function ru(d){if(!d.mal)return;var c=S.ru=S.ru||{},r=c[d.id];
   if(!r||(!d.e&&!r.e)){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]=Object.assign(r||{},{n:j.russian||((r&&r.n)||""),d:j.description||((r&&r.d)||""),e:Number(j.episodes)||0});sv()}catch(e){if(!r)return}}
-  if(!d.e&&r.e>0){d.e=r.e;var ef=$("#featured-count");if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);var et=$("#title-count");if(et&&et.dataset.id==d.id)et.textContent=d.e+" эп."}
+  if(!d.e&&r.e>0)d.e=r.e;
+  anilibriaCount(d);
+  refreshEpCount(d)
   r.d=cleanDesc(r.d);
   if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
   var fp=$("#featured-desc");if(fp&&fp.dataset.id==d.id&&r.d)fp.textContent=r.d}
