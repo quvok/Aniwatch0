@@ -106,6 +106,34 @@ async function anilibriaCount(d){
  })();
  await aniCountPending[d.id];delete aniCountPending[d.id];
 }
+var jikanPending={};
+async function jikanCount(d,force){
+ if(!d.mal)return;
+ var cache=S.jikanEpisodes=S.jikanEpisodes||{},saved=cache[d.mal];
+ if(saved&&Date.now()-saved.at<30*864e5){
+  if(!d.e&&saved.total>0)d.e=saved.total;
+  if(force&&d.mal===21)console.info("[AniWatch] One Piece: AniList/Shikimori =",d.e||0,"; Jikan =",saved.total);
+  refreshEpCount(d);return saved.total;
+ }
+ if(jikanPending[d.mal])return jikanPending[d.mal];
+ jikanPending[d.mal]=(async()=>{
+  try{
+   var res=await fetch("https://api.jikan.moe/v4/anime/"+encodeURIComponent(d.mal));
+   if(!res.ok)return 0;
+   var json=await res.json(),total=Number(json.data&&json.data.episodes)||0;
+   if(!total)return 0;
+   cache[d.mal]={total:total,at:Date.now()};sv();
+   if(!d.e)d.e=total;
+   if(force&&d.mal===21)console.info("[AniWatch] One Piece: AniList/Shikimori =",d.e||0,"; Jikan =",total);
+   refreshEpCount(d);return total;
+  }catch(e){return 0}
+ })();
+ var result=await jikanPending[d.mal];delete jikanPending[d.mal];return result;
+}
+async function verifyOnePiece(){
+ var d=D.find(x=>Number(x.mal)===21)||{id:"one-piece-check",mal:21,n:"One Piece",e:0};
+ await jikanCount(d,true);
+}
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
  if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);
@@ -114,6 +142,7 @@ function refreshEpCount(d){
 async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[d.id];
   if(!r||(!d.e&&!r.e)){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]=Object.assign(r||{},{n:j.russian||((r&&r.n)||""),d:j.description||((r&&r.d)||""),e:Number(j.episodes)||0});sv()}catch(e){if(!r)return}}
   if(!d.e&&r.e>0)d.e=r.e;
+  if(!d.e||Number(d.mal)===21)await jikanCount(d,Number(d.mal)===21);
   refreshEpCount(d)
   r.d=cleanDesc(r.d);
   if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
@@ -131,7 +160,7 @@ async function boot(){app.innerHTML='<p class="empty">Загрузка…</p>';v
  if(!c||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
   clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;await rn();idx();draw()}
+ if(c&&c.a&&c.a.length)D=c.a;await rn();idx();draw();verifyOnePiece()}
 
 function hd(){var b=location.hash.slice(1).split("-")[0]||"home",a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")=="#"+b))}
 function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
