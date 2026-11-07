@@ -416,3 +416,30 @@ nav{gap:3px}nav a{font-size:13px;padding:9px 13px}nav a.on{background:rgba(167,1
  .catalog-selects{gap:8px}.catalog-selects label{flex:1;min-width:0}.catalog-selects select{min-width:0;width:100%;font-size:11px;padding:10px 8px}
  .results-line{font-size:9px}.results-line b{font-size:11px}
 }
+
+
+/* Compact featured hero */
+.hero-editorial{
+  min-height:300px;
+  grid-template-columns:minmax(0,1fr) 170px;
+  gap:22px;
+  padding:30px 38px;
+  border-radius:18px;
+}
+.hero-copy{gap:9px}
+.hero-editorial h1{font-size:clamp(30px,3.8vw,44px);line-height:1.05}
+.hero-editorial p{font-size:13px;line-height:1.5;max-width:520px}
+.hero-poster{max-width:155px}
+@media(max-width:700px){
+  .hero-editorial{
+    min-height:245px;
+    grid-template-columns:minmax(0,1fr) 82px;
+    gap:9px;
+    padding:17px 14px;
+    border-radius:14px;
+  }
+  .hero-editorial h1{font-size:clamp(23px,6.2vw,30px)}
+  .hero-editorial p{font-size:10px;line-height:1.4}
+  .hero-copy{gap:7px}
+  .hero-poster{max-width:82px}
+}
