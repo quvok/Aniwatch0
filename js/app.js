@@ -1,3 +1,4 @@
+import { query as xgq } from "./api/anilist.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -328,46 +329,6 @@ xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтин
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
 GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
-var xApiQueue=Promise.resolve(),xApiLast=0;
-function xApiWait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
-async function xgq(q,v){
- var run=async()=>{
-  var last;
-  for(var attempt=0;attempt<4;attempt++){
-   var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
-   try{
-    var r=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    xApiLast=Date.now();
-    var j;try{j=await r.json()}catch(parseError){throw new Error("AniList вернул некорректный ответ (HTTP "+r.status+")")}
-    var errors=Array.isArray(j.errors)?j.errors:[],err=errors.map(x=>x.message).filter(Boolean).join("; ");
-    // AniList может сообщить о лимите и HTTP 429, и GraphQL-ошибкой в JSON.
-    var limited=r.status===429||errors.some(x=>Number(x.status)===429||/too many requests/i.test(x.message||""));
-    var temporary=r.status>=500&&r.status<600;
-    if(limited||temporary){
-     if(attempt>=3)throw new Error(limited?"AniList: превышен лимит запросов. Повторите позже.":"AniList временно недоступен (HTTP "+r.status+")");
-     var retryAfter=Number(r.headers.get("Retry-After"));
-     var resetAt=Number(r.headers.get("X-RateLimit-Reset"));
-     var waitMs=retryAfter>0?retryAfter*1000:resetAt>0?Math.max(1000,resetAt*1000-Date.now()+1000):limited?60000:Math.min(15000,2000*Math.pow(2,attempt));
-     await xApiWait(waitMs);continue;
-    }
-    if(!r.ok)throw new Error("AniList API: HTTP "+r.status+(err?": "+err:""));
-    if(errors.length)throw new Error("AniList GraphQL: "+err);
-    if(!j.data)throw new Error("AniList вернул пустой ответ");
-    return j.data;
-   }catch(e){
-    last=e;
-    if(attempt>=3)break;
-    // Ошибки клиента (кроме 429) не исправятся повторным запросом.
-    if(e&&/^AniList API: HTTP 4/.test(e.message))throw e;
-    if(e&&/^AniList GraphQL:/.test(e.message))throw e;
-    if(e&&/превышен лимит запросов|временно недоступен/.test(e.message))throw e;
-    await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
-   }
-  }
-  throw last||new Error("Не удалось связаться с AniList");
- };
- var task=xApiQueue.then(run,run);xApiQueue=task.catch(()=>{});return task;
-}
 // русские названия для произвольного списка (пачками по 50, кэш awr2)
 async function xrn(L){var m=L.filter(d=>d.mal&&!d.o),c;try{c=JSON.parse(localStorage.getItem("awr2")||"{}")}catch(e){c={}}
  var need=m.filter(d=>!(d.mal in c));
