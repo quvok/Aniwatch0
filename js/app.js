@@ -1,4 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
+import { fetchRandomAnime } from "./api/shikimori.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -433,11 +434,7 @@ async function xcq(reset){
 async function xrandom(){
  app.innerHTML='<section class="random-page"><div class="eyebrow">НЕ ЗНАЕШЬ, ЧТО ПОСМОТРЕТЬ?</div><h1>Случайное аниме</h1><p>Подберём случайный тайтл из каталога Shikimori.</p><div class="random-loader"><span class="live-dot"></span> Ищем аниме…</div></section>';
  try{
-  var res=await fetch("https://shikimori.io/api/animes?limit=1&order=random",{headers:{Accept:"application/json"}});
-  if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
-  var a=await res.json();if(Array.isArray(a))a=a[0];
-  if(a&&a.anime)a=a.anime;
-  if(!a||!Number(a.id))throw new Error("Shikimori вернул пустой результат");
+  var a=await fetchRandomAnime();
   var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
   var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
   var d={id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
