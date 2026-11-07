@@ -111,7 +111,7 @@ function refreshEpCount(d){
  if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);
  if(et&&et.dataset.id==d.id)et.textContent=epLabel(d);
 }
-async function ru(d){if(!d.mal)return;anilibriaCount(d);var c=S.ru=S.ru||{},r=c[d.id];
+async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[d.id];
   if(!r||(!d.e&&!r.e)){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]=Object.assign(r||{},{n:j.russian||((r&&r.n)||""),d:j.description||((r&&r.d)||""),e:Number(j.episodes)||0});sv()}catch(e){if(!r)return}}
   if(!d.e&&r.e>0)d.e=r.e;
   refreshEpCount(d)
