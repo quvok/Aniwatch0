@@ -43,7 +43,7 @@ function sv(){
  try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}
  openLocalDB().then(db=>{if(!db)return;try{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app")}catch(e){console.warn("[AniWatch] Local database write failed",e)}});
 }
-function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.history=Array.isArray(S.history)?S.history:[];S.rate=S.rate||{};S.reviews=S.reviews||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
+function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.history=Array.isArray(S.history)?S.history:[];S.rate=S.rate||{};S.reviews=S.reviews||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6";if(S.room&&!(window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.websocketUrl))S.room=""}
 df();
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
 var esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
