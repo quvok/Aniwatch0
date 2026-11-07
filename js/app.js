@@ -58,7 +58,7 @@ function rc(){var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.status||d.
 V.catalog=()=>{var statuses=[...new Set(D.map(d=>d.s).filter(Boolean))];app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Открой следующую историю</div><h1>Каталог аниме</h1><p>Подборка тайтлов, которые хочется посмотреть дальше.</p></div><div class="catalog-count"><b>'+D.length+'</b><span>тайтлов</span></div></div><div class="catalog-tools"><div class="chips">'+["",...GN].map(g=>'<button class="'+(F.g==g?"on":"")+'" data-a="g" data-v="'+g+'">'+(g||"Все жанры")+'</button>').join("")+'</div><div class="catalog-selects"><label>Статус<select id="status-filter"><option value="">Любой статус</option>'+statuses.map(s=>'<option value="'+s+'"'+(F.status===s?" selected":"")+'>'+s+'</option>').join("")+'</select></label><label>Сортировка<select id="so">'+[["r","По рейтингу"],["y","По году"],["n","По названию"]].map(o=>'<option value="'+o[0]+'"'+(F.s==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label></div></div><div class="results-line"><b id="result-count"></b><span>Данные каталога AniList</span></div><div class="row" id="cr"></div>';rc()};
 
 V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0,desc=cleanDesc(d.d),count=d.e>0?d.e+" эпизодов":"Количество серий уточняется";
- app.innerHTML='<section class="title-page"><div class="title-backdrop" style="background:'+bn(d)+'"></div><div class="title-layout"><div class="title-cover"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><span class="cover-caption">ANIME DETAILS</span></div><div class="title-info"><div class="title-kicker"><span class="live-dot"></span> ИНФОРМАЦИЯ ОБ АНИМЕ</div><h1 id="tn">'+d.n+'</h1><p class="title-original">'+(d.o||"")+'</p><div class="title-tags">'+d.g.map(g=>'<span>'+g+'</span>').join("")+'</div><div class="title-metrics"><div><b>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</b><small>РЕЙТИНГ</small></div><div><b>'+d.y+'</b><small>ГОД</small></div><div><b>'+count+'</b><small>ЭПИЗОДЫ</small></div><div><b>'+(d.s||"Аниме")+'</b><small>СТАТУС</small></div></div><div class="title-description"><p id="td" class="desc-text'+(desc.length>260?" collapsed":"")+'">'+esc(desc)+'</p>'+(desc.length>260?'<button class="desc-toggle" type="button" data-a="desc" aria-expanded="false">Читать полностью <span>⌄</span></button>':"")+'</div><div class="title-actions"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Начать просмотр")+'</a><button class="btn ghost title-fav-btn'+(f?" is-favorite":"")+'" data-a="fav" data-i="'+d.id+'" aria-pressed="'+f+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><div class="title-rating"><span>Ваша оценка</span>'+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</div></div></div></section><section class="title-episodes"><div class="title-section-head"><div><span class="title-kicker">ПРОСМОТР</span><h2>Список серий</h2></div><span class="episode-count">'+(d.e>0?d.e+" серий":"Серии")+'</span></div><div class="eps">'+eps(d,0)+'</div></section>'+row("Похожие аниме",D.filter(x=>x.id!=d.id&&x.g.some(g=>d.g.includes(g))).slice(0,6).map(x=>card(x)));ru(d)};
+ app.innerHTML='<section class="title-page"><div class="title-backdrop" style="background:'+bn(d)+'"></div><div class="title-layout"><div class="title-cover"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><span class="cover-caption">ANIME DETAILS</span></div><div class="title-info"><div class="title-kicker"><span class="live-dot"></span> ИНФОРМАЦИЯ ОБ АНИМЕ</div><h1 id="tn">'+d.n+'</h1><p class="title-original">'+(d.o||"")+'</p><div class="title-tags">'+d.g.map(g=>'<span>'+g+'</span>').join("")+'</div><div class="title-metrics"><div><b>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</b><small>РЕЙТИНГ</small></div><div><b>'+d.y+'</b><small>ГОД</small></div><div><b>'+count+'</b><small>ЭПИЗОДЫ</small></div><div><b>'+(d.s||"Аниме")+'</b><small>СТАТУС</small></div></div><div class="title-description"><p id="td" class="desc-text'+(desc.length>260?" collapsed":"")+'">'+esc(desc)+'</p>'+(desc.length>260?'<button class="desc-toggle" type="button" data-a="desc" aria-expanded="false">Читать полностью <span>⌄</span></button>':"")+'</div><div class="title-actions"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Начать просмотр")+'</a><button class="btn ghost title-fav-btn'+(f?" is-favorite":"")+'" data-a="fav" data-i="'+d.id+'" aria-pressed="'+f+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><div class="title-rating"><span>Ваша оценка</span>'+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</div></div></div></section><section class="title-episodes"><div class="title-section-head"><div><span class="title-kicker">ПРОСМОТР</span><h2>Список серий</h2></div><span class="episode-count">'+(d.e>0?d.e+" серий":"Серии")+'</span></div><div class="eps">'+eps(d,0)+'</div></section><div id="related-anime" class="related-loading"><section class="shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div><p class="related-state">Загружаем связи…</p></section><section class="shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации по этому тайтлу</p></div></div><p class="related-state">Подбираем похожие тайтлы…</p></section></div>';ru(d);loadRelated(d)};
 
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
  $("#tc").textContent=fm(P.t);$("#pg").style.width=P.t/DUR*100+"%";$(".play").textContent=P.on?"❚❚":"▶";if(s){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.now()};sv()}}
@@ -191,6 +191,55 @@ async function verifyOnePiece(){
  var a=await jikanCount(d,true),z=await aniZipCount(d),k=await kitsuCount(d);
  console.info("[AniWatch] One Piece check:",{foundInCatalog:!!M[d.id],episodesAniList:d.e||0,jikan:a||0,aniZip:z||0,kitsu:k||0});
  if(M[d.id]){refreshEpCount(d);if(location.hash==="#home")draw()}
+}
+
+var relatedPending={};
+var relationNames={SEQUEL:"Продолжение",PREQUEL:"Приквел",SIDE_STORY:"Побочная история",PARENT_STORY:"Основная история",ALTERNATIVE:"Альтернативная версия",ALTERNATIVE_SETTING:"Альтернативный сюжет",SPIN_OFF:"Спин-офф",SUMMARY:"Пересказ",FULL_STORY:"Полная версия",CHARACTER:"Связанные персонажи",OTHER:"Связанный тайтл",SOURCE:"Первоисточник",COMPILATION:"Сборник"};
+var relatedFields="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color} bannerImage";
+function relatedCards(list){return list.map(x=>card(x)).join("")}
+async function translateRelated(list){
+ var ids=list.map(x=>x.mal).filter(Boolean);
+ if(!ids.length)return;
+ try{
+  var r=await fetch("https://shikimori.io/api/animes?limit=50&ids="+ids.join(","));
+  if(!r.ok)return;
+  var a=await r.json(),by={};a.forEach(x=>by[x.id]=x.russian||"");
+  list.forEach(x=>{if(by[x.mal]){x.o=x.n;x.n=esc(by[x.mal])}});
+ }catch(e){}
+}
+async function loadRelated(d){
+ var root=$("#related-anime");if(!root)return;
+ var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
+ if(saved&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(relatedPending[d.id])return relatedPending[d.id];
+ relatedPending[d.id]=(async()=>{
+  try{
+   var query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
+   var res=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:query,variables:{id:Number(d.id)}})});
+   if(!res.ok)throw new Error("AniList response");
+   var payload=await res.json(),media=payload.data&&payload.data.Media;
+   if(!media)throw new Error("No related data");
+   var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
+   var recSeen={},recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(Boolean).filter(x=>x.id!==d.id&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
+   var all=relations.map(x=>x.anime).concat(recommendations);
+   await translateRelated(all);
+   var data={relations:relations,recommendations:recommendations,at:Date.now()};
+   cached[d.id]=data;sv();renderRelated(d,data);
+  }catch(e){
+   var el=$("#related-anime");if(el&&location.hash==="#title-"+d.id)el.innerHTML='<section class="shelf"><h2>Связанные аниме</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p></section>';
+  }finally{delete relatedPending[d.id]}
+ })();
+ return relatedPending[d.id];
+}
+function renderRelated(d,data){
+ var root=$("#related-anime");if(!root||location.hash!=="#title-"+d.id)return;
+ var rel=data.relations||[],rec=data.recommendations||[];
+ var groups={};
+ rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
+ var relationHtml=Object.keys(groups).map(type=>'<div class="relation-group"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><div class="row">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
+ if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
+ var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
+ root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section><section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации AniList для этого тайтла</p></div></div>'+recHtml+'</section>';
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
