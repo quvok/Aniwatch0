@@ -369,7 +369,7 @@ V.catalog=()=>{
 };
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML=""}
+ if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;xCF.aniFallback=false;var c0=$("#cr");if(c0)c0.innerHTML=""}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
  try{
@@ -377,7 +377,7 @@ async function xcq(reset){
   // Status is filtered by Shikimori itself; genre remains a local filter.
   // Scan more pages only when a genre filter needs local matching.
   var maxPages=needLocalFilter?4:1;
-  for(var step=0;step<maxPages;step++){
+  if(!xCF.aniFallback)for(var step=0;step<maxPages;step++){
    var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st,xCF.minScore]),cached=null;
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
@@ -404,7 +404,8 @@ async function xcq(reset){
   if(k!==xCF.k)return;
   // Если Shikimori не нашёл ничего по запросу, пробуем AniList Search.
   // Это помогает с английскими/ромадзи-названиями и не ломает обычный каталог.
-  if(!all.length&&q){
+  if((!all.length||xCF.aniFallback)&&q){
+   xCF.aniFallback=true;
    var fallback=await xgq("query($s:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}media(search:$s,type:ANIME,isAdult:false,sort:SEARCH_MATCH){"+xMF+"}}}",{s:q,p:sourcePage});
    if(k!==xCF.k)return;
    var fp=fallback.Page;
