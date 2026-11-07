@@ -716,22 +716,3 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
  .relation-group{margin:9px 0 12px}
 }
 
-
-/* Supabase account screens */
-.auth-wrap{min-height:58vh;display:grid;place-items:center;padding:28px 12px}
-.auth-card{width:min(100%,440px);padding:clamp(22px,5vw,38px);border:1px solid var(--ln);border-radius:20px;background:linear-gradient(145deg,rgba(27,25,44,.96),rgba(13,14,24,.98));box-shadow:0 24px 70px rgba(0,0,0,.28)}
-.auth-card h1{font-size:clamp(26px,5vw,36px);margin:10px 0}
-.auth-card>.m{line-height:1.6;margin:0 0 22px}
-.auth-form{display:grid;gap:14px;margin-top:18px}
-.auth-form label{display:grid;gap:7px;color:#d9d5e8;font-size:12px;font-weight:700}
-.auth-form input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid var(--ln);border-radius:10px;background:#0b0c15;color:#fff;font:inherit}
-.auth-form .btn{width:100%;justify-content:center;margin-top:4px}
-.auth-switch{display:block;margin:18px auto 0;padding:8px;color:#c4b5fd;background:none;border:0;font-size:12px;cursor:pointer}
-.auth-switch:hover{color:#fff}
-.account-panel{max-width:560px;display:grid;gap:17px}
-.account-head{display:flex;align-items:center;gap:14px}
-.account-avatar{width:52px;height:52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#8b5cf6,#db2777);font-size:23px;font-weight:850;color:white}
-.account-head b{font-size:18px}
-.account-head .m{margin:4px 0 0}
-.account-panel .acts{display:flex;flex-wrap:wrap;gap:10px}
-@media(max-width:600px){.auth-card{border-radius:15px}.account-panel{padding:17px}.account-panel .acts .btn{flex:1}}
