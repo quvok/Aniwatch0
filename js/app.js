@@ -17,11 +17,33 @@ var D=[
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
 var M={},H=[];
-var sbClient=window.supabase&&window.ANIWATCH_SUPABASE_URL&&window.ANIWATCH_SUPABASE_KEY?window.supabase.createClient(window.ANIWATCH_SUPABASE_URL,window.ANIWATCH_SUPABASE_KEY):null,currentUser=null,authMode="login";
+var localDB=null,localDBReady=null;
+function openLocalDB(){
+ if(localDBReady)return localDBReady;
+ localDBReady=new Promise((resolve)=>{
+  if(!window.indexedDB){resolve(null);return}
+  var req=indexedDB.open("AniWatchLocal",1);
+  req.onupgradeneeded=()=>{var db=req.result;if(!db.objectStoreNames.contains("state"))db.createObjectStore("state")};
+  req.onsuccess=()=>{localDB=req.result;resolve(localDB)};
+  req.onerror=()=>resolve(null);
+ });
+ return localDBReady;
+}
+async function initLocalDB(){
+ var db=await openLocalDB();if(!db)return;
+ try{
+  var saved=await new Promise((resolve,reject)=>{var tx=db.transaction("state","readonly"),r=tx.objectStore("state").get("app");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+  if(saved&&typeof saved==="object"){S=saved;df()}
+  else{df();await new Promise((resolve,reject)=>{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+ }catch(e){console.warn("[AniWatch] Local database read failed",e)}
+}
 
 var $=s=>document.querySelector(s),app=$("#app"),S=ld(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function ld(){try{return JSON.parse(localStorage.getItem("aw"))||{}}catch(e){return{}}}
-function sv(){try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}}
+function sv(){
+ try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}
+ openLocalDB().then(db=>{if(!db)return;try{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app")}catch(e){console.warn("[AniWatch] Local database write failed",e)}});
+}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 var esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -70,20 +92,7 @@ V.watch=p=>{var d=M[p[0]];if(!d)return V.home();var n=Math.max(p[1]||1,1),h=S.hi
 
 V.together=()=>{app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте комнату и отправьте код друзьям — чат откроется рядом с плеером. Синхронизация между устройствами требует сервера (см. README), сейчас комната работает локально.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+S.room+'</b></p>':"")+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
 V.favorites=()=>{var a=S.fav.filter(i=>M[i]).map(i=>card(M[i]));app.innerHTML='<h2>Избранное</h2>'+(a.length?'<div class="row">'+a.join("")+'</div>':'<p class="empty">Пока пусто. Нажмите «♡ В избранное» на странице тайтла.</p>')};
-async function renderProfile(){
- if(!sbClient){app.innerHTML='<h2>Профиль</h2><p class="empty">Не удалось загрузить Supabase-клиент. Обновите страницу.</p>';return}
- if(!currentUser){
-  app.innerHTML='<section class="auth-wrap"><div class="auth-card"><div class="eyebrow">ANIME WATCH ACCOUNT</div><h1>'+(authMode==="login"?"С возвращением":"Создать аккаунт")+'</h1><p class="m">'+(authMode==="login"?"Войдите, чтобы синхронизировать избранное и историю.":"Зарегистрируйтесь, чтобы ваши данные сохранялись между устройствами.")+'</p><form id="auth-form" class="auth-form">'+(authMode==="register"?'<label>Ник<input id="auth-name" maxlength="24" placeholder="Как вас называть" required></label>':"")+'<label>Email<input id="auth-email" type="email" autocomplete="email" placeholder="name@example.com" required></label><label>Пароль<input id="auth-password" type="password" minlength="6" autocomplete="'+(authMode==="login"?"current-password":"new-password")+'" placeholder="Минимум 6 символов" required></label><button class="btn" type="submit">'+(authMode==="login"?"Войти":"Зарегистрироваться")+'</button></form><button class="auth-switch" data-a="auth-mode">'+(authMode==="login"?"Нет аккаунта? Зарегистрироваться":"Уже есть аккаунт? Войти")+'</button></div></section>';
-  return;
- }
- var profile=null;
- try{var pr=await sbClient.from("profiles").select("display_name,avatar_url,created_at").eq("id",currentUser.id).maybeSingle();profile=pr.data}catch(e){}
- var display=(profile&&profile.display_name)||currentUser.user_metadata&&currentUser.user_metadata.display_name||currentUser.email.split("@")[0];
- S.name=display;sv();
- app.innerHTML='<h2>Профиль</h2><div class="panel account-panel"><div class="account-head"><div class="account-avatar">'+esc(display.slice(0,1).toUpperCase())+'</div><div><b>'+esc(display)+'</b><p class="m">'+esc(currentUser.email)+'</p></div></div><form id="profile-form" class="auth-form"><label>Ник<input id="nm" value="'+esc(display)+'" maxlength="24" required></label><button class="btn" type="submit">Сохранить профиль</button></form><p class="m">Аккаунт подключён. Следующий этап — синхронизация избранного, оценок и истории.</p><div class="acts"><button class="btn ghost" data-a="signout">Выйти</button><button class="btn ghost" data-a="reset">Сбросить локальные данные</button></div></div>';
-}
-V.profile=()=>{app.innerHTML='<p class="empty">Загрузка профиля…</p>';if(!sbClient){renderProfile();return}sbClient.auth.getSession().then(({data})=>{currentUser=data.session&&data.session.user||null;renderProfile()}).catch(()=>renderProfile())};
-
+V.profile=()=>{app.innerHTML='<h2>Локальный профиль</h2><div class="panel account-panel"><div class="account-head"><div class="account-avatar">'+esc((S.name||"Гость").slice(0,1).toUpperCase())+'</div><div><b>'+esc(S.name||"Гость")+'</b><p class="m">Данные хранятся в этом браузере</p></div></div><form id="profile-form" class="auth-form"><label>Ник<input id="nm" value="'+esc(S.name||"Гость")+'" maxlength="20" required></label><button class="btn" type="submit">Сохранить ник</button></form><p class="m">Избранное: '+S.fav.length+' · История: '+Object.keys(S.hist).length+' · Оценки: '+Object.keys(S.rate).length+'</p><p class="m">Пока данные доступны только на этом устройстве. При переносе на сервер добавим регистрацию и синхронизацию.</p><button class="btn ghost" data-a="reset" style="justify-self:start">Сбросить локальные данные</button></div>'};
 // ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
@@ -284,7 +293,7 @@ async function rn(){var m=D.filter(d=>d.mal),c;try{c=JSON.parse(localStorage.get
   (await r.json()).forEach(x=>c[x.id]=x.russian||"");need.forEach(d=>{if(!(d.mal in c))c[d.mal]=""});
   try{localStorage.setItem("awr",JSON.stringify(c))}catch(e){}}catch(e){}}
  m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
-async function boot(){app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
@@ -312,15 +321,7 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  else if(a=="signout"&&sbClient){sbClient.auth.signOut().then(()=>{currentUser=null;toast("Вы вышли из аккаунта");renderProfile()})}
  else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}});
 document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
- if(f=="auth-form"&&sbClient){
-  var email=$("#auth-email").value.trim(),password=$("#auth-password").value,name=$("#auth-name")?$("#auth-name").value.trim():"";
-  var task=authMode==="register"?sbClient.auth.signUp({email:email,password:password,options:{data:{display_name:name}}}):sbClient.auth.signInWithPassword({email:email,password:password});
-  task.then(({data,error})=>{if(error){toast(error.message);return}currentUser=data.user||data.session&&data.session.user||null;if(authMode==="register"&&!data.session){toast("Проверьте почту и подтвердите регистрацию")}else{toast(authMode==="register"?"Аккаунт создан":"Вы вошли");renderProfile()}}).catch(()=>toast("Ошибка соединения с Supabase"));
- }
- if(f=="profile-form"&&sbClient&&currentUser){
-  var name=$("#nm").value.trim();if(!name)return;
-  sbClient.from("profiles").upsert({id:currentUser.id,display_name:name,updated_at:new Date().toISOString()}).then(({error})=>{if(error){toast("Не удалось сохранить профиль: "+error.message);return}S.name=name;sv();toast("Профиль сохранён");renderProfile()});
- }
+ if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg("Вы",v);$("#ci").value="";setTimeout(()=>msg(["Аки","Рэн","Юна"][Math.random()*3|0],BOT[Math.random()*BOT.length|0]),1200)}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);location.hash="watch-"+D[0].id+"-1"}});
 document.addEventListener("input",e=>{var i=e.target.id;
@@ -330,6 +331,5 @@ document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;
 addEventListener("keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
  if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0)}else if(e.code=="ArrowRight")tick(10);else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0)}});
 addEventListener("hashchange",()=>{draw();scrollTo(0,0)});
-if(sbClient)sbClient.auth.onAuthStateChange((_event,session)=>{currentUser=session&&session.user||null;if(location.hash==="#profile")renderProfile()});
 idx();boot();
 })();
