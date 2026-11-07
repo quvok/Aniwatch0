@@ -116,17 +116,17 @@ function roomConnect(code){
  code=String(code||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);if(!code)return false;
  if(roomSocket&&roomSocketRoom===code&&roomSocket.readyState<2)return true;
  if(roomSocket){try{roomSocket.close()}catch(e){}}
- roomSocketRoom=code;roomSocket=new WebSocket(url);
- roomSocket.addEventListener("open",()=>{if(roomSocket)roomSocket.send(JSON.stringify({type:"join",room:code,name:S.name||"Гость"}))});
- roomSocket.addEventListener("message",e=>{var data;try{data=JSON.parse(e.data)}catch(err){return}
-  if(data.type==="joined"){S.room=data.room;sv();roomNeedInitialState=!data.state;toast("Подключено к комнате "+data.room);if(data.state&&data.state.animeId){var target="#watch-"+data.state.animeId+"-"+(data.state.episode||1);if(location.hash!==target)location.hash=target}else if(location.hash==="#together")V.together()}
+ roomSocketRoom=code;var socket=new WebSocket(url);roomSocket=socket;
+ socket.addEventListener("open",()=>{if(roomSocket===socket)socket.send(JSON.stringify({type:"join",room:code,name:S.name||"Гость"}))});
+ socket.addEventListener("message",e=>{if(roomSocket!==socket)return;var data;try{data=JSON.parse(e.data)}catch(err){return}
+  if(data.type==="joined"){S.room=data.room;sv();roomNeedInitialState=!data.state;toast("Подключено к комнате "+data.room);var online=$(".chat-online");if(online)online.textContent="● В комнате: "+(data.members||1);if(data.state&&data.state.animeId){var target="#watch-"+data.state.animeId+"-"+(data.state.episode||1);if(location.hash!==target)location.hash=target;else if(P&&Number(P.d.id)===Number(data.state.animeId)&&Number(P.n)===Number(data.state.episode)){P.t=Math.max(0,Math.min(DUR,Number(data.state.time)||0));P.on=!!data.state.playing;tick(0)}}else{if(P)roomSync();else if(location.hash==="#together")V.together()}}
   else if(data.type==="chat"){msg(data.name||"Гость",data.text||"")}
   else if(data.type==="sync"){var state=data.state||{};roomNeedInitialState=false;if(!P||Number(P.d.id)!==Number(state.animeId)||Number(P.n)!==Number(state.episode)){if(state.animeId)location.hash="watch-"+state.animeId+"-"+(state.episode||1);return}P.t=Math.max(0,Math.min(DUR,Number(state.time)||0));P.on=!!state.playing;tick(0)}
   else if(data.type==="presence"){var online=$(".chat-online");if(online)online.textContent="● В комнате: "+data.members}
   else if(data.type==="error")toast(data.message||"Ошибка комнаты");
  });
- roomSocket.addEventListener("close",()=>{roomSocket=null;roomSocketRoom="";roomNeedInitialState=false;if(S.room)toast("Соединение с комнатой потеряно")});
- roomSocket.addEventListener("error",()=>toast("Не удалось подключиться к серверу комнаты"));
+ socket.addEventListener("close",()=>{if(roomSocket!==socket)return;roomSocket=null;roomSocketRoom="";roomNeedInitialState=false;if(S.room)toast("Соединение с комнатой потеряно")});
+ socket.addEventListener("error",()=>{if(roomSocket===socket)toast("Не удалось подключиться к серверу комнаты")});
  return true;
 }
 V.together=()=>{if(S.room)roomConnect(S.room);app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создай комнату и отправь шестизначный код другу. Чат и синхронизация плеера работают через сервер комнаты.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+esc(S.room)+'</b> · Подключение к серверу… <button class="btn ghost" type="button" data-a="room-leave">Выйти</button></p>':'<p class="m">Для работы комнат нужен адрес сервера в js/config.js. Без него комнаты не создаются.</p>')+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
