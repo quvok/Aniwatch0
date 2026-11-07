@@ -326,7 +326,7 @@ V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
  renderCatalogPage({
   app,filters:xCF,escapeHtml:esc,genreOptions:xGL,genreLabels:GR,
-  yearOptions:Array.from({length:2027-1970+1},(_,i)=>[String(2027-i),String(2027-i)]),
+  yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
   statusOptions:xST,formatOptions:xFM,sortOptions:xSO
  });
  xCF.q=F.q||xCF.q||"";xCF.g=(F.g?(Object.keys(GR).find(k=>GR[k]===F.g)||F.g):xCF.g)||"";F.q=xCF.q;F.g=xCF.g;var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
