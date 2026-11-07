@@ -1,6 +1,7 @@
 import { query as xgq } from "./api/anilist.js";
 import { fetchRandomAnime } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
+import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -19,44 +20,8 @@ var D=[
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
 var M={},H=[];
-var localDB=null,localDBReady=null;
-function openLocalDB(){
- if(localDBReady)return localDBReady;
- localDBReady=new Promise((resolve)=>{
-  if(!window.indexedDB){resolve(null);return}
-  var req=indexedDB.open("AniWatchLocal",1);
-  req.onupgradeneeded=()=>{var db=req.result;if(!db.objectStoreNames.contains("state"))db.createObjectStore("state")};
-  req.onsuccess=()=>{localDB=req.result;resolve(localDB)};
-  req.onerror=()=>resolve(null);
- });
- return localDBReady;
-}
-async function initLocalDB(){
- var db=await openLocalDB();if(!db)return;
- try{
-  var saved=await new Promise((resolve,reject)=>{var tx=db.transaction("state","readonly"),r=tx.objectStore("state").get("app");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
-  if(saved&&typeof saved==="object"){S=saved;df()}
-  else{df();await new Promise((resolve,reject)=>{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
- }catch(e){console.warn("[AniWatch] Local database read failed",e)}
-}
-
-var $=s=>document.querySelector(s),app=$("#app"),S=ld(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
-function ld(){try{return JSON.parse(localStorage.getItem("aw"))||{}}catch(e){return{}}}
-function pruneState(){
- try{
-  var k=S.shikiAnime;
-  if(k){var keep=new Set([].concat(S.fav||[],Object.keys(S.hist||{}),Array.isArray(S.watchlist)?[]:Object.keys(S.watchlist||{})).map(Number));
-   Object.keys(k).forEach(i=>{if(!keep.has(+i))delete k[i]});
-   keep.forEach(i=>{if(!k[i]&&M[i]&&M[i].source)k[i]=M[i]})}
-  var rel=S.relatedAnime;
-  if(rel){var ks=Object.keys(rel);if(ks.length>25)ks.sort((a,b)=>(rel[b].at||0)-(rel[a].at||0)).slice(25).forEach(i=>delete rel[i])}
- }catch(e){}
-}
-function sv(){
- pruneState();
- try{localStorage.setItem("aw",JSON.stringify(S))}catch(e){}
- openLocalDB().then(db=>{if(!db)return;try{var tx=db.transaction("state","readwrite");tx.objectStore("state").put(S,"app")}catch(e){console.warn("[AniWatch] Local database write failed",e)}});
-}
+var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
+function sv(){saveLocalState(S,M)}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
@@ -310,7 +275,7 @@ async function rn(){var m=D.filter(d=>d.mal),c;try{c=JSON.parse(localStorage.get
   (await r.json()).forEach(x=>c[x.id]=x.russian||"");need.forEach(d=>{if(!(d.mal in c))c[d.mal]=""});
   try{localStorage.setItem("awr",JSON.stringify(c))}catch(e){}}catch(e){}}
  m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
-async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){S=await initializeLocalState(S,value=>{S=value});app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
