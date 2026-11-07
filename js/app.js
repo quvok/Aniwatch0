@@ -203,7 +203,7 @@ async function aniZipCount(d){
   try{
    var res=await fetch("https://api.ani.zip/v1/episodes?anilist_id="+encodeURIComponent(d.id));
    if(!res.ok)return 0;
-   var data=await res.json(),total=Number(data.episodeCount)||0,episodes=data.episodes||{},available=Object.keys(episodes).filter(k=>/^\\d+$/.test(k)).length;
+   var data=await res.json(),total=Number(data.episodeCount)||0,episodes=data.episodes||{},available=Object.keys(episodes).filter(k=>/^\d+$/.test(k)).length;
    if(!total&&!available)return 0;
    cache[d.id]={total:total,available:available,at:Date.now()};sv();
    if(total&&!d.e)d.e=total;
@@ -394,7 +394,7 @@ async function xgq(q,v){
     var limited=r.status===429||apiStatus===429;
     var temporary=(r.status>=500&&r.status<600)||(apiStatus>=500&&apiStatus<600);
     if((limited||temporary)&&attempt<3){
-     var header=r.headers.get("Retry-After"),retry=header&&/^\\d+(?:\\.\\d+)?$/.test(header)?Number(header):Math.min(15,2*Math.pow(2,attempt));
+     var header=r.headers.get("Retry-After"),retry=header&&/^\d+(?:\.\d+)?$/.test(header)?Number(header):Math.min(15,2*Math.pow(2,attempt));
      console.warn("[AniWatch] AniList временно недоступен; повтор",attempt+1,"из 3",r.status||apiStatus,err);
      await xApiWait(Math.min(30000,retry*1000));continue;
     }
@@ -403,7 +403,7 @@ async function xgq(q,v){
    }catch(e){
     last=e;
     if(attempt>=3)break;
-    if(e&&/AniList API: HTTP/.test(e.message)&&!/HTTP 5\\d\\d|HTTP 429/.test(e.message))throw e;
+    if(e&&/AniList API: HTTP/.test(e.message)&&!/HTTP 5\d\d|HTTP 429/.test(e.message))throw e;
     console.warn("[AniWatch] Ошибка запроса AniList, повтор",attempt+1,e&&e.message||e);
     await xApiWait(Math.min(8000,1000*Math.pow(2,attempt)));
    }
