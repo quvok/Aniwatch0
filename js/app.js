@@ -446,7 +446,7 @@ V.random=()=>{xrandom()};
 listen(document,"change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o","cf-r":"minScore"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
 listen(document,"input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
 listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
-listen(document,"click",e=>{if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
+listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
 // расписание
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
 async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return xSC;var st=new Date();st.setHours(0,0,0,0);var a=Math.floor(st/1000),out=[];
