@@ -74,7 +74,7 @@ changed=true;sv();
 await Promise.all([worker(),worker(),worker()]);
 D.forEach(d=>{
 var r=cache[d.id];if(!r)return;
-if(r.n)d.n=r.n;
+d.n=r.n||"Русское название пока недоступно";
 d.d=r.d||"Описание на русском пока недоступно.";
 });
 if(location.hash.indexOf("#watch-")!==0)draw();
