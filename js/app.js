@@ -339,7 +339,7 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}});
 document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
- if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg("Вы",v);$("#ci").value="";setTimeout(()=>msg(["Аки","Рэн","Юна"][Math.random()*3|0],BOT[Math.random()*BOT.length|0]),1200)}
+ if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);location.hash="watch-"+D[0].id+"-1"}});
 document.addEventListener("input",e=>{var i=e.target.id;
  if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(location.hash!="#catalog")location.hash="catalog";else rc()}
