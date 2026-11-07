@@ -106,6 +106,26 @@ async function anilibriaCount(d){
  })();
  await aniCountPending[d.id];delete aniCountPending[d.id];
 }
+var aniZipPending={};
+async function aniZipCount(d){
+ if(!Number(d.id))return 0;
+ var cache=S.aniZipEpisodes=S.aniZipEpisodes||{},saved=cache[d.id];
+ if(saved&&Date.now()-saved.at<30*864e5){if(!d.e&&saved.total>0)d.e=saved.total;if(!d.ae&&saved.available>0)d.ae=saved.available;refreshEpCount(d);return saved.total||saved.available}
+ if(aniZipPending[d.id])return aniZipPending[d.id];
+ aniZipPending[d.id]=(async()=>{
+  try{
+   var res=await fetch("https://api.ani.zip/v1/episodes?anilist_id="+encodeURIComponent(d.id));
+   if(!res.ok)return 0;
+   var data=await res.json(),total=Number(data.episodeCount)||0,episodes=data.episodes||{},available=Object.keys(episodes).filter(k=>/^\\d+$/.test(k)).length;
+   if(!total&&!available)return 0;
+   cache[d.id]={total:total,available:available,at:Date.now()};sv();
+   if(total&&!d.e)d.e=total;
+   if(!total&&available&&!d.ae)d.ae=available;
+   refreshEpCount(d);return total||available;
+  }catch(e){return 0}
+ })();
+ var result=await aniZipPending[d.id];delete aniZipPending[d.id];return result;
+}
 var kitsuPending={};
 async function kitsuCount(d){
  if(!d.mal)return 0;
@@ -165,8 +185,8 @@ async function verifyOnePiece(){
   if(q.ok){var j=await q.json(),m=j.data&&j.data.Media;if(m&&!d){d=mp(m);D.unshift(d);M[d.id]=d;idx();}else if(m&&d&&!d.e&&Number(m.episodes)>0)d.e=Number(m.episodes);}
  }catch(e){}
  if(!d)d={id:"one-piece-check",mal:21,n:"One Piece",e:0};
- var a=await jikanCount(d,true),k=await kitsuCount(d);
- console.info("[AniWatch] One Piece check:",{foundInCatalog:!!M[d.id],episodesAniList:d.e||0,jikan:a||0,kitsu:k||0});
+ var a=await jikanCount(d,true),z=await aniZipCount(d),k=await kitsuCount(d);
+ console.info("[AniWatch] One Piece check:",{foundInCatalog:!!M[d.id],episodesAniList:d.e||0,jikan:a||0,aniZip:z||0,kitsu:k||0});
  if(M[d.id]){refreshEpCount(d);if(location.hash==="#home")draw()}
 }
 function refreshEpCount(d){
@@ -178,6 +198,7 @@ async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[
   if(!r||(!d.e&&!r.e)){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]=Object.assign(r||{},{n:j.russian||((r&&r.n)||""),d:j.description||((r&&r.d)||""),e:Number(j.episodes)||0});sv()}catch(e){if(!r)return}}
   if(!d.e&&r.e>0)d.e=r.e;
   if(!d.e)await jikanCount(d,false);
+  if(!d.e||!d.ae)await aniZipCount(d);
   if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d);
   refreshEpCount(d)
   r.d=cleanDesc(r.d);
