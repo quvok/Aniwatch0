@@ -1,0 +1,28 @@
+// Shikimori HTTP client. UI and anime-model normalization stay outside this module.
+const API_ROOT="https://shikimori.io/api";
+
+export async function fetchRandomAnime(){
+ const response=await fetch(API_ROOT+"/animes?limit=1&order=random",{headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Shikimori API: HTTP "+response.status);
+ let result=await response.json();
+ if(Array.isArray(result))result=result[0];
+ if(result&&result.anime)result=result.anime;
+ if(!result||!Number(result.id))throw new Error("Shikimori вернул пустой результат");
+ return result;
+}
+
+export async function fetchCatalogPage({query="",page=1,order="popularity",format="",year="",status="",signal}={}){
+ const url=new URL(API_ROOT+"/animes");
+ url.searchParams.set("limit","50");
+ url.searchParams.set("page",String(page));
+ url.searchParams.set("order",order);
+ if(query)url.searchParams.set("search",query);
+ if(format)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[format]||format);
+ if(year)url.searchParams.set("season",String(year));
+ if(status)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[status]||status);
+ const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Shikimori API: HTTP "+response.status);
+ const result=await response.json();
+ if(!Array.isArray(result))throw new Error("Некорректный ответ Shikimori");
+ return result;
+}
