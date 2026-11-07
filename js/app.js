@@ -307,7 +307,6 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
  var saved=S.shikiAnime||{};ids.forEach(i=>{if(!M[i]&&saved[i])M[i]=saved[i]});
  var need=[...ids].filter(i=>i>0&&!M[i]&&i<1000000000).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
-function xsel(id,lab,cur,opts,all){return'<label>'+lab+'<select id="'+id+'">'+(all?'<option value="">'+all+'</option>':"")+opts.map(o=>'<option value="'+o[0]+'"'+(cur==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label>'}
 // Shikimori supplies MAL IDs; use them only as a bridge to AniList artwork.
 async function xaniPosters(L){
  var ids=[...new Set(L.map(d=>Number(d.mal)).filter(id=>Number.isInteger(id)&&id>0))];if(!ids.length)return;
