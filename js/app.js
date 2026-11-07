@@ -369,7 +369,7 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
  var need=[...ids].filter(i=>i>0&&!M[i]&&i<1000000000).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
 function xsel(id,lab,cur,opts,all){return'<label>'+lab+'<select id="'+id+'">'+(all?'<option value="">'+all+'</option>':"")+opts.map(o=>'<option value="'+o[0]+'"'+(cur==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label>'}
-// Shikimori supplies catalog metadata and MAL IDs; all catalog artwork comes from AniList.
+// Shikimori supplies MAL IDs; use them only as a bridge to AniList artwork.
 async function xaniPosters(L){
  var ids=[...new Set(L.map(d=>Number(d.mal)).filter(id=>Number.isInteger(id)&&id>0))];if(!ids.length)return;
  try{
@@ -386,14 +386,14 @@ async function xaniPosters(L){
 }
 V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
- app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Каталог аниме</div><h1>Каталог аниме</h1><p>Поиск и фильтры по каталогу аниме. Постеры загружаются из AniList.</p></div><div class="catalog-count"><b>ANILIST ART</b><span>каталог</span></div></div>'+
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Каталог Shikimori</div><h1>Каталог аниме</h1><p>Поиск, названия и данные из каталога Shikimori.</p></div><div class="catalog-count"><b>SHIKIMORI</b><span>каталог</span></div></div>'+
  '<div class="catalog-tools"><label class="catalog-search-label">Поиск по названию<input id="cs" type="search" value="'+esc(xCF.q||'')+'" placeholder="Например, Наруто или Frieren…" autocomplete="off"></label>'+
  '<div class="catalog-selects">'+xsel("cf-g","Жанр",xCF.g,xGL.map(g=>[g,GR[g]||g]),"Все жанры")+
  xsel("cf-y","Год",xCF.y,Array.from({length:2027-1970+1},(_,i)=>[String(2027-i),String(2027-i)]),"Любой год")+
  xsel("cf-st","Статус",xCF.st,xST,"Любой статус")+
  xsel("cf-f","Формат",xCF.f,xFM,"Любой формат")+
  xsel("cf-o","Сортировка",xCF.o,xSO)+'</div></div>'+
- '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Постеры: AniList</span></div>'+
+ '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Источник: Shikimori</span></div>'+
  '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
  xCF.q=F.q||xCF.q||"";xCF.g=(F.g?(Object.keys(GR).find(k=>GR[k]===F.g)||F.g):xCF.g)||"";F.q=xCF.q;F.g=xCF.g;var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
  xcq(true);
@@ -439,7 +439,7 @@ async function xcq(reset){
   var L=all.map(a=>{
    var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
    var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
-   var image=""; // Posters are loaded exclusively from AniList by MAL ID.
+   var image=a.image&&a.image.original||"";
    return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:image?(image.startsWith("http")?image:"https://shikimori.one"+image):"",ban:"",kind:kind};
   }).filter(d=>(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g)));
   L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
@@ -449,13 +449,13 @@ async function xcq(reset){
   // If we reached the end of the source, there is nothing more to request.
   xCF.more=lastPageLength===50;
   xCF.busy=false;
-  $("#cc").textContent=q?"Результаты поиска":xCF.st==="RELEASING"?"Онгоинги":"Каталог аниме";
+  $("#cc").textContent=q?"Результаты поиска":xCF.st==="RELEASING"?"Онгоинги Shikimori":"Каталог Shikimori";
   box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
   if(!L.length&&!xCF.more)box.textContent="Ничего не найдено";
   xaniPosters(L);
  }catch(e){
   console.error("[AniWatch] Shikimori catalog:",e);
-  if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог")}
+  if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог Shikimori")}
  }
 }
 document.addEventListener("change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
