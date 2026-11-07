@@ -35,7 +35,7 @@ V.home=()=>{var hi=0,hero=()=>{var d=H[hi%H.length];return'<div class="hero" sty
 var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
 app.innerHTML='<div id="hw">'+hero()+'</div>'+(cont.length?row("Продолжить просмотр",cont):"")+row("Новинки",srt("y").slice(0,6).map(d=>card(d)))+row("Популярное",srt("r").slice(0,6).map(d=>card(d)));
 T.push(setInterval(()=>{hi++;$("#hw").innerHTML=hero()},6000))};
-function rc(){var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.q||(d.n+d.g.join()).toLowerCase().includes(F.q)));$("#cr").innerHTML=a.length?a.map(d=>card(d)).join(""):'<p class="empty">Ничего не найдено</p>'}
+function rc(){var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.q||[d.n,d.en,d.romaji,...d.g].join(" ").toLowerCase().includes(F.q)));$("#cr").innerHTML=a.length?a.map(d=>card(d)).join(""):'<p class="empty">Ничего не найдено</p>'}
 V.catalog=()=>{app.innerHTML='<h2>Каталог</h2><div class="chips">'+["",...GN].map(g=>'<button class="'+(F.g==g?"on":"")+'" data-a="g" data-v="'+g+'">'+(g||"Все")+'</button>').join("")+'</div><div class="inl" style="margin-bottom:14px"><select id="so">'+[["r","По рейтингу"],["y","По году"],["n","По названию"]].map(o=>'<option value="'+o[0]+'"'+(F.s==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></div><div class="row" id="cr"></div>';rc()};
 V.title=p=>{var d=M[p[0]];if(!d)return V.home();var f=S.fav.includes(d.id),h=S.hist[d.id],r=S.rate[d.id]||0;
 app.innerHTML=(d.ban?'<div class="tb" style="background:'+bn(d)+'"></div>':"")+'<div class="tt"><div class="poster big" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'</div><div><h1 id="tn">'+d.n+'</h1><p class="m">'+d.g.join(" · ")+' · '+d.y+' · ★ '+d.r+' · '+d.e+' эп. · '+d.s+'</p><p id="td">'+d.d+'</p><div class="acts"><a class="btn" href="#watch-'+d.id+'-'+(h?h.ep:1)+'">▶ '+(h?"Продолжить, серия "+h.ep:"Смотреть")+'</a><button class="btn ghost" data-a="fav" data-i="'+d.id+'">'+(f?"♥ В избранном":"♡ В избранное")+'</button></div><p class="m">Ваша оценка: '+[1,2,3,4,5].map(v=>'<button class="st'+(v<=r?" on":"")+'" data-a="rate" data-i="'+d.id+'" data-v="'+v+'">★</button>').join("")+'</p></div></div><h2>Серии</h2><div class="eps">'+eps(d,0)+'</div>'+row("Похожее",D.filter(x=>x.id!=d.id&&x.g.some(g=>d.g.includes(g))).slice(0,6).map(x=>card(x)));ru(d)};
@@ -54,44 +54,62 @@ var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:
 function mp(m){return{id:m.id,mal:m.idMal,n:"Русское название загружается…",romaji:m.title.romaji||"",en:m.title.english||"",g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:"Русское описание загружается…",c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
 async function translateCatalog(){
-var cache=S.ruV5=S.ruV5||{},items=D.filter(d=>d.mal&&!cache[d.id]);
-var cursor=0;
+var cache=S.ruV6=S.ruV6||{},now=Date.now();
+var items=D.filter(d=>d.mal&&(!cache[d.id]||(!cache[d.id].n&&now-(cache[d.id].at||0)>86400000)));
+var cursor=0,changed=false;
+var norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9а-яё]+/gi," ").trim();
+async function getJson(url){
+var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);
+try{var r=await fetch(url,{signal:ctl.signal,headers:{Accept:"application/json"}});
+if(!r.ok)return null;return await r.json()}finally{clearTimeout(tm)}
+}
+async function lookupAniLibria(d){
+var q=d.en||d.romaji;if(!q)return null;
+try{
+var url="https://api.anilibria.tv/v3/title/search?search="+encodeURIComponent(q)+"&items_per_page=10&filter=id,names,description";
+var data=await getJson(url),list=Array.isArray(data)?data:(data&&Array.isArray(data.list)?data.list:[]);
+var target=[d.en,d.romaji].filter(Boolean).map(norm);
+return list.find(x=>{
+var n=x.names||{},candidates=[n.en,n.alternative,n.ru,x.name,x.code].filter(Boolean).map(norm);
+return candidates.some(v=>target.includes(v))&&n.ru;
+})||null;
+}catch(e){return null}
+}
+async function lookupShikimori(d){
+var q=d.romaji||d.en;if(!q)return null;
+try{
+var url="https://shikimori.one/api/animes?search="+encodeURIComponent(q)+"&limit=10";
+var list=await getJson(url);if(!Array.isArray(list))return null;
+var targets=[d.romaji,d.en].filter(Boolean).map(norm);
+return list.find(x=>{
+var candidates=[x.name,x.english,x.russian].filter(Boolean).map(norm);
+return candidates.some(v=>targets.includes(v))&&x.russian;
+})||null;
+}catch(e){return null}
+}
 async function worker(){
 while(cursor<items.length){
-var d=items[cursor++];
-try{
-var hit=null;
-var terms=[d.romaji,d.en].filter(Boolean);
-for(var q of terms){
-var url="https://shikimori.one/api/animes?search="+encodeURIComponent(q)+"&limit=20";
-var res=await fetch(url,{headers:{Accept:"application/json"}});
-if(!res.ok)continue;
-var list=await res.json();
-if(!Array.isArray(list))continue;
-var norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9а-яё]+/gi," ").trim();
-var target=norm(q);
-hit=list.find(x=>norm(x.name)===target||norm(x.english)===target||norm(x.russian)===target);
-if(!hit)hit=list.find(x=>x.russian);
-if(hit)break;
+var d=items[cursor++],hit=null,source="";
+hit=await lookupAniLibria(d);
+if(hit){source="anilibria";cache[d.id]={n:hit.names.ru,d:(hit.description||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),source:source,at:Date.now()};}
+else{
+hit=await lookupShikimori(d);
+if(hit){source="shikimori";cache[d.id]={n:hit.russian,d:(hit.description||"").replace(/\[\/?[a-z_]+(=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim(),source:source,at:Date.now()};}
+else cache[d.id]={n:"",d:"",source:"not-found",at:Date.now()};
 }
-if(hit){
-cache[d.id]={n:hit.russian||"",d:(hit.description||"").replace(/\[\/?[a-z_]+(=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()};
-}else cache[d.id]={n:"",d:""};
 changed=true;sv();
-}catch(e){}
 }
 }
-await Promise.all([worker(),worker(),worker()]);
+await Promise.all([worker(),worker()]);
 D.forEach(d=>{
 var r=cache[d.id];
-if(!r){d.n="Русское название пока недоступно";d.d="Описание на русском пока недоступно.";return;}
-d.n=r.n||"Русское название пока недоступно";
-d.d=r.d||"Описание на русском пока недоступно.";
+d.n=r&&r.n?r.n:"Русское название пока недоступно";
+d.d=r&&r.d?r.d:"Описание на русском пока недоступно.";
 });
 if(location.hash.indexOf("#watch-")!==0)draw();
 }
 function ru(d){
-var r=(S.ruV5||{})[d.id];if(!r)return;
+var r=(S.ruV6||{})[d.id];if(!r)return;
 var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;
 if(p)p.textContent=r.d||"Описание на русском пока недоступно.";
 }
