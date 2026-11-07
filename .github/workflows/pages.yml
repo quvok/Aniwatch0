@@ -1,7 +1,7 @@
 name: Deploy AniWatch to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [main, refactor/modular-architecture-2026-11-08]
   workflow_dispatch:
 permissions:
   contents: read
