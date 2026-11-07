@@ -351,8 +351,9 @@ async function xcq(reset){if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=
   if(ru){try{v.m=(await(await fetch("https://shikimori.io/api/animes?limit=24&order=popularity&search="+encodeURIComponent(xCF.q))).json()).map(x=>x.id)}catch(e){v.s=xCF.q}
    if(v.m&&!v.m.length){if(k==xCF.k){xCF.busy=false;xCF.more=false;$("#cc").textContent=0;box.textContent="Ничего не найдено"}return}}
   var pg=(await xgq(xCQ,v)).Page;if(k!=xCF.k)return;
-  var L=pg.media.map(x=>M[x.id]||(M[x.id]=mp(x)));await xrn(L);if(k!=xCF.k)return;
+  var L=pg.media.map(x=>M[x.id]||(M[x.id]=mp(x)));
   var cr=$("#cr");if(!cr)return;cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
+  xrn(L).then(()=>{if(k!=xCF.k)return;L.forEach(d=>{var el=document.querySelector('.card[href="#title-'+d.id+'"] b');if(el)el.textContent=d.n})}).catch(()=>{});
   xCF.p++;xCF.more=!v.m&&pg.pageInfo.hasNextPage;xCF.busy=false;
   $("#cc").textContent=v.m?L.length:pg.pageInfo.total;box.textContent=(L.length||xCF.p>2)?(xCF.more?"":"Это все результаты"):"Ничего не найдено"
  }catch(e){if(k==xCF.k){xCF.busy=false;var b=$("#more");if(b)b.innerHTML='Не удалось загрузить. <button class="btn ghost" data-xr="1">Повторить</button>'}}}
