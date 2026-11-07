@@ -12,6 +12,6 @@ export function renderCatalogPage({app,filters,escapeHtml,genreOptions,genreLabe
  selectHtml("cf-f","Формат",filters.f,formatOptions,"Любой формат")+
  selectHtml("cf-r","Рейтинг от",filters.minScore,ratingOptions,"Любой рейтинг")+
  selectHtml("cf-o","Сортировка",filters.o,sortOptions)+'</div></div>'+
- '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Данные: Shikimori · постеры: AniList</span></div>'+
+ '<div class="results-line"><b id="cc">Загрузка каталога…</b><button class="text-link" type="button" data-cf-reset>Сбросить фильтры</button><span>Данные: Shikimori · постеры: AniList</span></div>'+
  '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
 }
