@@ -43,7 +43,7 @@ V.home=()=>{var hi=0;
  var trending=srt("r").slice(0,8).map(d=>card(d));
  var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
  var recent=srt("y").slice(0,8).map(d=>card(d));
- var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-genre="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
+ var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-a="g" data-v="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
  app.innerHTML='<div id="hw">'+featured()+'</div><div class="quick-stats"><div><b>'+D.length+'</b><span>тайтлов в подборке</span></div><div><b>'+D.filter(d=>/Онгоинг/i.test(d.s||"")).length+'</b><span>выходят сейчас</span></div><div><b>24/7</b><span>аниме-настроение</span></div></div>'+(cont.length?row("Продолжить просмотр",cont,"Вернись к серии, на которой остановился"):"")+row("Сейчас в топе",trending,"Популярные тайтлы по оценкам")+(ongoing.length?row("Онгоинги",ongoing,"Истории, которые продолжаются прямо сейчас"):"")+row("Недавно добавлено",recent,"Свежие и актуальные тайтлы")+'<section class="genre-section"><div class="shelf-head"><div><h2>Найди своё настроение</h2><p class="shelf-sub">Выбери жанр и погружайся</p></div><a href="#catalog" class="text-link">Весь каталог ↗</a></div><div class="genre-grid">'+genres+'</div></section>';
  T.push(setInterval(()=>{hi++;var el=$("#hw");if(el)el.innerHTML=featured()},7000))
 };
