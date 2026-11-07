@@ -491,3 +491,88 @@ nav{gap:3px}nav a{font-size:13px;padding:9px 13px}nav a.on{background:rgba(167,1
  .desc-text{font-size:12px;line-height:1.55}
  .desc-text.collapsed{-webkit-line-clamp:3}
 }
+
+
+/* Motion polish: subtle entrances, tactile controls and poster depth */
+@keyframes awFadeUp{
+ from{opacity:0;transform:translateY(16px)}
+ to{opacity:1;transform:translateY(0)}
+}
+@keyframes awHeroIn{
+ from{opacity:0;transform:translateY(12px) scale(.985);filter:blur(5px)}
+ to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+}
+@keyframes awHeartPop{
+ 0%{transform:scale(.72)}
+ 55%{transform:scale(1.28)}
+ 100%{transform:scale(1)}
+}
+@keyframes awHeartGlow{
+ 0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.3)}
+ 50%{box-shadow:0 0 20px rgba(255,107,157,.42)}
+}
+@keyframes awButtonShine{
+ from{transform:translateX(-140%) skewX(-18deg)}
+ to{transform:translateX(240%) skewX(-18deg)}
+}
+.hero-editorial{animation:awHeroIn .7s cubic-bezier(.2,.75,.25,1) both}
+.hero-copy>*{animation:awFadeUp .55s both}
+.hero-copy>*:nth-child(1){animation-delay:.06s}
+.hero-copy>*:nth-child(2){animation-delay:.12s}
+.hero-copy>*:nth-child(3){animation-delay:.18s}
+.hero-copy>*:nth-child(4){animation-delay:.24s}
+.hero-copy>*:nth-child(5){animation-delay:.3s}
+.hero-poster{animation:awFadeUp .75s .16s both}
+.quick-stats,.shelf,.genre-section,.catalog-heading,.catalog-tools,.results-line,.tt,.watch,.panel{
+ animation:awFadeUp .55s cubic-bezier(.2,.7,.25,1) both;
+}
+.card{transform:translateZ(0);transition:transform .28s cubic-bezier(.2,.75,.25,1),filter .28s}
+.card .poster{transition:transform .35s cubic-bezier(.2,.75,.25,1),box-shadow .35s,border-color .3s}
+.card:hover .poster{transform:translateY(-3px) scale(1.035)}
+.card:hover b{color:#d9caff}
+.card:active{transform:scale(.975)}
+.poster::before{
+ content:"";position:absolute;z-index:1;inset:0;pointer-events:none;opacity:0;
+ background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.13) 48%,transparent 72%);
+ transform:translateX(-100%);transition:opacity .2s;
+}
+.card:hover .poster::before{opacity:1;animation:awButtonShine .85s ease}
+.poster-fav{transform:scale(.92);opacity:.88;transition:transform .22s cubic-bezier(.2,.8,.2,1),opacity .2s,background .2s,color .2s,box-shadow .2s}
+.card:hover .poster-fav{transform:scale(1);opacity:1}
+.poster-fav:active{transform:scale(.82)}
+.poster-fav.active{animation:awHeartPop .38s cubic-bezier(.2,.8,.2,1),awHeartGlow 1.2s ease}
+.btn,button,.genre-tile,.hero-arrow,.hero-dots button{
+ transition:transform .2s cubic-bezier(.2,.8,.2,1),background-color .2s,border-color .2s,box-shadow .2s,color .2s;
+}
+.btn{position:relative;overflow:hidden}
+.btn::after{
+ content:"";position:absolute;top:-30%;bottom:-30%;left:0;width:38%;
+ background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);
+ transform:translateX(-140%) skewX(-18deg);pointer-events:none;
+}
+.btn:hover::after{animation:awButtonShine .7s ease}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(118,81,213,.32)}
+.btn:active,button:active{transform:scale(.96)}
+.genre-tile:hover{box-shadow:0 12px 30px rgba(0,0,0,.22)}
+.hero-poster{transition:transform .4s cubic-bezier(.2,.75,.25,1),box-shadow .4s}
+.hero-editorial:hover .hero-poster{transform:rotate(0) translateY(-3px);box-shadow:0 30px 65px rgba(0,0,0,.55)}
+.hero-arrow:hover{transform:translateY(-50%) scale(1.1)}
+.hero-dots button:hover{transform:scale(1.35)}
+.eps a{transition:transform .18s,background .18s,border-color .18s}
+.eps a:hover{transform:translateY(-2px)}
+input,select,textarea{transition:border-color .2s,box-shadow .2s,background .2s}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.13)}
+#toast.on{animation:awFadeUp .25s ease both}
+@media(max-width:700px){
+ .card:hover .poster{transform:translateY(-1px) scale(1.015)}
+ .hero-editorial:hover .hero-poster{transform:rotate(1deg)}
+ .poster::before{display:none}
+ .btn:hover{transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+ .hero-editorial,.hero-copy>*,.hero-poster,.quick-stats,.shelf,.genre-section,.catalog-heading,.catalog-tools,.results-line,.tt,.watch,.panel,#toast.on{
+  animation:none!important;
+ }
+ .card,.card .poster,.poster-fav,.btn,.genre-tile,.hero-poster,.eps a{transition:none!important}
+ .poster::before,.btn::after{display:none!important}
+}
