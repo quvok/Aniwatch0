@@ -379,7 +379,7 @@ async function xaniPosters(L){
    (res.Page.media||[]).forEach(a=>{map[a.idMal]=a});
   }
   L.forEach(d=>{var a=map[d.mal];if(!a)return;d.aniId=a.id;d.img=a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large)||d.img;d.ban=a.bannerImage||d.ban;M[d.id]=d;S.shikiAnime[d.id]=d});
-  var cards=$("#cr .card[data-anime-id]");
+  var cards=$$("#cr .card[data-anime-id]");
   cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var p=c.querySelector(".poster");if(p){p.style.background=bg(d);var letter=p.querySelector("i");if(letter)letter.remove()}});
   sv();
  }catch(e){console.warn("[AniWatch] AniList poster lookup failed:",e)}
