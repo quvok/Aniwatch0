@@ -576,3 +576,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
  .card,.card .poster,.poster-fav,.btn,.genre-tile,.hero-poster,.eps a{transition:none!important}
  .poster::before,.btn::after{display:none!important}
 }
+
+/* Mobile hero swipe: keep vertical page scrolling native while tracking horizontal gestures. */
+#hw .hero-editorial{touch-action:pan-y;}
