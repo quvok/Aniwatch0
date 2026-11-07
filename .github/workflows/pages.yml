@@ -23,6 +23,8 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Check JavaScript syntax
+        run: node --check js/app.js
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
