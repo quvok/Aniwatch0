@@ -106,6 +106,34 @@ async function anilibriaCount(d){
  })();
  await aniCountPending[d.id];delete aniCountPending[d.id];
 }
+var kitsuPending={};
+async function kitsuCount(d){
+ if(!d.mal)return 0;
+ var cache=S.kitsuEpisodes=S.kitsuEpisodes||{},saved=cache[d.mal];
+ if(saved&&Date.now()-saved.at<30*864e5){if(!d.e&&saved.total>0)d.e=saved.total;if(!d.ae&&saved.available>0)d.ae=saved.available;refreshEpCount(d);return saved.total||saved.available}
+ if(kitsuPending[d.mal])return kitsuPending[d.mal];
+ kitsuPending[d.mal]=(async()=>{
+  try{
+   var map=await fetch("https://api.ani.zip/mappings?mal_id="+encodeURIComponent(d.mal));
+   if(!map.ok)return 0;
+   var mj=await map.json(),kid=mj.kitsu_id||(mj.mappings&&mj.mappings.kitsu_id);
+   if(!kid)return 0;
+   var [animeRes,epRes]=await Promise.all([
+    fetch("https://kitsu.io/api/edge/anime/"+encodeURIComponent(kid)),
+    fetch("https://kitsu.io/api/edge/episodes?filter%5BmediaType%5D=Anime&filter%5BmediaId%5D="+encodeURIComponent(kid)+"&page%5Blimit%5D=1")
+   ]);
+   var total=0,available=0;
+   if(animeRes.ok){var ad=await animeRes.json();total=Number(ad.data&&ad.data.attributes&&ad.data.attributes.episodeCount)||0}
+   if(epRes.ok){var ed=await epRes.json();available=Number(ed.meta&&ed.meta.count)||0}
+   if(!total&&!available)return 0;
+   cache[d.mal]={total:total,available:available,at:Date.now()};sv();
+   if(total&&!d.e)d.e=total;
+   if(!total&&available&&!d.ae)d.ae=available;
+   refreshEpCount(d);return total||available;
+  }catch(e){return 0}
+ })();
+ var result=await kitsuPending[d.mal];delete kitsuPending[d.mal];return result;
+}
 var jikanPending={};
 async function jikanCount(d,force){
  if(!d.mal)return;
@@ -131,8 +159,15 @@ async function jikanCount(d,force){
  var result=await jikanPending[d.mal];delete jikanPending[d.mal];return result;
 }
 async function verifyOnePiece(){
- var d=D.find(x=>Number(x.mal)===21)||{id:"one-piece-check",mal:21,n:"One Piece",e:0};
- await jikanCount(d,true);
+ var d=D.find(x=>Number(x.mal)===21);
+ try{
+  var q=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
+  if(q.ok){var j=await q.json(),m=j.data&&j.data.Media;if(m&&!d){d=mp(m);D.unshift(d);M[d.id]=d;idx();}else if(m&&d&&!d.e&&Number(m.episodes)>0)d.e=Number(m.episodes);}
+ }catch(e){}
+ if(!d)d={id:"one-piece-check",mal:21,n:"One Piece",e:0};
+ var a=await jikanCount(d,true),k=await kitsuCount(d);
+ console.info("[AniWatch] One Piece check:",{foundInCatalog:!!M[d.id],episodesAniList:d.e||0,jikan:a||0,kitsu:k||0});
+ if(M[d.id]){refreshEpCount(d);if(location.hash==="#home")draw()}
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
@@ -142,7 +177,8 @@ function refreshEpCount(d){
 async function ru(d){anilibriaCount(d);if(!d.mal)return;var c=S.ru=S.ru||{},r=c[d.id];
   if(!r||(!d.e&&!r.e)){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]=Object.assign(r||{},{n:j.russian||((r&&r.n)||""),d:j.description||((r&&r.d)||""),e:Number(j.episodes)||0});sv()}catch(e){if(!r)return}}
   if(!d.e&&r.e>0)d.e=r.e;
-  if(!d.e||Number(d.mal)===21)await jikanCount(d,Number(d.mal)===21);
+  if(!d.e)await jikanCount(d,false);
+  if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d);
   refreshEpCount(d)
   r.d=cleanDesc(r.d);
   if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
