@@ -54,7 +54,7 @@ var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:
 function mp(m){return{id:m.id,mal:m.idMal,n:"Русское название загружается…",romaji:m.title.romaji||"",en:m.title.english||"",g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:"Русское описание загружается…",c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
 async function translateCatalog(){
-var cache=S.ruV4=S.ruV4||{},items=D.filter(d=>d.mal&&!cache[d.id]);
+var cache=S.ruV5=S.ruV5||{},items=D.filter(d=>d.mal&&!cache[d.id]);
 var cursor=0;
 async function worker(){
 while(cursor<items.length){
@@ -91,13 +91,13 @@ d.d=r.d||"Описание на русском пока недоступно.";
 if(location.hash.indexOf("#watch-")!==0)draw();
 }
 function ru(d){
-var r=(S.ruV4||{})[d.id];if(!r)return;
+var r=(S.ruV5||{})[d.id];if(!r)return;
 var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;
 if(p)p.textContent=r.d||"Описание на русском пока недоступно.";
 }
 async function boot(){app.innerHTML='<p class="empty">Загрузка…</p>';var c;
 try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
-if(!c||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
+if(!c||!c.a||!c.a.length||!c.a.some(x=>x.romaji)||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
 r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
 clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
 if(c&&c.a&&c.a.length)D=c.a;idx();draw();translateCatalog()}
