@@ -125,7 +125,7 @@ async function lookupShikimori(d){
 function applyRussianName(d){document.querySelectorAll('[data-title-id="'+d.id+'"]').forEach(el=>el.textContent=d.n)}
 async function resolveTitle(d){
  var saved=await dbGet("anime",d.id);
- if(saved&&saved.n){d.n=saved.n;d.shikiId=saved.shikiId||null;applyRussianName(d);return saved}
+ if(saved&&saved.n&&!(saved.n==="Русское название пока недоступно"&&Date.now()-(saved.at||0)>86400000)){d.n=saved.n;d.shikiId=saved.shikiId||null;applyRussianName(d);return saved}
  var old=(S.ruV6||{})[d.id];
  if(old&&old.n){d.n=old.n;d.shikiId=old.shikiId||null;var migrated={id:d.id,n:d.n,shikiId:d.shikiId,at:Date.now()};await dbPut("anime",migrated);applyRussianName(d);return migrated}
  var record={id:d.id,n:"",shikiId:null,at:Date.now(),nameChecked:true},hit=await lookupAniLibria(d);
@@ -155,7 +155,7 @@ function observeTitles(){
  }),{rootMargin:"250px"});
  els.forEach(el=>titleObserver.observe(el));
 }
-function cleanDescription(s){return String(s||"").replace(/\\[\\/?[a-z_]+(=[^\\]]*)?\\]/gi,"").replace(/\\[\\[|\\]\\]/g,"").replace(/<[^>]*>/g," ").replace(/&nbsp;/g," ").replace(/\\s+/g," ").trim()}
+function cleanDescription(s){return String(s||"").replace(/\[[^\]]*\]/g," ").replace(/<[^>]*>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim()}
 async function loadTitleDescription(d){
  await queueTitle(d);
  var saved=await dbGet("anime",d.id),node=$("#td");
