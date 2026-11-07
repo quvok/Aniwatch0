@@ -673,3 +673,45 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
  .relation-group h3{font-size:12px}
  .related-state{padding:12px;font-size:11px}
 }
+
+
+/* Compact anime detail page */
+.title-page{margin-bottom:22px;border-radius:19px}
+.title-layout{grid-template-columns:190px minmax(0,1fr);gap:28px;padding:24px 28px}
+.title-cover .poster.big{max-width:190px;border-radius:13px}
+.title-info{gap:10px}
+.title-info h1{font-size:clamp(27px,3.5vw,43px)}
+.title-metrics{padding:9px 0}
+.title-metrics div{padding-inline:15px}
+.title-description .desc-text{font-size:12px;line-height:1.6}
+.title-episodes .title-section-head h2{font-size:21px}
+.title-episodes .eps{padding:11px}
+.related-shelf{margin-top:18px}
+.related-shelf .shelf-head h2{margin-top:18px;font-size:18px}
+.related-shelf .shelf-sub{font-size:10px;margin-bottom:9px}
+.related-shelf .row{grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:13px 11px}
+.related-shelf .card b{font-size:11px;margin-top:6px}
+.related-shelf .card small{font-size:9px;margin-top:2px}
+.relation-group{margin:12px 0 15px}
+.relation-group h3{font-size:11px;margin-bottom:8px}
+@media(max-width:700px){
+ .title-page{margin-bottom:18px}
+ .title-layout{grid-template-columns:88px minmax(0,1fr);gap:12px;padding:13px 12px 15px}
+ .title-cover .poster.big{width:88px;border-radius:8px}
+ .title-info{gap:7px}
+ .title-info h1{font-size:clamp(19px,5.5vw,25px)}
+ .title-original{font-size:9px}
+ .title-tags span{font-size:7px;padding:4px 6px}
+ .title-metrics{gap:7px;padding:7px 0}
+ .title-metrics b{font-size:10px}
+ .title-description .desc-text{font-size:10px;line-height:1.48}
+ .title-section-head{margin-bottom:9px}
+ .title-episodes .title-section-head h2{font-size:19px}
+ .title-episodes .eps{padding:8px}
+ .related-shelf{margin-top:13px}
+ .related-shelf .shelf-head h2{margin-top:13px;font-size:16px}
+ .related-shelf .shelf-sub{font-size:9px;margin-bottom:7px}
+ .related-shelf .row{grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:10px 8px}
+ .related-shelf .card b{font-size:10px}
+ .relation-group{margin:9px 0 12px}
+}
