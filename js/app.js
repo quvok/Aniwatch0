@@ -36,9 +36,10 @@ function card(d,pr,href){
 var row=(t,a,sub)=>'<section class="shelf"><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var eps=(d,cur)=>Array.from({length:d.e},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join("");
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
+function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\\[\\/?[a-z_]+(?:=[^\\]]*)?\\]/gi,"").replace(/\\[\\[|\\]\\]/g,"").replace(/\\s+/g," ").trim()}
 
 V.home=()=>{var hi=0;
- var featured=()=>{var d=H[hi%H.length]||D[0];ru(d);var rd=(S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d;return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span>'+d.e+' серий</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div></section>'};
+ var featured=()=>{var d=H[hi%H.length]||D[0];ru(d);var rd=cleanDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span>'+d.e+' серий</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div></section>'};
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
  var trending=srt("r").slice(0,8).map(d=>card(d));
  var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
@@ -72,7 +73,8 @@ var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:
 function mp(m){return{id:m.id,mal:m.idMal,n:esc(m.title.english||m.title.romaji),g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
 async function ru(d){if(!d.mal)return;var c=S.ru=S.ru||{},r=c[d.id];
-  if(!r){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]={n:j.russian||"",d:(j.description||"").replace(/\\[\\/?[a-z_]+(=[^\\]]*)?\\]/gi,"").replace(/\\[\\[|\\]\\]/g,"").trim()};sv()}catch(e){return}}
+  if(!r){try{var j=await(await fetch("https://shikimori.io/api/animes/"+d.mal)).json();r=c[d.id]={n:j.russian||"",d:j.description||""};sv()}catch(e){return}}
+  r.d=cleanDesc(r.d);
   if(location.hash=="#title-"+d.id){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=r.d}
   var fp=$("#featured-desc");if(fp&&fp.dataset.id==d.id&&r.d)fp.textContent=r.d}
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
