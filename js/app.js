@@ -375,7 +375,7 @@ async function xcq(reset){
  try{
   var q=xCF.q.trim(),needLocalFilter=!!xCF.g||!!xCF.minScore,all=[],lastPageLength=0,sourcePage=xCF.p,pagesFetched=0;
   // Status is filtered by Shikimori itself; genre remains a local filter.
-  // Scan more pages only when a genre filter needs local matching.
+  // Scan more pages when genre or minimum-score filtering is applied locally.
   var maxPages=needLocalFilter?4:1;
   if(!xCF.aniFallback)for(var step=0;step<maxPages;step++){
    var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st,xCF.minScore]),cached=null;
@@ -399,7 +399,7 @@ async function xcq(reset){
     var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
     return (!xCF.st||st===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||gs.includes(GR[xCF.g]||xCF.g))&&(!xCF.minScore||Number(a.score)>=Number(xCF.minScore));
    });
-   if(!needGenre||matched.length>=50||data.length<50)break;
+   if(!needLocalFilter||matched.length>=50||data.length<50)break;
   }
   if(k!==xCF.k)return;
   // Если Shikimori не нашёл ничего по запросу, пробуем AniList Search.
