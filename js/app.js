@@ -94,7 +94,7 @@ V.watch=p=>{
  var d=M[p[0]];if(!d)return V.home();
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(d.e>0)n=Math.min(n,d.e);
  var inRoom=!!S.room;
- P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;touchWatchHistory(false);sv();
+ P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;touchWatchHistory(false);sv();if(inRoom){roomConnect(S.room);if(roomNeedInitialState)roomSync()}
  app.innerHTML='<section class="watch-page">'+
  '<div class="watch-head"><div><a class="watch-back" href="#title-'+d.id+'">← К странице аниме</a><h1>'+d.n+'</h1><p>'+d.g.slice(0,3).join(" · ")+' <span>•</span> '+(d.y||"")+' <span>•</span> '+(d.s||"Аниме")+'</p></div>'+
  (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Совместный просмотр</b><small>Комната '+esc(S.room)+'</small></div><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
@@ -107,7 +107,29 @@ V.watch=p=>{
  tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000))
 };
 
-V.together=()=>{app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте комнату и отправьте код друзьям — чат откроется рядом с плеером. Синхронизация между устройствами требует сервера (см. README), сейчас комната работает локально.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+S.room+'</b></p>':"")+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
+var roomSocket=null,roomSocketRoom="",roomNeedInitialState=false;
+function roomSend(data){if(!roomSocket||roomSocket.readyState!==1)return false;try{roomSocket.send(JSON.stringify(data));return true}catch(e){return false}}
+function roomSync(){if(!P||!S.room)return false;var ok=roomSend({type:"sync",state:{animeId:P.d.id,episode:P.n,time:P.t,playing:!!P.on}});if(ok)roomNeedInitialState=false;return ok}
+function roomConnect(code){
+ var url=window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.websocketUrl;
+ if(!url){toast("Сервер совместного просмотра ещё не подключён. Сначала разверни server/README.md.");return false}
+ code=String(code||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);if(!code)return false;
+ if(roomSocket&&roomSocketRoom===code&&roomSocket.readyState<2)return true;
+ if(roomSocket){try{roomSocket.close()}catch(e){}}
+ roomSocketRoom=code;roomSocket=new WebSocket(url);
+ roomSocket.addEventListener("open",()=>{if(roomSocket)roomSocket.send(JSON.stringify({type:"join",room:code,name:S.name||"Гость"}))});
+ roomSocket.addEventListener("message",e=>{var data;try{data=JSON.parse(e.data)}catch(err){return}
+  if(data.type==="joined"){S.room=data.room;sv();roomNeedInitialState=!data.state;toast("Подключено к комнате "+data.room);if(data.state&&data.state.animeId){var target="#watch-"+data.state.animeId+"-"+(data.state.episode||1);if(location.hash!==target)location.hash=target}else if(location.hash==="#together")V.together()}
+  else if(data.type==="chat"){msg(data.name||"Гость",data.text||"")}
+  else if(data.type==="sync"){var state=data.state||{};roomNeedInitialState=false;if(!P||Number(P.d.id)!==Number(state.animeId)||Number(P.n)!==Number(state.episode)){if(state.animeId)location.hash="watch-"+state.animeId+"-"+(state.episode||1);return}P.t=Math.max(0,Math.min(DUR,Number(state.time)||0));P.on=!!state.playing;tick(0)}
+  else if(data.type==="presence"){var online=$(".chat-online");if(online)online.textContent="● В комнате: "+data.members}
+  else if(data.type==="error")toast(data.message||"Ошибка комнаты");
+ });
+ roomSocket.addEventListener("close",()=>{roomSocket=null;roomSocketRoom="";roomNeedInitialState=false;if(S.room)toast("Соединение с комнатой потеряно")});
+ roomSocket.addEventListener("error",()=>toast("Не удалось подключиться к серверу комнаты"));
+ return true;
+}
+V.together=()=>{if(S.room)roomConnect(S.room);app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создай комнату и отправь шестизначный код другу. Чат и синхронизация плеера работают через сервер комнаты.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+esc(S.room)+'</b> · Подключение к серверу… <button class="btn ghost" type="button" data-a="room-leave">Выйти</button></p>':'<p class="m">Для работы комнат нужен адрес сервера в js/config.js. Без него комнаты не создаются.</p>')+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
 V.favorites=()=>{var a=S.fav.filter(i=>M[i]).map(i=>card(M[i]));app.innerHTML='<h2>Избранное</h2>'+(a.length?'<div class="row">'+a.join("")+'</div>':'<p class="empty">Пока пусто. Нажмите «♡ В избранное» на странице тайтла.</p>')};
 function personalRecommendations(){
  var genreWeights={},seen={},pool={},hasTaste=false;
@@ -452,23 +474,23 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  else if(a=="history-clear"){S.history=[];sv();V.history();toast("История очищена")}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
  else if(a=="slide-to"&&H.length>1){featuredIndex=(+v)%H.length;showFeatured()}
- else if(a=="pp"&&P){P.on=!P.on;tick(0)}
+ else if(a=="pp"&&P){P.on=!P.on;tick(0);roomSync()}
  else if(a=="sp"&&P){var s=[1,1.25,1.5,2];P.sp=s[(s.indexOf(P.sp)+1)%4];t.textContent=P.sp+"×"}
- else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
- else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
- else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
+ else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0);roomSync()}
+ else if(a=="room"){var code=Math.random().toString(36).slice(2,8).toUpperCase();roomConnect(code)}
+ else if(a=="room-leave"){roomSend({type:"leave"});if(roomSocket)roomSocket.close();roomSocket=null;roomSocketRoom="";S.room="";sv();toast("Вы вышли из комнаты");draw()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}});
 document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
- if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
- if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);location.hash="watch-"+D[0].id+"-1"}});
+ if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;if(!roomSend({type:"chat",text:v}))toast("Нет соединения с комнатой");$("#ci").value=""}
+ if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;roomConnect(c)}});
 document.addEventListener("input",e=>{var i=e.target.id;
  if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(location.hash!="#catalog")location.hash="catalog";else rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
 document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 addEventListener("keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
- if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0)}else if(e.code=="ArrowRight")tick(10);else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0)}});
+ if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0);roomSync()}else if(e.code=="ArrowRight"){tick(10);roomSync()}else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0);roomSync()}});
 addEventListener("pagehide",saveWatchProgress);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)saveWatchProgress()});
 addEventListener("hashchange",()=>{draw();scrollTo(0,0)});
