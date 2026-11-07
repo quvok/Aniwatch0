@@ -224,7 +224,7 @@ async function loadRelated(d){
    var creatorEdges=(media.staff&&media.staff.edges||[]).filter(e=>e.node&&/original creator|原作|原案/i.test(e.role||""));
    var creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
    var creatorSeen={},creatorWorks=[];
-   creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==d.id&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
+   creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==d.id&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
    creatorWorks=creatorWorks.slice(0,12);
    var all=relations.map(x=>x.anime).concat(recommendations,creatorWorks);
    await translateRelated(all);
