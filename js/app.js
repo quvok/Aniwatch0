@@ -63,7 +63,7 @@ V.home=()=>{
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-a="g" data-v="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,titleCount:source.animeTotal||D.length,ongoingCount:source.ongoingTotal||source.ongoing.length,row});
+ renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
  loadHomeAiring();
 };
@@ -298,9 +298,7 @@ async function loadHomeCollections(){
  if(!data){data=await xgq(HOME_QUERY,{});try{localStorage.setItem("aw-home-v1",JSON.stringify({at:Date.now(),data:data}))}catch(e){}}
  var page=data||{},map=list=>(list&&list.media||[]).map(mp);
  homeCollections={
-  trending:map(page.trending),popular:map(page.popular),ongoing:map(page.ongoing),recent:map(page.recent),
-  animeTotal:Number(page.popular&&page.popular.pageInfo&&page.popular.pageInfo.total)||0,
-  ongoingTotal:Number(page.ongoing&&page.ongoing.pageInfo&&page.ongoing.pageInfo.total)||0
+  trending:map(page.trending),popular:map(page.popular),ongoing:map(page.ongoing),recent:map(page.recent)
  };
  homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent).forEach(d=>M[d.id]=d);
  if(homeCollections.trending.length)H=homeCollections.trending;
