@@ -370,14 +370,14 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
 function xsel(id,lab,cur,opts,all){return'<label>'+lab+'<select id="'+id+'">'+(all?'<option value="">'+all+'</option>':"")+opts.map(o=>'<option value="'+o[0]+'"'+(cur==o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></label>'}
 V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
- app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Вся база AniList</div><h1>Каталог аниме</h1><p>Поиск и фильтры по всей базе, а не только по трендовым тайтлам.</p></div><div class="catalog-count"><b id="cc">—</b><span>результатов</span></div></div>'+
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Вся база AniList</div><h1>Каталог аниме</h1><p>Поиск и фильтры по всей базе, а не только по трендовым тайтлам.</p></div><div class="catalog-count"><b>ANILIST</b><span>каталог</span></div></div>'+
  '<div class="catalog-tools"><label class="catalog-search-label">Поиск по названию<input id="cs" type="search" value="'+esc(xCF.q||'')+'" placeholder="Например, Наруто или Frieren…" autocomplete="off"></label>'+
  '<div class="catalog-selects">'+xsel("cf-g","Жанр",xCF.g,xGL.map(g=>[g,GR[g]||g]),"Все жанры")+
  xsel("cf-y","Год",xCF.y,Array.from({length:2027-1970+1},(_,i)=>[String(2027-i),String(2027-i)]),"Любой год")+
  xsel("cf-st","Статус",xCF.st,xST,"Любой статус")+
  xsel("cf-f","Формат",xCF.f,xFM,"Любой формат")+
  xsel("cf-o","Сортировка",xCF.o,xSO)+'</div></div>'+
- '<div class="results-line"><b id="catalog-result-label">Загрузка каталога…</b><span>Источник: AniList</span></div>'+
+ '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Источник: AniList</span></div>'+
  '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
  xCF.q=F.q||xCF.q||"";
  xcq(true);
