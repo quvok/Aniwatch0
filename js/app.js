@@ -395,7 +395,7 @@ V.catalog=()=>{
  xsel("cf-o","Сортировка",xCF.o,xSO)+'</div></div>'+
  '<div class="results-line"><b id="cc">Загрузка каталога…</b><span>Источник: Shikimori</span></div>'+
  '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
- xCF.q=F.q||xCF.q||"";
+ var pageParams=new URLSearchParams(location.search);xCF.q=pageParams.get("search")||F.q||xCF.q||"";xCF.g=pageParams.get("genre")||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
  xcq(true);
 };
 rc=()=>{var a=srt(F.s).filter(d=>(!F.g||d.g.includes(F.g))&&(!F.status||d.s===F.status)&&(!F.q||(d.n+(d.o||"")+d.g.join()).toLowerCase().includes(F.q)));$("#cr").innerHTML=a.length?a.map(d=>card(d)).join(""):'<p class="empty">Ничего не найдено</p>';var count=$("#result-count");if(count)count.textContent="Найдено: "+a.length};
@@ -470,7 +470,7 @@ async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return 
  out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.id]||(M[x.media.id]=mp(x.media)));
  await xrn([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
 function renderHomeAiring(){
- if(!(location.hash===""||location.hash==="#home")||!xSC)return;
+ if(!((location.hash===""||location.hash==="#home")&&document.body.dataset.page==="home")||!xSC)return;
  var now=Date.now()/1000,upcoming={};
  xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
  Array.from(document.querySelectorAll(".card[data-anime-id]")).forEach(c=>{
@@ -485,7 +485,7 @@ function xsch(){if(!xSC||!$("#slist"))return;var st=new Date();st.setHours(0,0,0
  $("#sdays").innerHTML=[0,1,2,3,4,5,6].map(i=>'<button class="'+(i==xSD?"on":"")+'" data-sd="'+i+'">'+(i==0?"Сегодня":i==1?"Завтра":new Date((st/1000+i*86400)*1000).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric"}))+'</button>').join("");
  $("#slist").innerHTML=L.length?L.map(x=>{var d=x.m;return'<a class="sch-row" href="#title-'+d.id+'"><b class="sch-t">'+new Date(x.airingAt*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</b><div class="sch-p" style="background:'+bg(d)+'"></div><div class="sch-i"><span>'+d.n+'</span><small>Серия '+x.episode+' · '+(x.airingAt>now?"через "+xcd(x.airingAt-now):"вышла")+'</small></div></a>'}).join(""):'<p class="empty">В этот день серий нет</p>'}
 V.schedule=()=>{xSD=0;app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Время вашего устройства</div><h1>Расписание серий</h1><p>Что выходит ближайшие 7 дней и сколько осталось до новой серии.</p></div></div><div class="chips" id="sdays"></div><div id="slist"><p class="empty">Загрузка…</p></div>';
- xloadSch().then(()=>{if(location.hash=="#schedule"){xsch();T.push(setInterval(xsch,6e4))}}).catch(()=>{var s=$("#slist");if(s)s.innerHTML='<p class="empty">Не удалось загрузить расписание. Попробуйте позже.</p>'})};
+ xloadSch().then(()=>{if(document.body.dataset.page==="schedule"||location.hash=="#schedule"){xsch();T.push(setInterval(xsch,6e4))}}).catch(()=>{var s=$("#slist");if(s)s.innerHTML='<p class="empty">Не удалось загрузить расписание. Попробуйте позже.</p>'})};
 // страница тайтла: таймер следующей серии и трейлер
 var xvt=V.title;V.title=p=>{xvt(p);xex(+p[0])};
 async function xex(id){if(M[id]&&M[id].source)return;var x=xXC[id];if(!x){try{x=xXC[id]=(await xgq(xXQ,{id:id})).Media}catch(e){return}}
@@ -495,8 +495,9 @@ async function xex(id){if(M[id]&&M[id].source)return;var x=xXC[id];if(!x){try{x=
  if(tr&&tr.id&&!$("#trl")){var u=tr.site=="youtube"?"https://www.youtube-nocookie.com/embed/"+encodeURIComponent(tr.id):tr.site=="dailymotion"?"https://www.dailymotion.com/embed/video/"+encodeURIComponent(tr.id):"";
   if(u){var s=document.createElement("section");s.id="trl";s.className="trailer";s.innerHTML='<h2>Трейлер</h2><div class="tr-frame"><iframe src="'+u+'" title="Трейлер" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';var epsSection=$(".title-episodes");if(epsSection)app.insertBefore(s,epsSection);else app.appendChild(s)}}}
 
-function hd(){var b=location.hash.slice(1).split("-")[0]||"home",a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")=="#"+b))}
-function draw(){T.forEach(clearInterval);T=[];P=null;var p=location.hash.slice(1).split("-");(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
+function activePage(){var h=location.hash.slice(1).split("-")[0];if(h)return h;return document.body.dataset.page||"home"}
+function hd(){var b=activePage(),a=$(".av");a.textContent=(S.name||"Г")[0].toUpperCase();document.documentElement.style.setProperty("--ac",S.acc);document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.page===b))}
+function draw(){T.forEach(clearInterval);T=[];P=null;var h=location.hash.slice(1),p=h?h.split("-"):[document.body.dataset.page||"home"];(V[p[0]]||V.home)(p.slice(1).map(Number));hd()}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,t);m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;document.addEventListener("touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});document.addEventListener("touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
@@ -504,7 +505,7 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a=="desc"){var p=$("#td"),open=t.getAttribute("aria-expanded")==="true";if(p){p.classList.toggle("collapsed",open);t.setAttribute("aria-expanded",String(!open));t.textContent=open?"Читать полностью":"Свернуть"}}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
- else if(a=="g"){F.g=v;draw()}
+ else if(a=="g"){F.g=v;if(document.body.dataset.page!=="catalog")location.href="catalog.html?genre="+encodeURIComponent(v);else draw()}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
  else if(a=="slide-to"&&H.length>1){featuredIndex=(+v)%H.length;showFeatured()}
@@ -520,7 +521,7 @@ document.addEventListener("submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);location.hash="watch-"+D[0].id+"-1"}});
 document.addEventListener("input",e=>{var i=e.target.id;
- if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(location.hash!="#catalog")location.hash="catalog";else rc()}
+ if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(document.body.dataset.page!=="catalog")location.href="catalog.html?search="+encodeURIComponent(F.q);else rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
 document.addEventListener("change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 addEventListener("keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
