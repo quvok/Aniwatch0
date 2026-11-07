@@ -327,7 +327,7 @@ async function loadHomeCollections(){
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){nextAiringEpisode{airingAt episode}trailer{id site}}}",
-xCF={g:"",y:"",st:"",f:"",o:"POPULARITY_DESC",q:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
+xCF={g:"",y:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -364,7 +364,7 @@ V.catalog=()=>{
  renderCatalogPage({
   app,filters:xCF,escapeHtml:esc,genreOptions:xGL,genreLabels:GR,
   yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
-  statusOptions:xST,formatOptions:xFM,sortOptions:xSO
+  statusOptions:xST,formatOptions:xFM,sortOptions:xSO,ratingOptions:[["6","6.0+"],["7","7.0+"],["8","8.0+"],["9","9.0+"]]
  });
  xCF.q=F.q||xCF.q||"";xCF.g=(F.g?(Object.keys(GR).find(k=>GR[k]===F.g)||F.g):xCF.g)||"";F.q=xCF.q;F.g=xCF.g;var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
  xcq(true);
@@ -375,12 +375,12 @@ async function xcq(reset){
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
  try{
-  var q=xCF.q.trim(),needGenre=!!xCF.g,all=[],lastPageLength=0,sourcePage=xCF.p,pagesFetched=0;
+  var q=xCF.q.trim(),needLocalFilter=!!xCF.g||!!xCF.minScore,all=[],lastPageLength=0,sourcePage=xCF.p,pagesFetched=0;
   // Status is filtered by Shikimori itself; genre remains a local filter.
   // Scan more pages only when a genre filter needs local matching.
-  var maxPages=needGenre?4:1;
+  var maxPages=needLocalFilter?4:1;
   for(var step=0;step<maxPages;step++){
-   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st]),cached=null;
+   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st,xCF.minScore]),cached=null;
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
    if(!data){
@@ -399,7 +399,7 @@ async function xcq(reset){
    var matched=all.filter(a=>{
     var gs=Array.isArray(a.genres)?a.genres.map(g=>g.russian||g.name||""):[];
     var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-    return (!xCF.st||st===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||gs.includes(GR[xCF.g]||xCF.g));
+    return (!xCF.st||st===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||gs.includes(GR[xCF.g]||xCF.g))&&(!xCF.minScore||Number(a.score)>=Number(xCF.minScore));
    });
    if(!needGenre||matched.length>=50||data.length<50)break;
   }
@@ -409,7 +409,7 @@ async function xcq(reset){
    var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
    // Постеры каталога берём только из AniList; Shikimori используется для метаданных и MAL ID.
    return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
-  }).filter(d=>(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g)));
+  }).filter(d=>(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&(!xCF.minScore||d.r>=Number(xCF.minScore)));
   L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
@@ -443,7 +443,7 @@ async function xrandom(){
  }
 }
 V.random=()=>{xrandom()};
-listen(document,"change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
+listen(document,"change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o","cf-r":"minScore"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
 listen(document,"input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
 listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
 listen(document,"click",e=>{if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
