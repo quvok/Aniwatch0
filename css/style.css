@@ -726,3 +726,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 
 /* Hide banner carousel controls on mobile; swipe remains available. */
 @media(max-width:700px){.hero-arrow,.hero-dots{display:none!important}}
+
+
+/* Mobile featured carousel: show pagination dots, keep arrow buttons hidden. */
+@media(max-width:700px){.hero-arrow{display:none!important}.hero-dots{display:flex!important;bottom:8px;left:50%;gap:6px}.hero-dots button{display:block;width:6px;height:6px;min-width:6px;padding:0;background:rgba(255,255,255,.48)}.hero-dots button.on{width:19px;background:#fff}}
