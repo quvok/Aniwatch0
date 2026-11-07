@@ -12,12 +12,12 @@ export function updateNavigation(state){
  });
 }
 
-export function renderRoute(pages,timers,beforeRender){
+export function renderRoute(pages,timers,beforeRender,state){
  timers.forEach(clearInterval);
  timers.length=0;
  if(beforeRender)beforeRender();
  const parts=location.hash.slice(1).split("-");
  const render=Object.prototype.hasOwnProperty.call(pages,parts[0])?pages[parts[0]]:pages.home;
  render(parts.slice(1).map(Number));
- updateNavigation(window.__aniwatchState||{});
+ updateNavigation(state||{});
 }
