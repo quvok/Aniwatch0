@@ -47,6 +47,26 @@ var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
 var eps=(d,cur)=>epTotal(d)>0?Array.from({length:epTotal(d)},(_,k)=>'<a href="#watch-'+d.id+'-'+(k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join(""):'<p class="m">Количество серий пока не указано источниками.</p>';
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
+function exportBackup(){
+ try{
+  var payload={format:"AniWatchBackup",version:1,exportedAt:new Date().toISOString(),state:S};
+  var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download="aniwatch-backup-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  toast("Резервная копия сохранена");
+ }catch(e){console.error("[AniWatch] Backup export failed",e);toast("Не удалось экспортировать данные")}
+}
+async function importBackup(file){
+ if(!file)return;
+ try{
+  var payload=JSON.parse(await file.text()),state=payload&&payload.state;
+  if(!payload||payload.format!=="AniWatchBackup"||payload.version!==1||!state||typeof state!=="object"||Array.isArray(state))throw new Error("Неподдерживаемый формат резервной копии");
+  if(!Array.isArray(state.fav)||!state.hist||typeof state.hist!=="object"||!state.rate||typeof state.rate!=="object")throw new Error("Файл не похож на резервную копию AniWatch");
+  if(!confirm("Импорт заменит текущие локальные данные. Продолжить?"))return;
+  S=state;df();sv();draw();toast("Резервная копия восстановлена");
+ }catch(e){console.error("[AniWatch] Backup import failed",e);toast(e.message||"Не удалось импортировать файл")}
+}
 function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/?[a-z][a-z0-9_]*(?:=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff々〆ヵヶ]+/g," ").replace(/\s+/g," ").trim()}
 function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.slice(0,n);return cut.slice(0,cut.lastIndexOf(" "))+"…"}
 
@@ -480,7 +500,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
  else if(a=="acc"){S.acc=v;sv();hd()}
- else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
+ else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
 listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
@@ -488,7 +508,7 @@ listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
 listen(document,"input",e=>{var i=e.target.id;
  if(i=="q"){F.q=e.target.value.trim().toLowerCase();if(location.hash!=="#catalog")location.hash="catalog";else rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
-listen(document,"change",e=>{if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
+listen(document,"change",e=>{if(e.target.id==="backup-file"){var selected=e.target.files&&e.target.files[0];importBackup(selected);e.target.value="";return}if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 listen(window,"keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
  if(e.code=="Space"){e.preventDefault();P.on=!P.on;tick(0);pauseSave()}else if(e.code=="ArrowRight")tick(10);else if(e.code=="ArrowLeft"){P.t=Math.max(0,P.t-10);tick(0)}});
 addEventListener("hashchange",()=>{draw();scrollTo(0,0)});
