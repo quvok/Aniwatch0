@@ -245,9 +245,7 @@ async function loadRelated(d){
  relatedPending[d.id]=(async()=>{
   try{
    var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:30){nodes{"+relatedFields+"}}}}}}}";
-   var res=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:query,variables:{id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null}})});
-   if(!res.ok)throw new Error("AniList response");
-   var payload=await res.json(),media=payload.data&&payload.data.Media;
+   var payload=await xgq(query,{id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null}),media=payload&&payload.Media;
    if(!media)throw new Error("No related data");
    var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
    var recSeen={},recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==d.id&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
@@ -404,6 +402,28 @@ async function xcq(reset){
    if(!needGenre||matched.length>=50||data.length<50)break;
   }
   if(k!==xCF.k)return;
+  // Если Shikimori не нашёл ничего по запросу, пробуем AniList Search.
+  // Это помогает с английскими/ромадзи-названиями и не ломает обычный каталог.
+  if(!all.length&&q){
+   var fallback=await xgq("query($s:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}media(search:$s,type:ANIME,isAdult:false,sort:SEARCH_MATCH){"+xMF+"}}}",{s:q,p:sourcePage});
+   if(k!==xCF.k)return;
+   var fp=fallback.Page;
+   var fallbackList=(fp.media||[]).map(mp).filter(d=>
+    (!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&
+    (!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&
+    (!xCF.minScore||d.r>=Number(xCF.minScore))&&
+    (!xCF.y||String(d.y)===String(xCF.y))&&
+    (!xCF.f||({TV:["TV"],MOVIE:["MOVIE"],OVA:["OVA"],ONA:["ONA"],SPECIAL:["SPECIAL"]}[xCF.f]||[]).includes((fp.media||[]).find(m=>m.id===d.id)?.format))
+   );
+   fallbackList.forEach(d=>M[d.id]=d);
+   var fb=$("#cr");if(!fb)return;
+   fb.insertAdjacentHTML("beforeend",fallbackList.map(d=>card(d)).join(""));
+   xCF.p=sourcePage+1;xCF.more=!!fp.pageInfo.hasNextPage;xCF.busy=false;
+   $("#cc").textContent="Результаты AniList · поиск по английскому названию";
+   box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
+   if(!fallbackList.length&&!xCF.more)box.textContent="Ничего не найдено";
+   return;
+  }
   var L=all.map(a=>{
    var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
    var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
