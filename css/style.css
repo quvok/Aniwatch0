@@ -796,7 +796,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 
 /* v2: каталог, расписание, трейлеры */
 nav{overflow-x:auto;scrollbar-width:none}nav a{white-space:nowrap}
-.cat-search{width:100%;margin-bottom:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--ln,#26263a);background:var(--sf,#121218);color:inherit;font:inherit}
 .sch-row{display:flex;gap:12px;align-items:center;padding:10px 12px;margin-bottom:8px;border-radius:12px;background:var(--sf,#121218);border:1px solid var(--ln,#26263a)}
 .sch-t{width:48px;flex:none;font-variant-numeric:tabular-nums;color:var(--ac,#8b5cf6)}
 .sch-p{width:42px;height:60px;border-radius:8px;flex:none}
