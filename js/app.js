@@ -266,7 +266,7 @@ async function jikanCount(d,force){ if(!d.mal)return; var cache=S.jikanEpisodes=
 async function verifyOnePiece(){
  var d=D.find(x=>Number(x.mal)===21);
  try{
-  var q=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
+  var q=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:"query{Media(idMal:21,type:ANIME){id idMal title{romaji english}episodes status genres seasonYear averageScore description coverImage{extraLarge color} bannerImage}}"})});
   if(q.ok){var j=await q.json(),m=j.data&&j.data.Media;if(m&&!d){d=mp(m);D.unshift(d);M[d.id]=d;idx();}else if(m&&d&&!d.e&&Number(m.episodes)>0)d.e=Number(m.episodes);}
  }catch(e){}
  if(!d)d={id:"one-piece-check",mal:21,n:"One Piece",e:0};
@@ -297,7 +297,7 @@ async function loadRelated(d){
  relatedPending[d.id]=(async()=>{
   try{
    var query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:30){nodes{"+relatedFields+"}}}}}}}";
-   var res=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:query,variables:{id:Number(d.id)}})});
+   var res=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:query,variables:{id:Number(d.id)}})});
    if(!res.ok)throw new Error("AniList response");
    var payload=await res.json(),media=payload.data&&payload.data.Media;
    if(!media)throw new Error("No related data");
@@ -385,7 +385,7 @@ async function xgq(q,v){
    var gap=2100-(Date.now()-xApiLast);if(gap>0)await xApiWait(gap);
    try{
     var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);
-    var r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
+    var r=await fetch((window.ANIWATCH_CONFIG&&window.ANIWATCH_CONFIG.anilistProxyUrl)||"https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
     clearTimeout(tm);xApiLast=Date.now();
     var j;try{j=await r.json()}catch(parseError){j={}}
     var apiErrors=Array.isArray(j.errors)?j.errors:[];
