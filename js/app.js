@@ -1,5 +1,6 @@
 import { query as xgq } from "./api/anilist.js";
 import { fetchRandomAnime } from "./api/shikimori.js";
+import { renderAnimeCard } from "./components/anime-card.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
@@ -66,10 +67,7 @@ var bg=d=>(d.img?"url('"+d.img+"') center/cover no-repeat,":"")+gr(d);
 var bn=d=>"linear-gradient(0deg,#000 5%,transparent 70%),"+(d.ban?"url('"+d.ban+"') center/cover no-repeat,":"")+gr(d);
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
-function card(d,pr,href){
- var score=Number(d.r||0),status=d.s||"Аниме",fav=S.fav.includes(d.id);
- return '<a class="card" data-anime-id="'+d.id+'" href="'+(href||"#title-"+d.id)+'"><div class="poster" style="background:'+bg(d)+'">'+(d.img?"":"<i>"+d.n[0]+"</i>")+'<span class="rating">★ '+(score?score.toFixed(1):"—")+'</span><em class="poster-status">'+status+'</em><button type="button" class="poster-fav'+(fav?" active":"")+'" data-a="fav" data-i="'+d.id+'" aria-label="'+(fav?"Убрать из избранного":"Добавить в избранное")+'" aria-pressed="'+fav+'">'+(fav?"♥":"♡")+'</button>'+(pr!=null?'<u style="width:'+pr+'%"></u>':"")+'</div><b>'+d.n+'</b><small>'+d.g.slice(0,2).join(" · ")+" · "+d.y+'</small></a>'
-}
+function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||("#title-"+d.id)})}
 var row=(t,a,sub)=>'<section class="shelf"><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
