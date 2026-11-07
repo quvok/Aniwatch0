@@ -51,19 +51,26 @@ V.profile=()=>{app.innerHTML='<h2>Профиль</h2><div class="panel"><label c
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
-function mp(m){return{id:m.id,mal:m.idMal,n:m.title.romaji||m.title.english||"Без названия",g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:"Русское описание загружается…",c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
+function mp(m){return{id:m.id,mal:m.idMal,n:"Русское название загружается…",en:m.title.english||"",g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:m.episodes||12,s:ST[m.status]||"",d:"Русское описание загружается…",c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,3);if(H.length<3)H=D.slice(0,3)}
 async function translateCatalog(){
-var cache=S.ruV2=S.ruV2||{},changed=false,items=D.filter(d=>d.mal&&!cache[d.id]);
+var cache=S.ruV3=S.ruV3||{},items=D.filter(d=>d.mal&&!cache[d.id]);
 var cursor=0;
 async function worker(){
 while(cursor<items.length){
 var d=items[cursor++];
 try{
-var url="https://shikimori.io/api/animes?search="+encodeURIComponent(d.n)+"&limit=10";
-var res=await fetch(url),list=await res.json();
+var hit=null;
+var terms=[d.n,d.en].filter(Boolean);
+for(var q of terms){
+var url="https://shikimori.one/api/animes?search="+encodeURIComponent(q)+"&limit=50";
+var res=await fetch(url,{headers:{Accept:"application/json"}});
+if(!res.ok)continue;
+var list=await res.json();
 if(!Array.isArray(list))continue;
-var hit=list.find(x=>String(x.mal_id||x.malId||"")===String(d.mal));
+hit=list.find(x=>String(x.mal_id||x.malId||"")===String(d.mal));
+if(hit)break;
+}
 if(hit){
 cache[d.id]={n:hit.russian||"",d:(hit.description||"").replace(/\[\/?[a-z_]+(=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()};
 }else cache[d.id]={n:"",d:""};
@@ -73,14 +80,15 @@ changed=true;sv();
 }
 await Promise.all([worker(),worker(),worker()]);
 D.forEach(d=>{
-var r=cache[d.id];if(!r)return;
+var r=cache[d.id];
+if(!r){d.n="Русское название пока недоступно";d.d="Описание на русском пока недоступно.";return;}
 d.n=r.n||"Русское название пока недоступно";
 d.d=r.d||"Описание на русском пока недоступно.";
 });
 if(location.hash.indexOf("#watch-")!==0)draw();
 }
 function ru(d){
-var r=(S.ruV2||{})[d.id];if(!r)return;
+var r=(S.ruV3||{})[d.id];if(!r)return;
 var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;
 if(p)p.textContent=r.d||"Описание на русском пока недоступно.";
 }
