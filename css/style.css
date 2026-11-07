@@ -659,3 +659,17 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 .poster-fav.active,.poster-fav.is-favorite{color:#fff!important;background:#e83e83!important;border:2px solid #ff9ac2!important;box-shadow:0 0 0 3px rgba(232,62,131,.2),0 0 22px rgba(255,65,145,.62)!important;text-shadow:0 1px 4px rgba(90,0,40,.6);transform:scale(1.06)}
 .poster-fav.active:hover,.poster-fav.is-favorite:hover{background:#ff5598!important;transform:scale(1.13)}
 .title-fav-btn.is-favorite{background:#e83e83!important;border-color:#ff9ac2!important;color:#fff!important;box-shadow:0 0 18px rgba(255,65,145,.3)}
+
+
+/* Related and similar anime on the title page */
+.related-shelf{margin-top:30px}
+.related-group{margin:18px 0 22px}
+.relation-group h3{margin:0 0 12px;color:#c9c0e7;font-size:13px;font-weight:800}
+.related-state{margin:12px 0 18px;padding:15px 17px;border:1px solid var(--ln);border-radius:12px;background:rgba(255,255,255,.025);color:var(--mt);font-size:12px}
+.related-loading .related-state{animation:awFadeUp .35s ease both}
+@media(max-width:700px){
+ .related-shelf{margin-top:24px}
+ .relation-group{margin:14px 0 18px}
+ .relation-group h3{font-size:12px}
+ .related-state{padding:12px;font-size:11px}
+}
