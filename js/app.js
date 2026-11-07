@@ -405,12 +405,12 @@ async function xcq(reset){
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
  try{
-  var q=xCF.q.trim(),needFiltered=!!(xCF.st||xCF.g),all=[],lastPageLength=0,sourcePage=xCF.p;
-  // When filtering locally, scan multiple source pages so the first page does not
-  // misleadingly show only one ongoing title (or a handful of genre matches).
-  var maxPages=needFiltered?4:1;
+  var q=xCF.q.trim(),needGenre=!!xCF.g,all=[],lastPageLength=0,sourcePage=xCF.p,pagesFetched=0;
+  // Status is filtered by Shikimori itself; genre remains a local filter.
+  // Scan more pages only when a genre filter needs local matching.
+  var maxPages=needGenre?4:1;
   for(var step=0;step<maxPages;step++){
-   var page=sourcePage+step,key="awshiki:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f]),cached=null;
+   var page=sourcePage+step,key="awshiki:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st]),cached=null;
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
    if(!data){
@@ -420,6 +420,7 @@ async function xcq(reset){
     if(q)url.searchParams.set("search",q);
     if(xCF.f)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[xCF.f]);
     if(xCF.y)url.searchParams.set("season",String(xCF.y));
+    if(xCF.st)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[xCF.st]);
     url.searchParams.set("fields","id,myanimelist_id,name,russian,image,kind,score,status,episodes,aired_on,genres,description");
     var res=await fetch(url.toString(),{headers:{Accept:"application/json"}});
     if(!res.ok)throw new Error("Shikimori API: HTTP "+res.status);
@@ -427,7 +428,7 @@ async function xcq(reset){
     try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
    }
    if(k!==xCF.k)return;
-   lastPageLength=data.length;all=all.concat(data);
+   lastPageLength=data.length;pagesFetched++;all=all.concat(data);
    var matched=all.filter(a=>{
     var gs=Array.isArray(a.genres)?a.genres.map(g=>g.russian||g.name||""):[];
     var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
@@ -445,7 +446,7 @@ async function xcq(reset){
   L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xCF.p=sourcePage+(all.length?Math.ceil(all.length/50):0);
+  xCF.p=sourcePage+pagesFetched;
   // If we reached the end of the source, there is nothing more to request.
   xCF.more=lastPageLength===50;
   xCF.busy=false;
