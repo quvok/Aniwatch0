@@ -56,11 +56,13 @@ function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 V.home=()=>{
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
- var trending=srt("r").slice(0,8).map(d=>card(d));
- var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
- var recent=srt("y").slice(0,8).map(d=>card(d));
+ var source=homeCollections||{trending:D,popular:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
+ var trending=source.trending.map(d=>{M[d.id]=d;return card(d)});
+ var popular=source.popular.map(d=>{M[d.id]=d;return card(d)});
+ var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
+ var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="#catalog" data-a="g" data-v="'+g+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,titleCount:D.length,ongoingCount:D.filter(d=>/Онгоинг/i.test(d.s||"")).length,row});
+ renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,titleCount:source.animeTotal||D.length,ongoingCount:source.ongoingTotal||source.ongoing.length,row});
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
  loadHomeAiring();
 };
@@ -283,10 +285,26 @@ async function boot(){S=await initializeLocalState(S,value=>{S=value});app.inner
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
   clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;await rn();idx();await xhyd();draw()}
+ if(c&&c.a&&c.a.length)D=c.a;await rn();idx();await xhyd();draw();loadHomeCollections().then(()=>{if(activePage()==="home")draw()}).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e))}
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
+HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
+homeCollections=null,
+async function loadHomeCollections(){
+ var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v1")||"null")}catch(e){}
+ var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
+ if(!data){data=await xgq(HOME_QUERY,{});try{localStorage.setItem("aw-home-v1",JSON.stringify({at:Date.now(),data:data}))}catch(e){}}
+ var page=data||{},map=list=>(list&&list.media||[]).map(mp);
+ homeCollections={
+  trending:map(page.trending),popular:map(page.popular),ongoing:map(page.ongoing),recent:map(page.recent),
+  animeTotal:Number(page.popular&&page.popular.pageInfo&&page.popular.pageInfo.total)||0,
+  ongoingTotal:Number(page.ongoing&&page.ongoing.pageInfo&&page.ongoing.pageInfo.total)||0
+ };
+ homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent).forEach(d=>M[d.id]=d);
+ if(homeCollections.trending.length)H=homeCollections.trending;
+ return homeCollections;
+},
 xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){nextAiringEpisode{airingAt episode}trailer{id site}}}",
