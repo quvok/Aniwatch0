@@ -39,7 +39,7 @@ function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearT
 function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/?[a-z][a-z0-9_]*(?:=[^\]]*)?\]/gi,"").replace(/\[\[|\]\]/g,"").replace(/\s+/g," ").trim()}
 
 V.home=()=>{var hi=0;
- var featured=()=>{var d=H[hi%H.length]||D[0];ru(d);var rd=cleanDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span>'+d.e+' серий</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div></section>'};
+ var featured=()=>{var d=H[hi%H.length]||D[0];ru(d);var rd=cleanDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span>'+d.e+' серий</span></div><div class="acts"><a class="btn" href="#watch-'+d.id+'-1">▶ Смотреть</a><a class="btn ghost" href="#title-'+d.id+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===hi%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'};
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),"#watch-"+k+"-"+S.hist[k].ep));
  var trending=srt("r").slice(0,8).map(d=>card(d));
  var ongoing=D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")).sort((a,b)=>b.y-a.y).slice(0,8).map(d=>card(d));
@@ -100,6 +100,8 @@ document.addEventListener("click",e=>{var t=e.target.closest("[data-a]");if(!t)r
  if(a=="fav"){var k=S.fav.indexOf(i);k<0?S.fav.push(i):S.fav.splice(k,1);sv();toast(k<0?"Добавлено в избранное":"Убрано из избранного");draw()}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
  else if(a=="g"){F.g=v;draw()}
+ else if(a=="slide"&&H.length>1){hi=(hi+(+v)+H.length)%H.length;var hw=$("#hw");if(hw)hw.innerHTML=featured()}
+ else if(a=="slide-to"&&H.length>1){hi=(+v)%H.length;var hw=$("#hw");if(hw)hw.innerHTML=featured()}
  else if(a=="pp"&&P){P.on=!P.on;tick(0)}
  else if(a=="sp"&&P){var s=[1,1.25,1.5,2];P.sp=s[(s.indexOf(P.sp)+1)%4];t.textContent=P.sp+"×"}
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
