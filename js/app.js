@@ -419,19 +419,35 @@ var xMF="id idMal format title{romaji english}genres seasonYear startDate{year m
 HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
 homeCollections=null;
 async function loadHomeCollections(){
- var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v2")||"null")}catch(e){}
+ var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v3")||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
-  var lists=await Promise.all([
-   fetchCatalogPage({page:1,limit:8,order:"popularity"}),
-   fetchCatalogPage({page:1,limit:8,order:"ranked"}),
-   fetchCatalogPage({page:1,limit:8,order:"popularity",status:"ongoing"}),
-   fetchCatalogPage({page:1,limit:8,order:"aired_on",status:"released"})
-  ]);
-  data={trending:lists[0],popular:lists[1],ongoing:lists[2],recent:lists[3]};
-  try{localStorage.setItem("aw-home-v2",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+  var seen=new Set();
+  async function collect(options){
+   var result=[],page=1;
+   while(result.length<15&&page<=8){
+    var batch=await fetchCatalogPage(Object.assign({page:page,limit:50},options));
+    if(!batch.length)break;
+    batch.forEach(item=>{
+     var id=Number(item&&item.id);
+     if(id>0&&!seen.has(id)&&result.length<15){seen.add(id);result.push(item)}
+    });
+    if(batch.length<50)break;
+    page++;
+   }
+   return result;
+  }
+  var trending=await collect({order:"popularity"});
+  var popular=await collect({order:"ranked"});
+  var ongoing=await collect({order:"popularity",status:"ongoing"});
+  var recent=await collect({order:"aired_on",status:"released"});
+  data={trending:trending,popular:popular,ongoing:ongoing,recent:recent};
+  try{localStorage.setItem("aw-home-v3",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
  }
- var map=list=>(Array.isArray(list)?list:[]).map(shikiToItem);
+ var seenIds=new Set();
+ var map=list=>(Array.isArray(list)?list:[]).filter(item=>{
+  var id=Number(item&&item.id);if(!(id>0)||seenIds.has(id))return false;seenIds.add(id);return true;
+ }).slice(0,15).map(shikiToItem);
  homeCollections={
   trending:map(data.trending),popular:map(data.popular),ongoing:map(data.ongoing),recent:map(data.recent)
  };
