@@ -17,7 +17,7 @@ export async function query(q,v){
     const limited=response.status===429||errors.some(item=>Number(item.status)===429||/too many requests/i.test(item.message||""));
     const temporary=response.status>=500&&response.status<600;
     if(limited||temporary){
-     if(attempt>=3)throw new Error(limited?"Слишком много запросов. Повторите позже.":"Сервис временно недоступен (HTTP "+response.status+")");
+     if(attempt>=3)throw new Error(limited?"Слишком много запросов. Повторите позже.":"AniList вернул HTTP "+response.status+(message?": "+message:"")+(json.errors&&json.errors[0]&&json.errors[0].status?" [код "+json.errors[0].status+"]":""));
      const retryAfter=Number(response.headers.get("Retry-After"));
      const resetAt=Number(response.headers.get("X-RateLimit-Reset"));
      const delay=retryAfter>0?retryAfter*1000:resetAt>0?Math.max(1000,resetAt*1000-Date.now()+1000):limited?60000:Math.min(15000,2000*Math.pow(2,attempt));
