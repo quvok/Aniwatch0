@@ -564,7 +564,7 @@ async function xshikiPosters(L){
   if(el.classList.contains("collection-anime-poster")){var img=document.createElement("img");img.src=d.img;img.alt="";img.loading="lazy";poster.replaceChildren(img)}
   else{poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}
  });
- var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&P&&P.d.id===current.id&&shikiImageUrl(current.img))player.style.background=bn(current);
+ var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&shikiImageUrl(current.img))player.style.background=bn(current);
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
  sv();
 }
