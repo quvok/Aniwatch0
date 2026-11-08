@@ -2429,81 +2429,33 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 }
 
 
-/* Cinematic AniList hero slider */
-.hero-cinematic{
- position:relative;display:block!important;isolation:isolate;
- min-height:clamp(390px,37vw,470px)!important;height:clamp(390px,37vw,470px);
- overflow:hidden;padding:0!important;border-radius:21px;
- background:#11101c!important;
-}
-.hero-cinematic::before{
- z-index:-1!important;
- background:linear-gradient(90deg,rgba(7,7,15,.97) 0%,rgba(7,7,15,.82) 34%,rgba(7,7,15,.34) 67%,rgba(7,7,15,.1) 100%),linear-gradient(0deg,rgba(7,7,15,.72),transparent 55%)!important;
-}
-.hero-slide-art{
- position:absolute;inset:0;z-index:-2;background-color:#151322;
- background-size:cover;background-position:center 34%;
- transform:scale(1.015);animation:hero-art-in .8s ease both;
-}
-@keyframes hero-art-in{from{opacity:.45;transform:scale(1.045)}to{opacity:1;transform:scale(1.015)}}
-.hero-cinematic .hero-copy{
- position:absolute;left:clamp(24px,3.2vw,46px);bottom:104px;
- width:min(48%,570px);max-width:570px;gap:11px;z-index:2;
-}
-.hero-cinematic .eyebrow{font-size:10px;color:#c4b5fd}
-.hero-cinematic .hero-copy>small{font-size:10px;color:#ddd7f2}
-.hero-cinematic h1{font-size:clamp(32px,3.7vw,52px)!important;line-height:1.04;max-width:100%;text-transform:uppercase;letter-spacing:-1.3px}
-.hero-cinematic p{font-size:12px;line-height:1.55;max-width:470px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.hero-cinematic .hero-facts{font-size:11px;gap:15px}
-.hero-cinematic .acts{gap:9px;flex-wrap:wrap}
-.hero-cinematic .acts .btn{padding:10px 16px;font-size:12px;border-radius:9px}
-.hero-cinematic .acts .btn.ghost{background:rgba(255,255,255,.08);border-color:rgba(220,210,255,.2)}
-.hero-thumbs{
- position:absolute;right:28px;bottom:105px;width:43%;
- display:flex;gap:10px;z-index:2;overflow:hidden;
-}
-.hero-thumb{
- position:relative;flex:1 1 0;min-width:0;aspect-ratio:16/9;
- border:1px solid rgba(255,255,255,.22);border-radius:8px;
- background-color:#211b34;background-size:cover;background-position:center;
- overflow:hidden;opacity:.78;transition:opacity .2s,transform .2s,border-color .2s;
-}
-.hero-thumb::after{content:"";position:absolute;inset:35% 0 0;background:linear-gradient(0deg,rgba(0,0,0,.78),transparent)}
-.hero-thumb span{
- position:absolute;z-index:1;left:8px;right:8px;bottom:6px;
- overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
- color:#fff;font-size:8px;font-weight:750;text-align:left;text-shadow:0 1px 4px #000
-}
-.hero-thumb:hover{opacity:1;transform:translateY(-3px);border-color:#bda8ff}
-.hero-controls{
- position:absolute;left:clamp(24px,3.2vw,46px);right:28px;bottom:19px;
- display:flex;align-items:center;gap:10px;z-index:3;
-}
-.hero-cinematic .hero-arrow{
- position:static!important;display:grid!important;place-items:center;transform:none;
- width:39px;height:39px;flex:0 0 39px;border-radius:50%;
- border:1px solid rgba(255,255,255,.58);background:rgba(9,8,18,.3);
- color:#fff;font-size:25px;line-height:1;backdrop-filter:blur(8px);
-}
+/* Cinematic AniList hero — closer to the supplied WATCH.to reference */
+.hero-cinematic{position:relative;display:block!important;isolation:isolate;width:100%;height:clamp(480px,45vw,620px);min-height:480px!important;overflow:hidden;padding:0!important;border-radius:22px;background:#100f19!important;box-shadow:0 22px 48px rgba(0,0,0,.28)}
+.hero-cinematic::before{z-index:-1!important;background:linear-gradient(90deg,rgba(8,8,17,.96) 0%,rgba(8,8,17,.82) 31%,rgba(8,8,17,.32) 61%,rgba(8,8,17,.04) 100%),linear-gradient(0deg,rgba(8,8,17,.8) 0%,rgba(8,8,17,.06) 42%,rgba(8,8,17,.08) 100%)!important}
+.hero-slide-art{position:absolute;inset:0;z-index:-2;background-color:#171426;background-size:cover;background-position:center 34%;transform:scale(1.012);animation:hero-art-in .85s ease both}
+@keyframes hero-art-in{from{opacity:.35;transform:scale(1.045)}to{opacity:1;transform:scale(1.012)}}
+.hero-cinematic .hero-copy{position:absolute;left:clamp(26px,3.7vw,48px);bottom:126px;width:min(43%,510px);max-width:510px;gap:12px;z-index:2}
+.hero-cinematic .eyebrow{font-size:13px;color:#c4b5fd;font-weight:750;letter-spacing:.01em}
+.hero-cinematic .hero-copy>small{font-size:11px;color:rgba(245,241,255,.82);letter-spacing:.025em}
+.hero-cinematic h1{font-size:clamp(38px,4.2vw,62px)!important;line-height:1.02;max-width:100%;text-transform:uppercase;letter-spacing:-1.8px;text-wrap:balance}
+.hero-cinematic p{font-size:13px;line-height:1.62;max-width:440px;color:rgba(255,255,255,.9);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.hero-cinematic .hero-facts{font-size:14px;gap:14px}
+.hero-cinematic .hero-facts span:first-child{color:#c4b5fd;letter-spacing:2px}
+.hero-cinematic .acts{gap:12px;flex-wrap:wrap}
+.hero-cinematic .acts .btn{padding:13px 22px;font-size:14px;border-radius:10px;min-height:46px;box-shadow:0 7px 20px rgba(0,0,0,.15)}
+.hero-cinematic .acts .btn:first-child{background:#a78bfa!important;border-color:#a78bfa!important;color:#151020!important}
+.hero-cinematic .acts .btn.ghost{background:rgba(14,12,25,.42);border:1.5px solid rgba(224,213,255,.8);color:#fff;backdrop-filter:blur(8px)}
+.hero-thumbs{position:absolute;right:0;bottom:112px;width:53%;height:clamp(132px,15vw,176px);display:grid;grid-template-columns:1.85fr 1fr;gap:9px;z-index:2;overflow:hidden}
+.hero-thumb{position:relative;display:block;width:100%;height:100%;min-width:0;border:1px solid rgba(255,255,255,.22);border-radius:3px;background-color:#211b34;background-size:cover;background-position:center;overflow:hidden;opacity:.92;cursor:pointer;transition:opacity .2s,filter .2s,transform .2s,border-color .2s}
+.hero-thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.24),transparent 55%)}
+.hero-thumb:hover{opacity:1;filter:brightness(1.08);transform:translateY(-3px);border-color:#c4b5fd}
+.hero-controls{position:absolute;left:43%;right:clamp(24px,3vw,42px);bottom:27px;display:flex;align-items:center;gap:13px;z-index:3}
+.hero-cinematic .hero-arrow{position:static!important;display:grid!important;place-items:center;transform:none;width:58px;height:58px;flex:0 0 58px;border-radius:50%;border:1.5px solid rgba(255,255,255,.86);background:rgba(10,9,19,.28);color:#fff;font-size:27px;line-height:1;backdrop-filter:blur(8px)}
 .hero-cinematic .hero-arrow:hover{background:rgba(167,139,250,.35);border-color:#c4b5fd;transform:scale(1.04)}
-.hero-progress{height:2px;flex:1;margin:0 5px 0 8px;background:rgba(255,255,255,.3);overflow:hidden}
-.hero-progress i{display:block;height:100%;background:#b69aff;transition:width .35s}
-.hero-counter{font-size:20px;font-weight:800;color:#c4b5fd;font-variant-numeric:tabular-nums}
-.hero-counter small{font-size:11px;color:rgba(255,255,255,.65)}
-@media(max-width:700px){
- .hero-cinematic{height:365px;min-height:365px!important;border-radius:16px}
- .hero-cinematic::before{background:linear-gradient(0deg,rgba(7,7,15,.98) 0%,rgba(7,7,15,.83) 47%,rgba(7,7,15,.18) 100%)!important}
- .hero-slide-art{background-position:center 30%}
- .hero-cinematic .hero-copy{left:17px;right:17px;bottom:69px;width:auto;gap:8px}
- .hero-cinematic .hero-copy>small{font-size:8px}
- .hero-cinematic h1{font-size:clamp(24px,7vw,34px)!important;letter-spacing:-.7px}
- .hero-cinematic p{font-size:10px;line-height:1.45;-webkit-line-clamp:2;max-width:100%}
- .hero-cinematic .hero-facts{font-size:9px;gap:10px}
- .hero-cinematic .acts{gap:7px}
- .hero-cinematic .acts .btn{padding:8px 11px;font-size:10px}
- .hero-thumbs{display:none}
- .hero-controls{left:16px;right:16px;bottom:13px;gap:8px}
- .hero-cinematic .hero-arrow{width:34px;height:34px;flex-basis:34px;font-size:22px}
- .hero-counter{font-size:16px}
-}
+.hero-progress{height:2px;flex:1;margin:0 8px;background:rgba(255,255,255,.4);overflow:hidden}
+.hero-progress i{display:block;height:100%;background:#c4b5fd;transition:width .35s}
+.hero-counter{font-size:25px;font-weight:800;color:#c4b5fd;font-variant-numeric:tabular-nums;min-width:30px}
+.hero-counter small{font-size:11px;color:rgba(255,255,255,.68)}
+@media(max-width:1000px) and (min-width:701px){.hero-cinematic{height:500px;min-height:500px!important}.hero-cinematic .hero-copy{width:47%;bottom:119px}.hero-thumbs{width:51%;height:128px;bottom:112px}.hero-controls{left:42%;right:20px}.hero-cinematic .hero-arrow{width:48px;height:48px;flex-basis:48px}}
+@media(max-width:700px){.hero-cinematic{height:470px;min-height:470px!important;border-radius:16px}.hero-cinematic::before{background:linear-gradient(0deg,rgba(8,8,17,.99) 0%,rgba(8,8,17,.88) 43%,rgba(8,8,17,.15) 100%)!important}.hero-slide-art{background-position:center 28%}.hero-cinematic .hero-copy{left:18px;right:18px;bottom:91px;width:auto;gap:9px}.hero-cinematic .eyebrow{font-size:10px}.hero-cinematic .hero-copy>small{font-size:8px}.hero-cinematic h1{font-size:clamp(27px,8vw,38px)!important;letter-spacing:-.8px}.hero-cinematic p{font-size:10px;line-height:1.5;-webkit-line-clamp:3;max-width:100%}.hero-cinematic .hero-facts{font-size:11px;gap:10px}.hero-cinematic .acts{gap:8px}.hero-cinematic .acts .btn{padding:9px 13px;font-size:11px;min-height:38px}.hero-thumbs{display:none}.hero-controls{left:17px;right:17px;bottom:17px;gap:8px}.hero-cinematic .hero-arrow{width:39px;height:39px;flex-basis:39px;font-size:21px}.hero-progress{margin:0 3px;height:2px}.hero-counter{font-size:17px;min-width:22px}}
 @media(prefers-reduced-motion:reduce){.hero-slide-art{animation:none!important}}
