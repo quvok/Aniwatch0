@@ -274,7 +274,7 @@ V.watch=p=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
-   S.hist[d.id]={ep:n,t:time,at:now};
+   S.hist[d.id]={ep:n,t:time,at:now,speed:Number(media.speed)||1};
    P.t=time;P.on=!!media.playing;P.sp=Number(media.speed)||1;
    if(now-historySaveAt>=5000||!media.playing){historySaveAt=now;sv()}
   }
@@ -502,11 +502,12 @@ async function loadRelated(d){
      query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}";
      vars={mal:Number(d.mal)};
     }else{
-     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
+     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
      vars={id:Number(d.aniId||d.id)};
     }
     var payload=await xgq(query,vars),media=payload&&payload.Media;
     if(!media)throw new Error("Не удалось получить данные об этом аниме");
+    studioNames=(media.studios&&media.studios.nodes||[]).map(studio=>studio&&studio.name).filter(Boolean);
     var relSeen={};
     relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id)).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
     var recSeen={};
@@ -514,9 +515,11 @@ async function loadRelated(d){
     try{
      var staffQuery,staffVars;
      if(d.source==="shikimori"){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
-     else{staffQuery="query($id:Int){Media(id:$id,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={id:Number(d.aniId||d.id)}}
+     else{staffQuery="query($id:Int){Media(id:$id,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={id:Number(d.aniId||d.id)}}
      var staffPayload=await xgq(staffQuery,staffVars),staffMedia=staffPayload&&staffPayload.Media;
-     var staffEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&e.node.name&&e.node.name.full);\n     staffPeople=staffEdges.slice(0,8).map(e=>({name:e.node.name.full,role:e.role||"Участник команды",image:e.node.image&&e.node.image.large||""}));\n     var creatorEdges=staffEdges.filter(e=>/original creator|原作|原案/i.test(e.role||""));
+     var staffEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&e.node.name&&e.node.name.full);
+     staffPeople=staffEdges.slice(0,8).map(e=>({name:e.node.name.full,role:e.role||"Участник команды",image:e.node.image&&e.node.image.large||""}));
+     var creatorEdges=staffEdges.filter(e=>/original creator|原作|原案/i.test(e.role||""));
      creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
      var creatorSeen={};
      creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==(d.aniId||d.id)&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
