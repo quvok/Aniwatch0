@@ -1,4 +1,4 @@
-const SUPABASE_URL = "https://oikuyhdgcobuuesbuygl.client.co";
+const SUPABASE_URL = "https://oikuyhdgcobuuesbuygl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Ker59ui359qC1e9dsGsmsg_VW6azZf";
 let supabaseClient = null;
 let supabaseClientPromise = null;
@@ -8,7 +8,7 @@ let supabaseClientPromise = null;
 export function getSupabaseClient() {
   if (supabaseClient) return Promise.resolve(supabaseClient);
   if (!supabaseClientPromise) {
-    supabaseClientPromise = import("https://esm.sh/@client/client-js@2")
+    supabaseClientPromise = import("https://esm.sh/@supabase/supabase-js@2")
       .then(({ createClient }) => {
         supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
           auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
