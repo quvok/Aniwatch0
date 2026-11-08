@@ -26,7 +26,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="anixo">AniXo <em>NEW</em></button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="anixo">AniXo</button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -92,6 +92,73 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  };
  const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
  const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
+ const animeVostRequest=async payload=>{
+  const response=await fetch("https://oikuyhdgcobuuesbuygl.supabase.co/functions/v1/animevost-stream",{
+   method:"POST",
+   headers:{"Content-Type":"application/json","apikey":"sb_publishable_Ker59ui359qC1e9dsGsmsg_VW6azZfK","Authorization":"Bearer sb_publishable_Ker59ui359qC1e9dsGsmsg_VW6azZfK"},
+   body:JSON.stringify(payload)
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.error)throw new Error(data.error||("AnimeVost HTTP "+response.status));
+  return data;
+ };
+ const playAnimeVostStream=async streams=>{
+  if(!Array.isArray(streams)||!streams.length)throw new Error("AnimeVost не вернул видеопоток для этой серии");
+  const preferred=[...streams].sort((a,b)=>Number((b.quality||"").match(/\d+/)?.[0]||0)-Number((a.quality||"").match(/\d+/)?.[0]||0));
+  options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><span class="stream-note">AnimeVost · русская озвучка</span>';
+  const start=async index=>{
+   const source=preferred[index];if(!source?.url)throw new Error("Ссылка на видео отсутствует");
+   destroyHls();stage.innerHTML='<video class="stream-video" controls playsinline preload="metadata"></video>';
+   const v=video();bindVideo(v);
+   const nativeHls=v.canPlayType("application/vnd.apple.mpegurl")!=="";
+   if(/\.m3u8(?:$|\?)/i.test(source.url)&&!nativeHls){
+    const Hls=await loadHls();
+    if(!Hls.isSupported())throw new Error("Браузер не поддерживает HLS");
+    const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
+    hlsInstance=instance;instance.loadSource(source.url);instance.attachMedia(v);
+    instance.on(Hls.Events.MANIFEST_PARSED,()=>{if(hlsInstance===instance)setStatus("AnimeVost · "+(source.quality||"HLS")+" · поток готов")});
+    instance.on(Hls.Events.ERROR,(_,data)=>{if(hlsInstance===instance&&data?.fatal)setStatus("Ошибка потока AnimeVost: "+(data.details||data.type))});
+   }else{
+    v.src=source.url;setStatus("AnimeVost · "+(source.quality||"видео")+" · загружаем поток…");
+    v.addEventListener("loadedmetadata",()=>setStatus("AnimeVost · "+(source.quality||"видео")+" · поток готов"),{once:true});
+   }
+  };
+  options.querySelector("#animevost-quality").addEventListener("change",()=>start(Number(options.querySelector("#animevost-quality").value)).catch(e=>setStatus(e.message)));
+  await start(0);
+ };
+ const loadAnimeVost=async animeUrl=>{
+  options.innerHTML='<span class="stream-note">Получаем видеопотоки…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>Загружаем серию '+episode+'…</small></div>';
+  setStatus("AnimeVost · получаем видеопоток…");
+  const data=await animeVostRequest({action:"streams",animeUrl,episode:Number(episode)});
+  if(!data.streams?.length)throw new Error("На AnimeVost не найдена серия "+episode);
+  await playAnimeVostStream(data.streams);
+  setStatus("AnimeVost · "+(data.episode||("серия "+episode))+" · поток готов");
+ };
+ const showAnimeVost=async()=>{
+  options.innerHTML='<span class="stream-note">Ищем на AnimeVost…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>Поиск по названию</small></div>';
+  setStatus("AnimeVost · ищем аниме…");
+  try{
+   const names=[...new Set([anime?.n,anime?.o].map(x=>String(x||"").trim()).filter(x=>x.length>=2))];
+   let results=[];
+   for(const name of names){const found=await animeVostRequest({action:"search",title:name});results.push(...(found.results||[]));if(results.length)break}
+   results=[...new Map(results.map(x=>[x.url,x])).values()];
+   if(!results.length)throw new Error("Аниме не найдено в каталоге AnimeVost");
+   const selected=results[0];
+   options.innerHTML=(results.length>1?'<label>Аниме<select id="animevost-title">'+results.map((x,i)=>'<option value="'+i+'">'+esc(x.title)+'</option>').join("")+'</select></label>':'<span class="stream-note">'+esc(selected.title)+'</span>')+'<button type="button" class="stream-load" id="animevost-open">Загрузить серию '+episode+' <span>→</span></button>';
+   const open=()=>loadAnimeVost(results[Number(options.querySelector("#animevost-title")?.value||0)].url).catch(error=>{
+    stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AnimeVost: "+(error.message||"ошибка"));
+   });
+   options.querySelector("#animevost-open").addEventListener("click",open);
+   await open();
+  }catch(error){
+   options.innerHTML='<button type="button" class="stream-load" id="animevost-retry">Повторить поиск <span>↻</span></button>';
+   options.querySelector("#animevost-retry").addEventListener("click",showAnimeVost);
+   stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("AnimeVost: "+(error.message||"ошибка поиска"));
+  }
+ };
  const showAnixo=()=>{
   const aniId=Number(anime?.aniId||anime?.id);
   const malId=Number(anime?.mal||anime?.malId);
@@ -103,9 +170,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
-  if(button.dataset.provider==="anixo")showAnixo();else showLiberty();
+  if(button.dataset.provider==="anixo")showAnixo();else if(button.dataset.provider==="animevost")showAnimeVost();else showLiberty();
  }));
- reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else{releaseData=null;showLiberty()}});
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else{releaseData=null;showLiberty()}});
  showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();root.innerHTML=""}};
 }
