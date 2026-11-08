@@ -500,7 +500,7 @@ async function loadRelated(d){
     var query,vars;
     if(d.source==="shikimori"){
      if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
-     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}";
+     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
      vars={mal:Number(d.mal)};
     }else{
      query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
