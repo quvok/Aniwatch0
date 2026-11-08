@@ -503,7 +503,7 @@ async function loadRelated(d){
      query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}";
      vars={mal:Number(d.mal)};
     }else{
-     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
+     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
      vars={id:Number(d.aniId||d.id)};
     }
     var payload=await xgq(query,vars),media=payload&&payload.Media;
