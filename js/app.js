@@ -635,8 +635,8 @@ async function xshikiPosters(L){
   var d=M[Number(el.dataset.animeId)];if(!d||!shikiImageUrl(d.img))return;
   var poster=el.classList.contains("card")?el.querySelector(".poster"):el.classList.contains("sch-row")?el.querySelector(".sch-p"):el.classList.contains("collection-anime-poster")?el:el.classList.contains("poster")?el:null;
   if(!poster)return;
-  if(el.classList.contains("collection-anime-poster")){var img=document.createElement("img");img.src=d.img;img.alt="";img.loading="lazy";poster.replaceChildren(img)}
-  else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="lazy";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;var letter=poster.querySelector("i");if(letter)letter.remove()}
+  if(el.classList.contains("collection-anime-poster")){var img=document.createElement("img");img.src=d.img;img.alt="";img.loading="eager";img.fetchPriority="low";poster.replaceChildren(img)}
+  else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="eager";img.fetchPriority="low";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;img.onerror=function(){this.removeAttribute("src");this.style.display="none"};var letter=poster.querySelector("i");if(letter)letter.remove()}
  });
  var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&shikiImageUrl(current.img))player.style.background=bn(current);
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
