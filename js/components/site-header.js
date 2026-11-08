@@ -1,4 +1,4 @@
-// Shared site header. Desktop: centered navigation; mobile: compact bottom bar.
+// Shared navigation: desktop sidebar and compact mobile bottom bar.
 import {PAGES} from "../core/router.js";
 
 const NAV=[
@@ -18,7 +18,7 @@ export function renderSiteHeader(){
  if(!host)return;
  const links=navLinks();
  const profile='<a class="av profile-link" href="'+PAGES.profile+'" aria-label="Профиль" title="Профиль"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"></path></svg></a>';
- host.innerHTML='<div class="header-top"><a class="logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><nav class="desktop-nav" aria-label="Основная навигация">'+links+'</nav><div class="header-tools">'+profile+'</div></div>';
+ host.innerHTML='<aside class="desktop-sidebar"><a class="sidebar-logo logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><span class="sidebar-caption">ТВОЁ АНИМЕ-ПРОСТРАНСТВО</span><nav class="desktop-sidebar-nav" aria-label="Основная навигация">'+links+'</nav><div class="sidebar-footer"><span class="sidebar-footer-mark">A</span><span><b>Смотри своё</b><small>Открывай новые истории</small></span></div></aside><div class="header-top"><a class="logo mobile-logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><div class="header-tools">'+profile+'</div></div>';
  const old=document.getElementById("mobile-bottom-nav");
  if(old)old.remove();
  const bottom=document.createElement("nav");
