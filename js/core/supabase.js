@@ -123,7 +123,7 @@ export async function syncCloudState(state, userId = activeUserId) {
     updated_at: new Date().toISOString()
   })).filter(row => row.is_favorite || row.status || row.rating !== null || Object.keys(row.history).length);
 
-  syncChain = syncChain.then(async () => {
+  syncChain = syncChain.catch(() => {}).then(async () => {
     if (activeUserId !== userId) return;
     const { data: existing, error: readError } = await supabase
       .from("user_library").select("anime_id").eq("user_id", userId);
