@@ -26,7 +26,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="anixo">AniXo</button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="anixo">AniXo</button><button type="button" data-provider="animedia">Анимедия <em>RU</em></button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -160,6 +160,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
    setStatus("AnimeVost: "+(error.message||"ошибка поиска"));
   }
  };
+ const showAniMedia=()=>{
+  destroyHls();
+  const title=String(anime?.n||anime?.o||"").trim();
+  const searchUrl="https://ani-media.online/?do=search&subaction=search&story="+encodeURIComponent(title);
+  options.innerHTML='<span class="stream-note">Русскоязычный каталог · поиск по названию</span><a class="stream-load" href="'+searchUrl+'" target="_blank" rel="noopener noreferrer">Найти на Анимедии <span>↗</span></a>';
+  stage.innerHTML='<div class="stream-placeholder"><span class="stream-placeholder-mark">RU</span><b>Анимедия</b><small>Откроем результаты поиска по «'+esc(title)+'» на ani-media.online. Выбери нужное аниме и серию на сайте источника.</small><a class="stream-load" href="'+searchUrl+'" target="_blank" rel="noopener noreferrer">Открыть каталог <span>↗</span></a></div>';
+  setStatus("Анимедия · внешний русскоязычный источник · синхронизация недоступна");
+ };
  const showAnixo=()=>{
   const aniId=Number(anime?.aniId||anime?.id);
   const malId=Number(anime?.mal||anime?.malId);
@@ -171,9 +179,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
-  if(button.dataset.provider==="anixo")showAnixo();else if(button.dataset.provider==="animevost")showAnimeVost();else showLiberty();
+  if(button.dataset.provider==="anixo")showAnixo();else if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animedia")showAniMedia();else showLiberty();
  }));
- reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else{releaseData=null;showLiberty()}});
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animedia"]')?.classList.contains("on"))showAniMedia();else{releaseData=null;showLiberty()}});
  showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();root.innerHTML=""}};
 }
