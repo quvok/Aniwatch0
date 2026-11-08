@@ -85,7 +85,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
     });
    }catch(error){fail(error.message||"не удалось запустить HLS.js")}
   };
-  v.addEventListener("error",()=>{if(!settled||attempt<candidates.length-1)fail("ошибка видео, код "+(v.error?.code||"неизвестно"))});
+  v.addEventListener("error",()=>fail("ошибка видео, код "+(v.error?.code||"неизвестно")));
   if(quality)quality.addEventListener("change",()=>{if(quality.value==="auto")return;const i=qualities.findIndex((url,n)=>url&&labels[n]===quality.value+"p");if(i>=0){attempt=Math.max(0,candidates.findIndex(x=>x.url===qualities[i]));startCandidate()}});
   startCandidate();
  };
