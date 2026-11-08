@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { activePage as getActivePage, updateNavigation, renderRoute } from "./core/router.js";
@@ -254,31 +254,60 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===6&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===7&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
-   // Keep the primary request small: relations and recommendations are independent
-   // of staff credits, and a failure in optional creator data must not hide them.
-   var lookup={id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null};
-   var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
-   var payload=await xgq(query,lookup),media=payload&&payload.Media;
-   if(!media)throw new Error("AniList не вернул данные об этом аниме");
-   var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
-   var recSeen={},recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==d.id&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
-   var creatorName="",creatorWorks=[];
+   var relations=[],recommendations=[],creatorName="",creatorWorks=[];
    try{
-    var staffQuery="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";
-    var staffPayload=await xgq(staffQuery,lookup),staffMedia=staffPayload&&staffPayload.Media;
-    var creatorEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&/original creator|原作|原案/i.test(e.role||""));
-    creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
-    var creatorSeen={};
-    creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==d.id&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
-    creatorWorks=creatorWorks.slice(0,12);
-   }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
+    var query,vars;
+    if(d.source==="shikimori"){
+     if(!(Number(d.mal)>0))throw new Error("У тайтла нет MAL ID для поиска в AniList");
+     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
+     vars={mal:Number(d.mal)};
+    }else{
+     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
+     vars={id:Number(d.aniId||d.id)};
+    }
+    var payload=await xgq(query,vars),media=payload&&payload.Media;
+    if(!media)throw new Error("AniList не вернул данные об этом аниме");
+    var relSeen={};
+    relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id)).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
+    var recSeen={};
+    recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==(d.aniId||d.id)&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
+    try{
+     var staffQuery,staffVars;
+     if(d.source==="shikimori"){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
+     else{staffQuery="query($id:Int){Media(id:$id,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={id:Number(d.aniId||d.id)}}
+     var staffPayload=await xgq(staffQuery,staffVars),staffMedia=staffPayload&&staffPayload.Media;
+     var creatorEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&/original creator|原作|原案/i.test(e.role||""));
+     creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
+     var creatorSeen={};
+     creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==(d.aniId||d.id)&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
+     creatorWorks=creatorWorks.slice(0,12);
+    }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
+   }catch(anilistError){
+    console.warn("[AniWatch] AniList relations unavailable; using Shikimori:",anilistError);
+    if(d.source!=="shikimori")throw anilistError;
+    var shikiId=Number(d.shikiId)||Number(d.id)-1000000000;
+    if(!(shikiId>0))throw anilistError;
+    var rawRelated=await fetchAnimeRelated(shikiId),rawSimilar=await fetchAnimeSimilar(shikiId);
+    var convert=function(a){
+     if(!a||!Number(a.id))return null;
+     var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
+     var status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
+     return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||Number(a.id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
+    };
+    var seen={};
+    relations=rawRelated.map(x=>{var anime=convert(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!seen[x.anime.id]&&(seen[x.anime.id]=true));
+    recommendations=rawSimilar.map(convert).filter(x=>x&&!seen[x.id]&&(seen[x.id]=true)).slice(0,8);
+    var fallbackList=relations.map(x=>x.anime).concat(recommendations);
+    fallbackList.forEach(x=>{M[x.id]=x});
+    await xaniPosters(fallbackList);
+   }
    var all=relations.map(x=>x.anime).concat(recommendations,creatorWorks);
    await translateRelated(all);
-   var data={v:6,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,at:Date.now()};
+   var data={v:7,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
@@ -525,7 +554,10 @@ function aniMedia(d){
  var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
  if(d.source&&!(Number(d.mal)>0))return Promise.resolve(null);
  if(xXP[id])return xXP[id];
- xXP[id]=xgq(xXQ,{id:d.source?null:id,mal:d.source?Number(d.mal)||null:null}).then(function(r){
+ var query,vars;
+ if(d.source){query="query($mal:Int){Media(idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}";vars={mal:Number(d.mal)}}
+ else{query="query($id:Int){Media(id:$id,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}";vars={id:Number(d.aniId||d.id)}}
+ xXP[id]=xgq(query,vars).then(function(r){
   var m=r&&r.Media||null;xXC[id]=m;
   var t=M[id]||d;if(m&&m.bannerImage&&!t.ban){t.ban=m.bannerImage;if(t.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=t}applyBanner(t);sv()}
   return m;
