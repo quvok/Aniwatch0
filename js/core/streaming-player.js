@@ -1,5 +1,4 @@
 const LIBERTY_BASES=["https://api.anilibria.app/api/v1","https://aniliberty.top/api/v1"];
-const ANIWEEB_BASE="https://api.aniweeb.net";
 let hlsLoader=null,hlsInstance=null;
 const textOf=v=>typeof v==="string"?v:v&&typeof v==="object"?(v.main||v.english||v.russian||""):"";
 const releaseName=r=>textOf(r?.name)||r?.title||r?.name_english||r?.alias||"Без названия";
@@ -27,11 +26,11 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="aniweeb">Aniweeb <small>резерв</small></button></div><div class="stream-options" id="stream-options"></div></div>
-  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Aniweeb · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
- const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload"),tabs=root.querySelectorAll("[data-provider]");
- let active="liberty",releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false;
+ const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
+ let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false;
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
@@ -39,8 +38,6 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  const emit=force=>{const state=getPlaybackState();if(!state||remoteApplying)return;const now=Date.now();if(!force&&now-lastEmit<2200)return;lastEmit=now;onPlayback(state)};
  const bindVideo=el=>{["play","pause","seeked","ratechange"].forEach(event=>el.addEventListener(event,()=>emit(true)));el.addEventListener("timeupdate",()=>emit(false));el.addEventListener("error",()=>setStatus("Ошибка видеопотока. Попробуй другой источник или релиз."))};
  const syncPlayback=async state=>{const v=video();if(!v||!state)return false;remoteApplying=true;try{const target=Math.max(0,Number(state.time)||0);if(Math.abs(v.currentTime-target)>2.5&&!v.seeking){try{v.currentTime=target}catch{}}if(Number(state.speed)>0)v.playbackRate=Number(state.speed);if(state.playing&&!v.ended)await v.play().catch(()=>{});else v.pause()}finally{setTimeout(()=>{remoteApplying=false},350)}return true};
- const setActive=name=>{active=name;destroyHls();tabs.forEach(b=>b.classList.toggle("on",b.dataset.provider===name));if(name==="aniweeb")showAniweeb();else showLiberty()};
- const showAniweeb=()=>{const id=Number(anime?.aniId)||0,mal=Number(anime?.mal)||0;if(!id&&!mal){stage.innerHTML='<div class="stream-placeholder"><b>Aniweeb</b><small>Для этого тайтла нет AniList/MAL ID.</small></div>';options.innerHTML="";setStatus("Нет ID для сопоставления тайтла.");return}options.innerHTML='<label>Дорожка<select id="aniweeb-track"><option value="sub">SUB · субтитры</option><option value="dub">DUB · дубляж</option></select></label><button type="button" class="stream-load" id="aniweeb-load">Запустить плеер <span>→</span></button>';const load=()=>{const track=options.querySelector("#aniweeb-track").value,route=id?"/embed/ani/"+id:"/embed/mal/"+mal,url=ANIWEEB_BASE+route+"/"+Math.max(1,Number(episode)||1)+"?track="+track;stage.innerHTML='<iframe class="stream-frame" src="'+url+'" title="Aniweeb player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';setStatus("Подключаем Aniweeb · "+track.toUpperCase()+". Если сервер не запустится, выбери AniLiberty.")};options.querySelector("#aniweeb-load").addEventListener("click",load);load()};
  const addHlsControls=v=>{const quality=options.querySelector("#liberty-quality"),speed=options.querySelector("#liberty-speed");if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});if(quality)quality.addEventListener("change",()=>{if(hlsInstance)hlsInstance.currentLevel=quality.value==="auto"?-1:Number(quality.value)})};
  const playLiberty=async()=>{
   const eps=Array.isArray(releaseData?.episodes)?releaseData.episodes:[];
@@ -65,7 +62,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
   if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});
   const fail=reason=>{
    if(attempt+1<candidates.length){attempt++;setStatus("Не загрузилось "+candidates[attempt-1].label+". Переключаемся на "+candidates[attempt].label+"…");startCandidate();return}
-   settled=true;setStatus("Ошибка видеопотока: "+reason+". Попробуй другой релиз или Aniweeb.");
+   settled=true;setStatus("Ошибка видеопотока: "+reason+". Попробуй другой релиз.");
   };
   const startCandidate=async()=>{
    const current=candidates[attempt];if(!current)return;
@@ -95,6 +92,6 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  };
  const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
  const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
- tabs.forEach(b=>b.addEventListener("click",()=>setActive(b.dataset.provider)));reload.addEventListener("click",()=>{destroyHls();if(active==="aniweeb")showAniweeb();else{releaseData=null;showLiberty()}});showLiberty()
+ reload.addEventListener("click",()=>{destroyHls();releaseData=null;showLiberty()});showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();root.innerHTML=""}};
 }
