@@ -1716,3 +1716,12 @@ body{padding-bottom:92px}
  body{padding-bottom:88px}
  #site-header .bottom-nav a{min-width:130px}
 }
+
+/* Keep every playback provider visible and tappable */
+.aw-player-controls .stream-provider-tabs{display:flex;flex-wrap:wrap;align-items:center;min-width:0;max-width:100%}
+.aw-player-controls .stream-provider-tabs button{flex:0 1 auto;min-width:0;white-space:nowrap}
+.aw-player-controls .stream-provider-tabs button[data-provider="animedia"]{border-color:rgba(167,139,250,.3);background:rgba(124,58,237,.12);color:#d8c9ff}
+@media(max-width:700px){
+ .aw-player-controls .stream-provider-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+ .aw-player-controls .stream-provider-tabs button{width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis}
+}
