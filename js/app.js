@@ -138,8 +138,8 @@ function connectWatchParty(){
      return;
     }
     var drift=Math.max(0,(Date.now()-Number(payload.sentAt||Date.now()))/1000);
-    P.t=Math.max(0,Math.min(DUR,Number(payload.time)||0)+(payload.playing?drift*(Number(payload.speed)||1):0));
-    P.on=!!payload.playing;P.sp=Number(payload.speed)||1;tick(0);
+    P.t=Math.max(0,Number(payload.time)||0)+(payload.playing?drift*(Number(payload.speed)||1):0);
+    P.on=!!payload.playing;P.sp=Number(payload.speed)||1;
     if(STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback({time:P.t,playing:P.on,speed:P.sp});
     var speed=$("#sp");if(speed)speed.textContent=P.sp+"×";
    }
