@@ -565,6 +565,7 @@ async function xcq(reset){
   L.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
+  xaniPosters(L);
   xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
