@@ -468,7 +468,7 @@ function renderRelated(d,data){
  rel.forEach(x=>{M[x.anime.id]=x.anime});rec.forEach(x=>{M[x.id]=x});creatorWorks.forEach(x=>{M[x.id]=x});
  var groups={};
  rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
- var relationHtml=Object.keys(groups).map(type=>'<div class="relation-group"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><div class="row">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
+ var relationHtml=Object.keys(groups).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные аниме")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
  if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
  var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
