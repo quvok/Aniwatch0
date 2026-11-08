@@ -557,8 +557,15 @@ async function xshikiPosters(L){
    });
   }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
  }
- var cards=Array.from(document.querySelectorAll(".card[data-anime-id]"));
- cards.forEach(c=>{var d=M[+c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;if(d&&shikiImageUrl(d.img)){poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}});
+ document.querySelectorAll("[data-anime-id]").forEach(el=>{
+  var d=M[Number(el.dataset.animeId)];if(!d||!shikiImageUrl(d.img))return;
+  var poster=el.classList.contains("card")?el.querySelector(".poster"):el.classList.contains("sch-row")?el.querySelector(".sch-p"):el.classList.contains("collection-anime-poster")?el:el.classList.contains("poster")?el:null;
+  if(!poster)return;
+  if(el.classList.contains("collection-anime-poster")){var img=document.createElement("img");img.src=d.img;img.alt="";img.loading="lazy";poster.replaceChildren(img)}
+  else{poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}
+ });
+ var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&P&&P.d.id===current.id&&shikiImageUrl(current.img))player.style.background=bn(current);
+ var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
  sv();
 }
 function dHasImage(list,id){
