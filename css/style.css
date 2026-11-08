@@ -1816,3 +1816,37 @@ body{padding-bottom:92px}
 .auth-modal-panel .auth-heading{padding-right:24px}
 .auth-modal-panel .auth-form{gap:14px}
 @media(max-width:480px){.auth-modal{align-items:center;padding:12px}.auth-modal-panel{padding:25px 19px 22px;border-radius:18px;max-height:calc(100dvh - 24px)}}
+
+
+/* Compact mobile watch flow: episode picker first, player below */
+@media(max-width:760px){
+ .watch-main{display:flex!important;flex-direction:column!important;gap:9px!important}
+ .watch-episodes{order:0;margin:0!important;padding:10px!important}
+ .watch-toolbar{order:1;margin:0!important;padding:2px 1px!important}
+ .player-wrap{order:2;margin:0!important}
+ .watch-hint{display:none!important}
+ .aw-player-heading{display:none!important}
+ .aw-player-shell{border-radius:10px!important}
+ .aw-player-shell .stream-stage{width:100%;aspect-ratio:16/9!important;min-height:0!important;height:auto!important;max-height:38vh!important}
+ .aw-player-shell .stream-frame,.aw-player-shell .stream-video,.aw-player-shell .stream-placeholder{width:100%;height:100%;min-height:0!important;max-height:38vh!important}
+ .aw-player-controls{padding:6px!important;gap:6px!important}
+ .aw-player-controls .stream-provider-tabs{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important}
+ .aw-player-controls .stream-provider-tabs button{min-height:32px!important;padding:5px 3px!important;font-size:9px!important}
+ .aw-player-controls .stream-provider-tabs em{display:none!important}
+ .aw-player-controls .stream-options{gap:5px!important}
+ .aw-player-controls .stream-options label{font-size:9px!important}
+ .aw-player-controls .stream-options select{min-height:32px!important;padding:6px 20px 6px 7px!important;font-size:10px!important}
+ .aw-player-controls .stream-load{min-height:34px!important;padding:7px 9px!important}
+ .aw-player-footer{min-height:29px!important;padding:4px 7px!important}
+ .watch-episodes .eps{max-height:clamp(116px,25vh,190px)!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:4px!important}
+ .watch-episodes .eps .episode-item{gap:2px!important}
+ .watch-episodes .eps .episode-item>a{min-height:32px!important;padding:5px 1px!important;font-size:10px!important}
+ .watch-episodes .eps .episode-watch-toggle{width:18px!important;height:18px!important;flex-basis:18px!important;font-size:10px!important}
+ .watch-section-title{margin-bottom:7px!important}
+ .watch-section-title h2{font-size:15px!important}
+ .watch-section-title [data-episode-progress]{font-size:10px!important}
+}
+@media(max-width:380px){
+ .aw-player-controls .stream-provider-tabs button{font-size:8px!important}
+ .watch-episodes .eps{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+}
