@@ -11,7 +11,7 @@ export async function query(q,v){
    try{
     const response=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
     lastRequestAt=Date.now();
-    let json;try{json=await response.json()}catch(error){throw new Error("Получен некорректный ответ (HTTP "+response.status+")")}
+    const raw=await response.text();let json;try{json=JSON.parse(raw)}catch(error){throw new Error("AniList вернул HTTP "+response.status+" без JSON: "+String(raw||"").slice(0,500))}
     const errors=Array.isArray(json.errors)?json.errors:[];
     const message=errors.map(item=>item.message).filter(Boolean).join("; ");
     const limited=response.status===429||errors.some(item=>Number(item.status)===429||/too many requests/i.test(item.message||""));
