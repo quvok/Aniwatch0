@@ -150,7 +150,7 @@ function nextEp(){var d=P.d,n=P.n,tot=epTotal(d);if(n<tot){S.hist[d.id]={ep:n+1,
 V.watch=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  var queryRoom=new URLSearchParams(location.search).get("room");
- if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1";if(S.room!==normalized||guestInvite){S.room=normalized;if(guestInvite)S.roomHost=false;else if(S.room!==normalized)S.roomHost=false;S.roomAnime=d.id;sv()}}
+ if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1",roomChanged=S.room!==normalized;if(roomChanged||guestInvite){S.room=normalized;if(roomChanged||guestInvite)S.roomHost=false;S.roomAnime=d.id;sv()}}
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(epTotal(d)>0)n=Math.min(n,epTotal(d));document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
