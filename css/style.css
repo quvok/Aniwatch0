@@ -1995,9 +1995,9 @@ header{display:block;min-height:64px}
  padding:2px 3px 13px;scroll-snap-type:x mandatory;scrollbar-width:thin;
  scrollbar-color:rgba(167,139,250,.35) transparent
 }
-#related-anime .relation-track>.card{flex:0 0 142px;width:142px;scroll-snap-align:start}
+#related-anime .relation-track>.card{flex:0 0 156px;width:156px;scroll-snap-align:start}
 #related-anime .relation-track>.card .poster{border-radius:11px}
-#related-anime .relation-track>.card>b{font-size:12px;line-height:1.35;margin-top:8px}
+#related-anime .relation-track>.card>b{font-size:13px;line-height:1.35;margin-top:8px}
 #related-anime .relation-track>.card>small{font-size:10px;margin-top:3px}
 #related-anime .related-state{margin:14px 0 18px}
 @media(max-width:700px){
@@ -2010,7 +2010,7 @@ header{display:block;min-height:64px}
  #related-anime .relation-group-head h3{font-size:11px}
  #related-anime .relation-group-head>span{font-size:8px;padding:2px 7px}
  #related-anime .relation-track{gap:10px;padding-bottom:10px}
- #related-anime .relation-track>.card{flex-basis:108px;width:108px}
- #related-anime .relation-track>.card>b{font-size:10px;margin-top:6px}
+ #related-anime .relation-track>.card{flex-basis:118px;width:118px}
+ #related-anime .relation-track>.card>b{font-size:11px;margin-top:6px}
  #related-anime .relation-track>.card>small{font-size:8px}
 }
