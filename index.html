@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>AniWatch — аниме платформа</title>
+<meta name="description" content="Каталог, расписание выхода серий и трейлеры аниме.">
 <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
 <link rel="stylesheet" href="css/style.css">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 </head>
-<body>
-<header><a class="logo" href="#home">AniWatch</a><nav aria-label="Основная навигация"><a href="#home">Главная</a><a href="#catalog">Каталог</a><a href="#schedule" title="Расписание выхода серий">Эфир</a><a href="#favorites">Избранное</a><a href="#mylist">Мои списки</a></nav><input id="q" placeholder="Поиск…" autocomplete="off"><a class="av" href="#profile"></a></header>
+<body data-page="home">
+<header id="site-header"></header>
 <main id="app"><noscript>Для работы сайта нужен включённый JavaScript.</noscript></main>
 <div id="toast"></div>
 <script type="module" src="js/app.js"></script>

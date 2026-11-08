@@ -1,5 +1,3 @@
-import { scheduleCloudSync } from "./supabase.js";
-
 let localDB=null,localDBReady=null;
 
 export function loadLocalState(){
@@ -69,5 +67,4 @@ export function saveLocalState(state,mediaMap){
   try{const tx=db.transaction("state","readwrite");tx.objectStore("state").put(state,"app")}
   catch(e){console.warn("[AniWatch] Local database write failed",e)}
  });
- scheduleCloudSync(state);
 }
