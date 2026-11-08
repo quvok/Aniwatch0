@@ -92,6 +92,29 @@ function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.sli
 var featuredIndex=0;
 function featured(){var d=H[featuredIndex%H.length]||D[0];loadBanner(d);ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="--hero-poster:url(\''+(shikiImageUrl(d.img)||"")+'\');background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
+function animeProgress(d){
+ var total=availableEpCount(d)||epTotal(d);
+ if(!total)return 0;
+ var watched=watchedFor(d.id).filter(n=>n>0&&n<=total).length;
+ return Math.min(100,Math.round(watched/total*100));
+}
+function personalizedHomeCards(){
+ var seedIds=[].concat(S.fav||[],Object.keys(S.watchlist||{}),Object.keys(S.rate||{}),Object.keys(S.hist||{})).map(Number);
+ var seeds=[...new Set(seedIds)].map(id=>M[id]).filter(Boolean);
+ if(!seeds.length)return [];
+ var weights={};
+ seeds.forEach(d=>{
+  var factor=(S.fav||[]).includes(d.id)?3:1;
+  if(S.rate&&S.rate[d.id]>=4)factor+=2;
+  if(S.watchlist&&S.watchlist[d.id]==='watching')factor+=1;
+  (d.g||[]).forEach(g=>{var key=String(g).toLocaleLowerCase('ru');weights[key]=(weights[key]||0)+factor});
+ });
+ var excluded=new Set([].concat(S.fav||[],Object.keys(S.watchlist||{}).filter(id=>S.watchlist[id]==='completed')));
+ var pool=[].concat(homeCollections?homeCollections.trending||[]:[],homeCollections?homeCollections.popular||[]:[],homeCollections?homeCollections.ongoing||[]:[],homeCollections?homeCollections.recent||[]:[]);
+ var unique=new Map();pool.forEach(d=>{if(d&&d.id&&!excluded.has(d.id)&&animeProgress(d)<100)unique.set(d.id,d)});
+ return [...unique.values()].map(d=>({d,score:(d.g||[]).reduce((sum,g)=>sum+(weights[String(g).toLocaleLowerCase('ru')]||0),0)+(Number(d.r)||0)/10}))
+  .filter(x=>x.score>0).sort((x,y)=>y.score-x.score||Number(y.d.r||0)-Number(x.d.r||0)).slice(0,12).map(x=>card(x.d));
+}
 function refreshContinueShelf(){var host=$("#continue-shelf");if(!host)return;var keys=Object.keys(S.hist||{}).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6);var cards=keys.map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));host.outerHTML=row("Продолжить просмотр",cards.length?cards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf")}
 
 var cloudRefreshPromise=null,cloudRefreshAt=0;
@@ -126,7 +149,8 @@ V.home=()=>{
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ var personalized=personalizedHomeCards();
+ renderHomePage({app,featured:featured(),continueCards:cont,personalizedCards:personalized,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
  loadHomeAiring();
@@ -285,8 +309,8 @@ async function loadCollectionsView(params){
  }catch(error){console.error("[AniWatch] Collections load failed:",error);app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить коллекции</h1><p>Проверь подключение и попробуй ещё раз.</p><button class="btn" data-a="collections-reload">Повторить</button></section>'}
 }
 V.collections=loadCollectionsView;
-V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card});
-V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card});
+V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d))});
+V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d))});
 V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
