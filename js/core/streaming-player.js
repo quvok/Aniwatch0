@@ -26,7 +26,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="anixo">AniXo <em>NEW</em></button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -92,6 +92,20 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  };
  const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
  const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
- reload.addEventListener("click",()=>{destroyHls();releaseData=null;showLiberty()});showLiberty()
+ const showAnixo=()=>{
+  const aniId=Number(anime?.aniId||anime?.id);
+  const malId=Number(anime?.mal||anime?.malId);
+  const identity=aniId>0?"ani/"+aniId:malId>0?"mal/"+malId:"";
+  if(!identity){setStatus("Не найден AniList/MAL ID для этого тайтла");stage.innerHTML='<div class="stream-placeholder"><b>AniXo</b><small>Для этого аниме нет подходящего ID</small></div>';return}
+  destroyHls();options.innerHTML='<span class="stream-note">AniXo · серия '+episode+' · субтитры</span>';
+  stage.innerHTML='<iframe class="stream-video" src="https://anixo.buzz/embed/'+identity+'/'+encodeURIComponent(episode)+'?track=sub" title="AniXo player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;border:0;aspect-ratio:16/9"></iframe>';
+  setStatus("AniXo · внешний видеоплеер · управление совместным просмотром недоступно");
+ };
+ root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
+  root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
+  if(button.dataset.provider==="anixo")showAnixo();else showLiberty();
+ }));
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else{releaseData=null;showLiberty()}});
+ showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();root.innerHTML=""}};
 }
