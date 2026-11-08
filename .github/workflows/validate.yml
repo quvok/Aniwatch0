@@ -2,7 +2,7 @@ name: Validate AniWatch
 
 on:
   push:
-    branches: [redesign/product-audit-2026-11-08]
+    branches: [main, redesign/product-audit-2026-11-08]
   pull_request:
     branches: [main]
 
