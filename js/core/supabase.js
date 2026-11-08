@@ -42,7 +42,19 @@ export async function signInWithEmail(login, password) {
     const { data: result, error } = await supabase.functions.invoke("login-with-username", {
       body: { username: String(login).trim(), password }
     });
-    if (error) throw error;
+    if (error) {
+      // Supabase wraps non-2xx responses in FunctionsHttpError.
+      // Convert expected authentication failures into the same message as email sign-in.
+      const status = error.context?.status;
+      if (status === 401 || status === 400) throw new Error("Неверный логин или пароль.");
+      if (status === 429) throw new Error("Слишком много попыток. Попробуй позже.");
+      let serverMessage = "";
+      try {
+        const payload = await error.context?.clone?.().json();
+        serverMessage = payload?.error || payload?.message || "";
+      } catch (_) {}
+      throw new Error(serverMessage || "Не удалось выполнить вход. Попробуй ещё раз.");
+    }
     if (result?.error) throw new Error(result.error);
     if (!result?.access_token || !result?.refresh_token) throw new Error("Не удалось получить сессию.");
     const sessionResult = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
