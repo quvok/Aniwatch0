@@ -419,15 +419,24 @@ var xMF="id idMal format title{romaji english}genres seasonYear startDate{year m
 HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
 homeCollections=null;
 async function loadHomeCollections(){
- var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v1")||"null")}catch(e){}
+ var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v2")||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
- if(!data){data=await xgq(HOME_QUERY,{});try{localStorage.setItem("aw-home-v1",JSON.stringify({at:Date.now(),data:data}))}catch(e){}}
- var page=data||{},map=list=>(list&&list.media||[]).map(mp);
+ if(!data){
+  var lists=await Promise.all([
+   fetchCatalogPage({page:1,limit:8,order:"popularity"}),
+   fetchCatalogPage({page:1,limit:8,order:"ranked"}),
+   fetchCatalogPage({page:1,limit:8,order:"popularity",status:"ongoing"}),
+   fetchCatalogPage({page:1,limit:8,order:"aired_on",status:"released"})
+  ]);
+  data={trending:lists[0],popular:lists[1],ongoing:lists[2],recent:lists[3]};
+  try{localStorage.setItem("aw-home-v2",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+ }
+ var map=list=>(Array.isArray(list)?list:[]).map(shikiToItem);
  homeCollections={
-  trending:map(page.trending),popular:map(page.popular),ongoing:map(page.ongoing),recent:map(page.recent)
+  trending:map(data.trending),popular:map(data.popular),ongoing:map(data.ongoing),recent:map(data.recent)
  };
  var allHome=homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent);
- await enrichShikimori(allHome);
+ await xshikiPosters(allHome);
  allHome.forEach(d=>M[d.id]=d);
  if(homeCollections.trending.length)H=homeCollections.trending;
  return homeCollections;
@@ -478,7 +487,7 @@ async function xshikiPosters(L){
    });
   }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
  }
- var cards=Array.from(document.querySelectorAll("#cr .card[data-anime-id]"));
+ var cards=Array.from(document.querySelectorAll(".card[data-anime-id]"));
  cards.forEach(c=>{var d=M[+c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;if(d&&shikiImageUrl(d.img)){poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}});
  sv();
 }
