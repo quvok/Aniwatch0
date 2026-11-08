@@ -10,7 +10,8 @@ export const PAGES={
  profile:"profile.html",
  random:"random.html",
  title:"anime.html",
- watch:"watch.html"
+ watch:"watch.html",
+ collections:"collections.html"
 };
 
 const has=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
