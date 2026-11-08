@@ -61,7 +61,7 @@ var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div cla
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
 var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].map(Number):[];
-var eps=(d,cur)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n);return '<span class="episode-item'+(done?' is-watched':'')+'"><a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть серию '+n+'">'+n+'</a><button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'">'+(done?'✓':'○')+'</button></span>'}).join('')};
+var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n);return '<span class="episode-item'+(done?' is-watched':'')+'"><a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>'+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="Смотреть серию '+n+' здесь">▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'">'+(done?'✓':'○')+'</button></span>'}).join('')};
 function refreshEpisodeMarks(id){var watched=watchedFor(id),total=epTotal(M[id]||{}),count=watched.length;document.querySelectorAll('.episode-item').forEach(item=>{var b=item.querySelector('[data-a="episode-toggle"]');if(!b||Number(b.dataset.i)!==Number(id))return;var n=Number(b.dataset.v),done=watched.includes(n);item.classList.toggle('is-watched',done);b.classList.toggle('is-watched',done);b.setAttribute('aria-pressed',String(done));b.setAttribute('aria-label',(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n);b.textContent=done?'✓':'○'});document.querySelectorAll('[data-episode-progress="'+id+'"]').forEach(el=>{el.textContent=count+' / '+(total||'—')+' просмотрено'})}
 function setEpisodeWatched(id,episode,done){S.watchedEpisodes=S.watchedEpisodes||{};var list=watchedFor(id).filter(n=>n!==Number(episode));if(done)list.push(Number(episode));list.sort((a,b)=>a-b);if(list.length)S.watchedEpisodes[id]=list;else delete S.watchedEpisodes[id];sv();refreshEpisodeMarks(id)}
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
@@ -111,14 +111,31 @@ V.home=()=>{
 
 var rc;
 
+function startInlineWatch(anime,episode){
+ var host=$("#inline-stream-player"),section=$("#inline-watch-section");if(!host||!section)return;
+ if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}
+ section.hidden=false;
+ var title=$("#inline-watch-title");if(title)title.textContent=anime.n+" · серия "+episode;
+ document.querySelectorAll(".episode-inline-play").forEach(b=>{b.classList.toggle("on",Number(b.dataset.v)===Number(episode));b.textContent=Number(b.dataset.v)===Number(episode)?"Ⅱ":"▶"});
+ INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,onEpisodeEnded:()=>{
+  setEpisodeWatched(anime.id,episode,true);
+  S.hist[anime.id]={ep:episode+1,t:0,at:Date.now()};sv();
+  var next=section.querySelector('.episode-inline-play[data-v="'+(episode+1)+'"]');
+  if(next){next.classList.add("next-ready");toast("Серия отмечена. Можно включить следующую.");}
+ },onPlayback:media=>{
+  var now=Date.now(),time=Math.max(0,Number(media.time)||0);
+  if(time>0){S.hist[anime.id]={ep:episode,t:time,at:now};if(!startInlineWatch.lastSave||now-startInlineWatch.lastSave>=5000||!media.playing){startInlineWatch.lastSave=now;sv()}}
+ }});
+ section.scrollIntoView({behavior:"smooth",block:"start"});
+}
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
- renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:eps});
+ renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true)});
  ru(d);loadRelated(d)
 };
 
-var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
+var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
 function broadcastPlayback(type){
  if(!ROOM_CONNECTED||!P)return;
  var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
@@ -790,7 +807,7 @@ function syncCatalogUrl(){
  var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore};
  try{history.replaceState(null,"",pageUrl("catalog",o))}catch(e){}
 }
-function draw(){renderRoute(V,T,()=>{P=null},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
+function draw(){renderRoute(V,T,()=>{P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,document.createTextNode(String(t||"")));m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
@@ -799,6 +816,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove()}
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-toggle"){e.preventDefault();e.stopPropagation();var watched=watchedFor(i),already=watched.includes(Number(v));setEpisodeWatched(i,v,!already);toast(!already?"Серия отмечена как просмотренная":"Отметка о просмотре снята")}
+ else if(a==="inline-watch"){e.preventDefault();e.stopPropagation();var inlineAnime=M[i];if(inlineAnime)startInlineWatch(inlineAnime,Number(v)||1)}
  else if(a=="desc"){var p=$("#td"),open=t.getAttribute("aria-expanded")==="true";if(p){p.classList.toggle("collapsed",open);t.setAttribute("aria-expanded",String(!open));t.textContent=open?"Читать полностью":"Свернуть"}}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
  else if(a=="random"){if(activePage()==="random")xrandom();else location.href=pageUrl("random")}
