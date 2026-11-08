@@ -28,7 +28,7 @@ function openLocalDB(){
 
 export async function initializeLocalState(state,setState){
  const db=await openLocalDB();
- if(!db)return normalizeState(state);
+ if(!db){state=normalizeState(state);stripCachedArtwork(state.shikiAnime);stripCachedArtwork(state.relatedAnime);try{localStorage.setItem("aw",JSON.stringify(state))}catch(e){}return state;}
  try{
   const saved=await new Promise((resolve,reject)=>{
    const tx=db.transaction("state","readonly"),req=tx.objectStore("state").get("app");
