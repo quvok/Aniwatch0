@@ -121,25 +121,26 @@ V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,user:AUTH_USER});
 async function handleAuthSubmit(form){
  if(AUTH_BUSY)return;
  var mode=form.querySelector("[name=auth-mode]")?.value||"login";
- var email=String($("#auth-email")?.value||"").trim(),password=$("#auth-password")?.value||"",username=String($("#auth-username")?.value||"").trim();
+ var login=String($("#auth-login")?.value||"").trim(),email=String($("#auth-email")?.value||"").trim(),password=$("#auth-password")?.value||"",username=String($("#auth-username")?.value||"").trim();
  var status=$("#auth-message"),button=$("#auth-submit");
- if(!email||!password){if(status)status.textContent="Заполни почту и пароль.";return}
+ if((mode==="signup"?!email:!login)||!password){if(status)status.textContent=mode==="signup"?"Заполни почту и пароль.":"Заполни логин и пароль.";return}
+ if(mode==="signup"&&!username){if(status)status.textContent="Придумай ник.";return}
  if(mode==="signup"&&password.length<6){if(status)status.textContent="Пароль должен содержать минимум 6 символов.";return}
  AUTH_BUSY=true;if(button){button.disabled=true;button.textContent="Подождите…"}if(status)status.textContent="";
  try{
-  var result=mode==="signup"?await signUpWithEmail(email,password,username||"Аноним"):await signInWithEmail(email,password);
+  var result=mode==="signup"?await signUpWithEmail(email,password,username):await signInWithEmail(login,password);
   // A user object may exist before email confirmation, but without a session
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
    S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");V.profile();
-  }else if(status){status.textContent=mode==="signup"?"Аккаунт создан. Проверь почту и подтверди адрес, затем войди.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
+  }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
 }
 function authErrorText(error){
  var m=String(error?.message||"");
- if(/Invalid login credentials/i.test(m))return "Неверная почта или пароль.";
+ if(/Invalid login credentials|Неверный логин или пароль/i.test(m))return "Неверный логин или пароль.";
  if(/User already registered/i.test(m))return "Аккаунт с такой почтой уже существует.";
  if(/Password should be at least/i.test(m))return "Пароль слишком короткий.";
  if(/Email not confirmed/i.test(m))return "Сначала подтверди почту по ссылке из письма.";
@@ -691,7 +692,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
- else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
+ else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var ew=$("#auth-email-wrap");if(ew)ew.hidden=mode!=="signup";var lw=$("#auth-login-wrap");if(lw)lw.hidden=mode==="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
  else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
