@@ -150,7 +150,7 @@ function nextEp(){var d=P.d,n=P.n,tot=epTotal(d);if(n<tot){S.hist[d.id]={ep:n+1,
 V.watch=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  var queryRoom=new URLSearchParams(location.search).get("room");
- if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);if(S.room!==normalized){S.room=normalized;S.roomHost=false;S.roomAnime=d.id;sv()}}
+ if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1";if(S.room!==normalized||guestInvite){S.room=normalized;if(guestInvite)S.roomHost=false;else if(S.room!==normalized)S.roomHost=false;S.roomAnime=d.id;sv()}}
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(epTotal(d)>0)n=Math.min(n,epTotal(d));document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
@@ -752,7 +752,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="sp"&&P){var s=[1,1.25,1.5,2];P.sp=s[(s.indexOf(P.sp)+1)%4];t.textContent=P.sp+"×";broadcastPlayback("playback")}
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0);broadcastPlayback("playback")}
  else if(a=="room"){var roomAnime=Number($("#room-anime")&&$("#room-anime").value)||Number(D[0]&&D[0].id);if(!roomAnime){toast("Сначала дождись загрузки каталога");return}S.room=createRoomCode();S.roomHost=true;S.roomAnime=roomAnime;sv();location.href=watchUrl(roomAnime,1)+"&room="+encodeURIComponent(S.room)}
- else if(a=="room-copy"&&S.room){var invite=new URL(location.href);invite.searchParams.set("room",S.room);var inviteText=invite.toString();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inviteText).then(()=>toast("Ссылка-приглашение скопирована")).catch(()=>prompt("Скопируй ссылку на комнату:",inviteText));else prompt("Скопируй ссылку на комнату:",inviteText)}
+ else if(a=="room-copy"&&S.room){var invite=new URL(location.href);invite.searchParams.set("room",S.room);invite.searchParams.set("guest","1");var inviteText=invite.toString();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inviteText).then(()=>toast("Ссылка-приглашение скопирована")).catch(()=>prompt("Скопируй ссылку на комнату:",inviteText));else prompt("Скопируй ссылку на комнату:",inviteText)}
  else if(a=="room-leave"){disconnectRoom();ROOM_CONNECTED=false;S.room="";S.roomHost=false;S.roomAnime=0;sv();toast("Вы вышли из комнаты");location.href=watchUrl(P.d.id,P.n)}
  else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var ew=$("#auth-email-wrap");if(ew)ew.hidden=mode!=="signup";var emailInput=$("#auth-email");if(emailInput)emailInput.required=mode==="signup";var lw=$("#auth-login-wrap");if(lw)lw.hidden=mode==="signup";var loginInput=$("#auth-login");if(loginInput)loginInput.required=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
  else if(a==="auth-logout"){handleAuthLogout()}
