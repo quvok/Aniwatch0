@@ -2039,3 +2039,36 @@ header{display:block;min-height:64px}
 
 /* Unreleased episodes are visible but cannot be opened or marked watched */
 .episode-item.is-upcoming{opacity:.48;cursor:not-allowed}.episode-number{display:inline-grid;place-items:center;min-width:30px;min-height:30px;color:var(--muted,#999)}.episode-upcoming-label{font-size:9px;line-height:1;color:var(--muted,#999);align-self:center}.episode-item.is-upcoming button:disabled{cursor:not-allowed;opacity:.55}
+
+
+/* Mobile featured banner: use the artwork as the backdrop, not a cramped second column */
+@media(max-width:700px){
+ #hw .hero-editorial{
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;
+  min-height:300px;max-height:none;height:auto;
+  grid-template-columns:minmax(0,1fr);
+  gap:10px;padding:22px 18px 34px;border-radius:16px;
+  background-position:center!important;
+ }
+ #hw .hero-editorial::before{
+  background:linear-gradient(90deg,rgba(5,6,12,.88),rgba(5,6,12,.52)),
+  linear-gradient(0deg,rgba(5,6,12,.92),rgba(5,6,12,.12) 82%);
+ }
+ #hw .hero-copy{width:100%;max-width:none;gap:9px;min-width:0}
+ #hw .hero-editorial .eyebrow{font-size:9px;letter-spacing:.1em}
+ #hw .hero-editorial small{font-size:9px;line-height:1.45;max-width:100%;overflow-wrap:anywhere}
+ #hw .hero-editorial h1{font-size:clamp(25px,7.2vw,34px);line-height:1.06;max-width:100%;-webkit-line-clamp:2}
+ #hw .hero-editorial p{font-size:11px;line-height:1.5;max-width:100%;min-height:0;-webkit-line-clamp:2}
+ #hw .hero-facts{gap:12px;flex-wrap:wrap;font-size:10px}
+ #hw .hero-editorial .acts{display:flex;flex-wrap:wrap;gap:8px}
+ #hw .hero-editorial .btn{padding:9px 13px;font-size:11px;min-height:36px}
+ #hw .hero-poster{display:none}
+ #hw .hero-dots{display:flex!important;bottom:10px;left:50%;z-index:5}
+ #hw .hero-arrow{display:none!important}
+}
+@media(max-width:360px){
+ #hw .hero-editorial{min-height:280px;padding:18px 14px 32px}
+ #hw .hero-editorial h1{font-size:24px}
+ #hw .hero-editorial .acts{gap:6px}
+ #hw .hero-editorial .btn{padding:8px 10px;font-size:10px}
+}
