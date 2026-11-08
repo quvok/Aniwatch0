@@ -157,31 +157,32 @@ var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false)
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
 function mp(m){
- var title=m.title||{},cover=m.coverImage||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
+ var title=m.title||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
  var primary=title.english||title.romaji||title.native||"Без названия";
  var alternate=title.romaji&&title.romaji!==primary?title.romaji:(title.native&&title.native!==primary?title.native:"");
- return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:[cover.color||"#7c3aed","#0f0f1a"],img:cover.extraLarge||cover.large||"",ban:m.bannerImage||"",kind:String(m.format||"").toLowerCase()}
+ return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(m.format||"").toLowerCase()}
 }
 
 // AniList is the source of truth for catalog metadata and navigation IDs.
 async function enrichShikimori(list){
  var items=(list||[]).filter(d=>d&&Number(d.mal)>0),cache={};
- try{cache=JSON.parse(localStorage.getItem("aw-shiki-meta-v1")||"{}")}catch(e){}
- var now=Date.now(),need=[...new Set(items.filter(d=>!cache[d.mal]||now-cache[d.mal].at>7*864e5).map(d=>Number(d.mal)))];
+ try{cache=JSON.parse(localStorage.getItem("aw-shiki-meta-v2")||"{}")}catch(e){}
+ var now=Date.now(),need=[...new Set(items.filter(d=>!cache[d.mal]||!cache[d.mal].image||now-cache[d.mal].at>7*864e5).map(d=>Number(d.mal)))];
  for(var i=0;i<need.length;i+=50){
   try{
    var batch=await fetchAnimeByIds(need.slice(i,i+50));
    batch.forEach(a=>{cache[a.id]={russian:a.russian||"",name:a.name||"",description:a.description||"",at:now}});
-   need.slice(i,i+50).forEach(id=>{if(!cache[id])cache[id]={russian:"",name:"",description:"",at:now}});
+   need.slice(i,i+50).forEach(id=>{if(!cache[id])cache[id]={russian:"",name:"",description:"",image:"",at:now}});
   }catch(e){console.warn("[AniWatch] Shikimori metadata lookup failed:",e);break}
  }
  var keys=Object.keys(cache);if(keys.length>500){keys.sort((a,b)=>(cache[b].at||0)-(cache[a].at||0)).slice(500).forEach(id=>delete cache[id])}
- try{localStorage.setItem("aw-shiki-meta-v1",JSON.stringify(cache))}catch(e){}
+ try{localStorage.setItem("aw-shiki-meta-v2",JSON.stringify(cache))}catch(e){}
  items.forEach(d=>{
   var a=cache[d.mal];if(!a)return;
   var russian=a.russian||a.name;
   if(russian){if(d.n&&d.n!==russian)d.o=esc(a.name||un(d.n));d.n=esc(russian)}
   if(a.description)d.d=esc(cleanDesc(a.description));
+  if(a.image)d.img=a.image;
  });
  return list;
 }
