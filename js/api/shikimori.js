@@ -19,9 +19,9 @@ export async function fetchAnimeGenres({signal}={}){
  return result;
 }
 
-export async function fetchCatalogPage({query="",page=1,order="popularity",format="",season="",status="",genre="",signal}={}){
+export async function fetchCatalogPage({query="",page=1,limit=50,order="popularity",format="",season="",status="",genre="",signal}={}){
  const url=new URL(API_ROOT+"/animes");
- url.searchParams.set("limit","50");
+ url.searchParams.set("limit",String(Math.max(1,Math.min(50,Number(limit)||50))));
  url.searchParams.set("page",String(page));
  url.searchParams.set("order",order);
  if(query)url.searchParams.set("search",query);
