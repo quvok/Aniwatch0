@@ -19,6 +19,7 @@ import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./co
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
+var collectionSearchTimer=null,collectionSearchRequest=0;
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
 var D=[
@@ -162,6 +163,19 @@ V.watch=p=>{
 };
 
 V.together=()=>renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc});
+async function searchCollectionAnime(query){
+ var host=$("#collection-anime-search-results"),q=String(query||"").trim(),request=++collectionSearchRequest;if(!host)return;
+ if(q.length<2){host.innerHTML='<p class="profile-hint">Введи минимум 2 символа для поиска.</p>';return}
+ host.innerHTML='<p class="profile-hint">Ищем аниме…</p>';
+ try{
+  var raw=await fetchCatalogPage({query:q,page:1,limit:30,order:"popularity"});
+  if(request!==collectionSearchRequest||!$("#collection-anime-search-results"))return;
+  var list=(Array.isArray(raw)?raw:[]).map(shikiToItem).filter(x=>x&&Number(x.shikiId)>0);
+  list.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
+  await xshikiPosters(list);if(request!==collectionSearchRequest)return;host=$("#collection-anime-search-results");if(!host)return;
+  host.innerHTML=list.length?list.map(d=>'<article class="collection-search-result"><div class="collection-search-poster">'+(shikiImageUrl(d.img)?'<img src="'+esc(d.img)+'" alt="" loading="lazy">':'<span>AW</span>')+'</div><div class="collection-search-info"><b>'+esc(un(d.n))+'</b><small>'+esc(d.y||"Год неизвестен")+' · '+esc((d.g||[]).slice(0,2).join(", "))+'</small></div><button type="button" class="btn collection-search-add" data-a="collection-add-search-item" data-id="'+d.id+'">Добавить</button></article>').join(""):'<p class="profile-hint">Ничего не найдено. Попробуй другое название.</p>';
+ }catch(error){if(request!==collectionSearchRequest)return;console.warn("[AniWatch] Collection anime search failed:",error);host.innerHTML='<p class="profile-hint">Не удалось выполнить поиск. Попробуй ещё раз.</p>'}
+}
 async function loadCollectionsView(params){
  app.innerHTML='<p class="empty">Загружаем коллекции…</p>';
  try{
@@ -784,6 +798,13 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
   addCollectionAnime(targetId,anime).then(()=>toast("Аниме добавлено в коллекцию")).catch(error=>toast(error.message||"Не удалось добавить аниме"));
  }
  else if(a==="collection-rate"){if(!AUTH_USER){toast("Войди в аккаунт, чтобы оценить коллекцию");return}var collectionId=new URLSearchParams(location.search).get("id");rateCollection(collectionId,AUTH_USER.id,+v).then(()=>loadCollectionsView([collectionId])).then(()=>toast("Оценка сохранена")).catch(error=>toast(error.message||"Не удалось сохранить оценку"))}
+ else if(a==="collection-add-search-item"){
+  if(!AUTH_USER){toast("Войди в аккаунт, чтобы управлять коллекциями");return}
+  var selectedAnime=M[Number(t.dataset.id)],selectedCollection=routeArgs()[0];
+  if(!selectedAnime||!selectedCollection){toast("Не удалось определить аниме или коллекцию");return}
+  t.disabled=true;t.textContent="Добавляем…";
+  addCollectionAnime(selectedCollection,selectedAnime).then(()=>{toast("Аниме добавлено в коллекцию");loadCollectionsView(routeArgs())}).catch(error=>{console.error("[AniWatch] Collection add failed:",error);toast(error.message||"Не удалось добавить аниме");t.disabled=false;t.textContent="Добавить"});
+ }
  else if(a==="collection-remove-item"){removeCollectionAnime(t.dataset.id).then(()=>loadCollectionsView(routeArgs())).then(()=>toast("Аниме удалено из коллекции")).catch(error=>toast(error.message||"Не удалось удалить"))}
  else if(a==="collection-delete"){if(!confirm("Удалить коллекцию вместе со всеми её аниме и оценками?"))return;var collectionId=new URLSearchParams(location.search).get("id");deleteCollection(collectionId).then(()=>{toast("Коллекция удалена");location.href="collections.html"}).catch(error=>toast(error.message||"Не удалось удалить коллекцию"))}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
@@ -801,7 +822,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
 listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
  if(f=="site-search"){var sq=($("#q").value||"").trim();if(activePage()==="catalog"){F.q=sq;rc()}else location.href=pageUrl("catalog",{q:sq});return}
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
- if(f==="collection-create-form"||f==="collection-edit-form"||f==="collection-add-anime-form"){
+ if(f==="collection-create-form"||f==="collection-edit-form"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы управлять коллекциями");return}
   var fd=new FormData(e.target),collectionId=new URLSearchParams(location.search).get("id");
   try{
@@ -814,6 +835,7 @@ listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
  if(f==="auth-form"){handleAuthSubmit(e.target);return}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;if(!ROOM_CONNECTED){toast("Нет соединения с комнатой");return}msg(S.name||"Вы",v);sendRoomEvent("chat",{name:S.name||"Гость",text:v.slice(0,500)}).catch(()=>toast("Не удалось отправить сообщение"));$("#ci").value=""}
  if(f=="jf"){var code=$("#jc").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");if(!code)return;var targetAnime=Number(D[0]&&D[0].id);if(!targetAnime){toast("Каталог ещё загружается");return}S.room=code;S.roomHost=false;S.roomAnime=targetAnime;sv();location.href=watchUrl(targetAnime,1)+"&room="+encodeURIComponent(code)}});
+listen(document,"input",e=>{if(e.target.id==="collection-anime-search"){clearTimeout(collectionSearchTimer);var value=e.target.value;collectionSearchTimer=setTimeout(()=>searchCollectionAnime(value),350)}});
 listen(document,"input",e=>{var i=e.target.id;
  if(i=="q"&&activePage()==="catalog"){F.q=e.target.value.trim();rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
