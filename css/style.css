@@ -2393,3 +2393,33 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 @media(max-width:700px){
  #site-header .desktop-sidebar{display:none!important}
 }
+
+
+/* Desktop: make the right rail an independent scroll area. */
+@media(min-width:701px){
+ .home-rail{
+  position:sticky;
+  top:94px;
+  max-height:calc(100vh - 110px);
+  max-height:calc(100dvh - 110px);
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(167,139,250,.42) transparent;
+  padding-right:5px;
+ }
+ .home-rail::-webkit-scrollbar{width:5px}
+ .home-rail::-webkit-scrollbar-track{background:transparent}
+ .home-rail::-webkit-scrollbar-thumb{background:rgba(167,139,250,.35);border-radius:8px}
+ .home-rail::-webkit-scrollbar-thumb:hover{background:rgba(167,139,250,.6)}
+}
+@media(max-width:700px){
+ .home-rail{
+  position:static;
+  max-height:none;
+  overflow:visible;
+  overscroll-behavior:auto;
+  padding-right:0
+ }
+}
