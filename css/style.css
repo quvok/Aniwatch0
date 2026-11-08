@@ -981,7 +981,6 @@ h2{font-size:clamp(20px,2vw,25px)}
 .catalog-selects select:focus,.catalog-search-label input:focus{border-color:rgba(167,139,250,.7)}
 .results-line{margin:22px 2px 15px}
 .results-line b{color:#e7e4f2}
-.home-airing{padding:21px;border-radius:19px;background:linear-gradient(145deg,rgba(25,26,43,.88),rgba(14,16,27,.88));border-color:rgba(190,197,230,.14)}
 .profile-stats>div,.auth-box,.panel,.chat,.empty{
  border-radius:17px;border-color:rgba(190,197,230,.14);
 }
@@ -1028,7 +1027,6 @@ input,select,textarea{border-radius:11px}
  .catalog-selects{gap:8px}
  .catalog-selects label{flex:1;min-width:calc(50% - 8px)}
  .catalog-selects select{width:100%;min-width:0;font-size:11px;padding:9px 8px}
- .home-airing{padding:13px;border-radius:15px}
  .profile-stats{gap:8px}
 }
 @media(prefers-reduced-motion:reduce){
