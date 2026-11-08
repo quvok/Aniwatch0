@@ -500,7 +500,9 @@ V.catalog=()=>{
  xCF.q=F.q||xCF.q||"";xCF.g=F.g||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
  var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;
  var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
- xcq(true);
+ if(!xGenrePromise)xGenrePromise=fetchAnimeGenres().then(list=>{xGenreOptions=list.filter(g=>g&&g.kind!=="theme").map(g=>[String(g.id),g.russian||g.name]).filter(g=>g[0]&&g[1]);return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
+ var routeKey=xCF.k;
+ xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
@@ -520,7 +522,7 @@ async function xcq(reset){
   }
   if(k!==xCF.k)return;
   var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
-  if(xCF.g)L=L.filter(d=>d.g.includes(xCF.g));
+
   if(xCF.y)L=L.filter(d=>String(d.y)===String(xCF.y));
   if(xCF.season){
    var months={winter:[12,1,2],spring:[3,4,5],summer:[6,7,8],fall:[9,10,11]}[xCF.season]||[];
