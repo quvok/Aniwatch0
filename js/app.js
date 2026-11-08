@@ -2,6 +2,7 @@ import { query as xgq } from "./api/anilist.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
+import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync } from "./core/supabase.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
@@ -31,9 +32,9 @@ var D=[
 ["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
-var M={},H=[];
+var M={},H=[],AUTH_USER=null,AUTH_BUSY=false;
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
-function sv(){saveLocalState(S,M)}
+function sv(){saveLocalState(S,M);scheduleCloudSync(S)}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
@@ -116,8 +117,38 @@ V.watch=p=>{
 V.together=()=>renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,card,row});
 V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card});
 V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card});
-V.profile=()=>renderProfile({app,state:S,escapeHtml:esc});
-// ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
+V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,user:AUTH_USER});
+async function handleAuthSubmit(form){
+ if(AUTH_BUSY)return;
+ var mode=form.querySelector("[name=auth-mode]")?.value||"login";
+ var email=String($("#auth-email")?.value||"").trim(),password=$("#auth-password")?.value||"",username=String($("#auth-username")?.value||"").trim();
+ var status=$("#auth-message"),button=$("#auth-submit");
+ if(!email||!password){if(status)status.textContent="Заполни почту и пароль.";return}
+ if(mode==="signup"&&password.length<6){if(status)status.textContent="Пароль должен содержать минимум 6 символов.";return}
+ AUTH_BUSY=true;if(button){button.disabled=true;button.textContent="Подождите…"}if(status)status.textContent="";
+ try{
+  var result=mode==="signup"?await signUpWithEmail(email,password,username||"Аноним"):await signInWithEmail(email,password);
+  AUTH_USER=result.user||result.data?.user||null;
+  if(AUTH_USER){
+   S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");V.profile();
+  }else if(status){status.textContent="Письмо для подтверждения отправлено на почту. Подтверди адрес, затем войди."}
+ }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
+ finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
+}
+function authErrorText(error){
+ var m=String(error?.message||"");
+ if(/Invalid login credentials/i.test(m))return "Неверная почта или пароль.";
+ if(/User already registered/i.test(m))return "Аккаунт с такой почтой уже существует.";
+ if(/Password should be at least/i.test(m))return "Пароль слишком короткий.";
+ if(/Email not confirmed/i.test(m))return "Сначала подтверди почту по ссылке из письма.";
+ if(/rate limit/i.test(m))return "Слишком много попыток. Попробуй позже.";
+ return m||"Не удалось выполнить запрос. Попробуй ещё раз.";
+}
+async function handleAuthLogout(){
+ try{await signOut();AUTH_USER=null;toast("Вы вышли из аккаунта");V.profile()}
+ catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
+}
+\n// ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
@@ -361,7 +392,7 @@ async function ru(d){
 }
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
-async function boot(){S=await initializeLocalState(S,value=>{S=value});app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
@@ -657,11 +688,14 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
+ else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
+ else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
 listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="site-search"){var sq=($("#q").value||"").trim();if(activePage()==="catalog"){F.q=sq;rc()}else location.href=pageUrl("catalog",{q:sq});return}
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
+ if(f==="auth-form"){handleAuthSubmit(e.target);return}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);if(D[0])location.href=watchUrl(D[0].id,1)}});
 listen(document,"input",e=>{var i=e.target.id;
