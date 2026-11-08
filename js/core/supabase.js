@@ -121,17 +121,17 @@ export async function restoreCloudState(localState, userId) {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
   const { data: profile, error: profileError } = await supabase
-    .from("profiles").select("id,username").eq("id", userId).maybeSingle();
+    .from("profiles").select("id,username,avatar_url").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
 
   const metadataName = authData.user?.user_metadata?.username;
   await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним");
 
   const { data: savedProfile, error: savedProfileError } = await supabase
-    .from("profiles").select("username").eq("id", userId).maybeSingle();
+    .from("profiles").select("username,avatar_url").eq("id", userId).maybeSingle();
   if (savedProfileError) throw savedProfileError;
 
-  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
+  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");\n  if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
   await syncCloudState(merged, userId);
   return merged;
 }
@@ -183,4 +183,19 @@ export function scheduleCloudSync(state) {
       window.dispatchEvent(new CustomEvent("aw-cloud-sync-error", { detail: error }));
     });
   }, 500);
+}
+
+export async function uploadProfileAvatar(file, userId) {
+  if (!userId) throw new Error("Сначала войди в аккаунт.");
+  if (!file || !["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Выбери JPG, PNG или WebP.");
+  if (file.size > 1024 * 1024) throw new Error("Размер изображения не должен превышать 1 МБ.");
+  const extension = ({ "image/jpeg":"jpg", "image/png":"png", "image/webp":"webp" })[file.type];
+  const path = userId + "/avatar." + extension;
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  const avatarUrl = data.publicUrl + "?v=" + Date.now();
+  const { error: profileError } = await supabase.from("profiles").update({avatar_url:avatarUrl}).eq("id",userId);
+  if (profileError) throw profileError;
+  return avatarUrl;
 }
