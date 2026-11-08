@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeCalendar, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar } from "./core/supabase.js";
@@ -723,36 +723,65 @@ listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHe
 listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
 // расписание
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
-async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<600)return xSC;var out=[],cacheKey="aw-shikimori-calendar-v1",cached=null;
- try{cached=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
- try{
-  var raw=cached&&Date.now()-cached.at<10*60*1000?cached.data:await fetchAnimeCalendar();
-  if(!cached||Date.now()-cached.at>=10*60*1000){try{localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}}
-  out=(Array.isArray(raw)?raw:[]).map(function(entry){
-   var a=entry&&entry.anime;if(!a||!Number(a.id))return null;
-   var d=shikiToItem(a),at=entry.next_episode_at||entry.nextEpisodeAt||entry.next_episode_date||"";
-   var stamp=typeof at==="number"?(at>1e12?at/1000:at):Date.parse(at)/1000;
-   var episode=Number(entry.next_episode||entry.nextEpisode||a.episodesAired+1)||0;
-   if(!Number.isFinite(stamp)||stamp<=0||!episode)return null;
-   M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d;
-   return{airingAt:stamp,episode:episode,m:d};
-  }).filter(Boolean);
- }catch(err){
-  console.warn("[AniWatch] Shikimori calendar unavailable; using AniList schedule fallback:",err);
-  var st=new Date();st.setHours(0,0,0,0);var a0=Math.floor(st/1000);
-  for(var p=1;p<=6;p++){var pg=(await xgq(xSQ,{a:a0,b:a0+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules);if(!pg.pageInfo.hasNextPage)break}
-  out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>{x.m=M[x.media.id]||(M[x.media.id]=mp(x.media))});
+async function resolveShikimoriScheduleItem(media){
+ var mal=Number(media&&media.idMal);if(!mal)return null;
+ var saved=Object.values(S.shikiAnime||{}).find(d=>Number(d&&d.mal)===mal);
+ if(saved){M[saved.id]=saved;return saved}
+ var titles=[media.title&&media.title.english,media.title&&media.title.romaji].filter(Boolean);
+ for(var title of titles){
+  try{
+   var url=new URL("https://shikimori.io/api/animes");
+   url.searchParams.set("search",title);url.searchParams.set("limit","20");url.searchParams.set("censored","true");
+   var response=await fetch(url.toString(),{headers:{Accept:"application/json"}});
+   if(!response.ok)continue;
+   var list=await response.json();if(!Array.isArray(list))continue;
+   var found=list.find(a=>Number(a&&a.myanimelist_id)===mal);
+   if(found){
+    var item=shikiToItem(found);M[item.id]=item;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[item.id]=item;return item;
+   }
+  }catch(error){console.warn("[AniWatch] Shikimori schedule title lookup failed:",error)}
  }
+ return null;
+}
+async function xloadSch(){
+ var now=Date.now()/1000;if(xSC&&now-xSC.t<600)return xSC;
+ var cacheKey="aw-anilist-calendar-v1",cached=null,raw=null,out=[];
+ try{cached=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
+ if(cached&&Date.now()-cached.at<10*60*1000&&Array.isArray(cached.data))raw=cached.data;
+ if(!raw){
+  var start=Math.floor(now),finish=start+7*86400;
+  for(var page=1;page<=6;page++){
+   var result=await xgq(xSQ,{a:start,b:finish,p:page}),block=result&&result.Page;
+   if(!block)throw new Error("AniList не вернул календарь");
+   raw=raw||[];raw=raw.concat(block.airingSchedules||[]);
+   if(!block.pageInfo||!block.pageInfo.hasNextPage)break;
+  }
+  try{localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
+ }
+ raw=raw.filter(x=>x&&x.media&&!x.media.isAdult&&Number(x.media.idMal)>0);
+ var unique=new Map();raw.forEach(x=>{var mal=Number(x.media.idMal);if(!unique.has(mal))unique.set(mal,x.media)});
+ var mediaList=[...unique.values()],resolved=new Map(),cursor=0;
+ async function worker(){
+  while(cursor<mediaList.length){
+   var media=mediaList[cursor++],item=await resolveShikimoriScheduleItem(media);
+   if(item)resolved.set(Number(media.id),item);
+  }
+ }
+ await Promise.all(Array.from({length:4},worker));
+ out=raw.map(x=>{
+  var d=resolved.get(Number(x.media.id));if(!d)return null;
+  return{airingAt:Number(x.airingAt),episode:Number(x.episode),m:d,aniId:Number(x.media.id),mal:Number(x.media.idMal)};
+ }).filter(x=>Number.isFinite(x.airingAt)&&x.airingAt>0&&x.episode>0);
  out.sort((a,b)=>a.airingAt-b.airingAt);
  await xshikiPosters([...new Map(out.map(x=>[x.m.id,x.m])).values()]);
- return xSC={t:now,a:out}
+ return xSC={t:now,a:out};
 }
 function renderHomeAiring(){
  if(activePage()!=="home"||!xSC)return;
  var now=Date.now()/1000,upcoming={};
  xSC.a.filter(x=>x.airingAt>now).sort((a,b)=>a.airingAt-b.airingAt).forEach(x=>{var id=x.media&&x.media.id;if(id&&!upcoming[id])upcoming[id]=x});
  Array.from(document.querySelectorAll(".card[data-anime-id]")).forEach(c=>{
-  var x=upcoming[c.dataset.animeId],poster=c.querySelector(".poster");if(!poster)return;
+  var current=M[Number(c.dataset.animeId)],x=Object.values(upcoming).find(item=>current&&Number(item.m&&item.m.mal)>0&&Number(item.m.mal)===Number(current.mal)),poster=c.querySelector(".poster");if(!poster)return;
   var old=poster.querySelector(".poster-airing");if(old)old.remove();if(!x)return;
   var dt=new Date(x.airingAt*1000),day=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   var tag=document.createElement("span");tag.className="poster-airing";tag.textContent="Серия "+x.episode+" · "+day+", "+time;poster.appendChild(tag);
