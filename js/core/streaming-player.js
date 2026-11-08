@@ -17,13 +17,13 @@ function getLibertyStream(ep){return ep?.hls_1080||ep?.hls_720||ep?.hls_480||ep?
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
- root.innerHTML=\`
+ root.innerHTML=`
  <div class="aw-player-shell">
-  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>\${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия \${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
+  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
   <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="aniweeb">Aniweeb <em>NEW</em></button><button type="button" data-provider="liberty">AniLiberty <small>резерв</small></button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Aniweeb · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
- </div>\`;
+ </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload"),tabs=root.querySelectorAll("[data-provider]");
  let active="aniweeb",releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false;
  const setStatus=s=>{if(status)status.textContent=s};
