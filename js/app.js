@@ -435,7 +435,7 @@ async function xcq(reset){
   // Scan more pages when genre or minimum-score filtering is applied locally.
   var maxPages=needLocalFilter?6:1;
   if(!xCF.aniFallback)for(var step=0;step<maxPages;step++){
-   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.f,xCF.st,xCF.minScore]),cached=null;
+   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.season,xCF.f,xCF.st,xCF.minScore]),cached=null;
    try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
    var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
    if(!data){
