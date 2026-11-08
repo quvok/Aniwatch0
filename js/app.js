@@ -491,16 +491,16 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===9&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===10&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
-   var relations=[],recommendations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[];
+   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[];
    try{
     var query,vars;
     if(d.source==="shikimori"){
      if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
-     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}";
+     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}";
      vars={mal:Number(d.mal)};
     }else{
      query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
@@ -511,8 +511,6 @@ async function loadRelated(d){
     studioNames=(media.studios&&media.studios.nodes||[]).map(studio=>studio&&studio.name).filter(Boolean);
     var relSeen={};
     relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id)).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
-    var recSeen={};
-    recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==(d.aniId||d.id)&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
     try{
      var staffQuery,staffVars;
      if(d.source==="shikimori"){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
@@ -523,7 +521,7 @@ async function loadRelated(d){
      var creatorEdges=staffEdges.filter(e=>/original creator|原作|原案/i.test(e.role||""));
      creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
      var creatorSeen={};
-     creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==(d.aniId||d.id)&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
+     creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==(d.aniId||d.id)&&!relSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
      creatorWorks=creatorWorks.slice(0,12);
     }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
    }catch(anilistError){
@@ -536,7 +534,7 @@ async function loadRelated(d){
      shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0;
     }
     if(!(shikiId>0))throw new Error("Не удалось найти связанные данные об этом аниме");
-    var rawRelated=await fetchAnimeRelated(shikiId),rawSimilar=await fetchAnimeSimilar(shikiId);
+    var rawRelated=await fetchAnimeRelated(shikiId);
     var convert=function(a){
      if(!a||!Number(a.id))return null;
      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
@@ -545,14 +543,13 @@ async function loadRelated(d){
     };
     var seen={};
     relations=rawRelated.map(x=>{var anime=convert(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!seen[x.anime.id]&&(seen[x.anime.id]=true));
-    recommendations=rawSimilar.map(convert).filter(x=>x&&!seen[x.id]&&(seen[x.id]=true)).slice(0,8);
-    var fallbackList=relations.map(x=>x.anime).concat(recommendations);
+    var fallbackList=relations.map(x=>x.anime);
     fallbackList.forEach(x=>{M[x.id]=x});
     await xshikiPosters(fallbackList);
    }
-   var all=relations.map(x=>x.anime).concat(recommendations,creatorWorks);
+   var all=relations.map(x=>x.anime).concat(creatorWorks);
    await translateRelated(all);
-   var data={v:9,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var data={v:10,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
@@ -563,13 +560,12 @@ async function loadRelated(d){
 }
 function renderRelated(d,data){
  var root=$("#related-anime");if(!root||!isRoute("title",d.id))return;
- var rel=(data.relations||[]).filter(x=>x&&x.anime),rec=(data.recommendations||[]).filter(Boolean),creatorWorks=(data.creatorWorks||[]).filter(Boolean);
- rel.forEach(x=>{M[x.anime.id]=x.anime});rec.forEach(x=>{M[x.id]=x});creatorWorks.forEach(x=>{M[x.id]=x});
+ var rel=(data.relations||[]).filter(x=>x&&x.anime),creatorWorks=(data.creatorWorks||[]).filter(Boolean);
+ rel.forEach(x=>{M[x.anime.id]=x.anime});creatorWorks.forEach(x=>{M[x.id]=x});
  var groups={};
  rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
  var relationHtml=Object.keys(groups).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные аниме")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
  if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
- var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
  const extra=$("#anime-extra-meta");
  if(extra){
@@ -578,8 +574,8 @@ function renderRelated(d,data){
   extra.innerHTML=(studios.length?'<div class="anime-meta-line"><span>Студия</span><b>'+studios.map(esc).join(", ")+'</b></div>':'')+(staffHtml?'<div class="anime-meta-staff"><span class="anime-meta-label">Создатели и команда</span>'+staffHtml+'</div>':'');
   extra.hidden=!studios.length&&!staffHtml;
  }
- root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Подборка похожих тайтлов</p></div></div>'+recHtml+'</section>';
- xshikiPosters(rel.map(x=>x.anime).concat(rec,creatorWorks));
+ root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml;
+ xshikiPosters(rel.map(x=>x.anime).concat(creatorWorks));
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
