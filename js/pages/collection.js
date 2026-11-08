@@ -20,29 +20,50 @@ export function renderMyList({app,state,mediaMap,filters,lists,card}){
 export function renderProfile({app,state,escapeHtml,user}){
  const watchlist=state.watchlist||{},counts={watching:0,planned:0,completed:0,dropped:0};
  Object.values(watchlist).forEach(status=>{if(Object.prototype.hasOwnProperty.call(counts,status))counts[status]++});
- const rated=Object.values(state.rate||{}).map(Number).filter(value=>Number.isFinite(value)&&value>0),average=rated.length?(rated.reduce((sum,value)=>sum+value,0)/rated.length).toFixed(1):"—";
+ const rated=Object.values(state.rate||{}).map(Number).filter(value=>Number.isFinite(value)&&value>0);
+ const average=rated.length?(rated.reduce((sum,value)=>sum+value,0)/rated.length).toFixed(1):"—";
  const total=Object.keys(watchlist).length,started=Object.keys(state.hist||{}).length,fav=(state.fav||[]).length;
- const progress=total?Math.round(counts.completed/total*100):0,initial=String(state.name||user?.email||"A").trim().slice(0,1).toUpperCase();
- const avatar=typeof state.avatar==="string"&&/^https:\/\//i.test(state.avatar)?'<img class="profile-avatar-image" src="'+escapeHtml(state.avatar)+'" alt="Фото профиля">':typeof state.avatar==="string"&&state.avatar.startsWith("data:image/")?'<img class="profile-avatar-image" src="'+escapeHtml(state.avatar)+'" alt="Фото профиля">':escapeHtml(initial);
- const statusRing=total?Math.round(counts.watching/total*100):0,plannedRing=total?Math.round(counts.planned/total*100):0,completedRing=total?Math.round(counts.completed/total*100):0;
- const pie='conic-gradient(#a78bfa 0% '+statusRing+'%,#67c5db '+statusRing+'% '+(statusRing+plannedRing)+'%,#6ed49a '+(statusRing+plannedRing)+'% '+(statusRing+plannedRing+completedRing)+'%,#e58ca7 '+(statusRing+plannedRing+completedRing)+'% 100%)';
- const achievements=[
-  ["first","Первый шаг","Добавь первое аниме в любой список",total>=1,"★"],
-  ["collector","Коллекционер","Добавь 10 аниме в списки",total>=10,"◆"],
-  ["marathon","Марафонец","Заверши просмотр 10 аниме",counts.completed>=10,"◈"],
-  ["critic","Критик","Поставь оценки 5 аниме",rated.length>=5,"✦"],
-  ["fan","Фанат","Добавь 10 тайтлов в избранное",fav>=10,"♥"],
-  ["explorer","Исследователь","Начни смотреть 10 разных аниме",started>=10,"⌕"],
-  ["perfectionist","Перфекционист","Заверши 25 аниме",counts.completed>=25,"♛"],
-  ["legend","Легенда AniWatch","Собери 50 тайтлов в коллекции",total>=50,"✧"]
- ];
- const unlocked=achievements.filter(a=>a[3]).length;
- const account=user?'<div class="profile-account-state"><span class="profile-state-dot"></span><span>Аккаунт подключён</span><small>Синхронизация включена</small></div>':'<div class="profile-account-state is-local"><span class="profile-state-dot"></span><span>Локальный профиль</span><small>Войди, чтобы синхронизировать данные</small></div>';
- const accountCard=user?'<div class="profile-account-card"><div class="profile-account-copy"><b>'+escapeHtml(state.name||"Пользователь")+'</b><span>'+escapeHtml(user.email||"")+'</span></div><button class="btn ghost" type="button" data-a="auth-logout">Выйти</button></div>':'<div class="auth-box profile-auth-box"><div class="auth-heading"><span class="eyebrow">ANIWATCH ACCOUNT</span><h2>Смотри на любом устройстве</h2><p>Войди или создай аккаунт, чтобы синхронизировать избранное, списки и историю просмотра.</p></div><div class="auth-tabs"><button type="button" class="on" data-a="auth-mode" data-v="login" data-auth-mode="login">Вход</button><button type="button" data-a="auth-mode" data-v="signup" data-auth-mode="signup">Регистрация</button></div><form id="auth-form" class="auth-form" novalidate><input type="hidden" name="auth-mode" value="login"><label id="auth-username-wrap" hidden>Ник<input id="auth-username" type="text" maxlength="20" autocomplete="nickname" placeholder="Придумай уникальный ник"></label><label id="auth-login-wrap">Логин или электронная почта<input id="auth-login" type="text" autocomplete="username" placeholder="Ник или name@example.com" required></label><label id="auth-email-wrap" hidden>Электронная почта<input id="auth-email" type="email" autocomplete="email" placeholder="name@example.com"></label><label>Пароль<input id="auth-password" type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов" required></label><button class="btn auth-submit" id="auth-submit" type="submit">Войти</button><p id="auth-message" class="auth-message" role="status" aria-live="polite"></p></form></div>';
- app.innerHTML='<section class="profile-hero"><div class="profile-hero-glow"></div><div class="profile-hero-main"><button class="profile-avatar profile-avatar-large profile-avatar-edit" type="button" data-a="profile-avatar" aria-label="Изменить фото профиля">'+avatar+'<span class="profile-avatar-camera">✎</span></button><input id="profile-avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden><div class="profile-identity"><span class="eyebrow">ТВОЁ ПРОСТРАНСТВО В ANIWATCH</span><h1>'+escapeHtml(state.name||"Гость")+'</h1><p>'+(user?'Персональная коллекция и история просмотра':'Локальный профиль · твоя коллекция на этом устройстве')+'</p>'+account+'</div></div><div class="profile-hero-side"><span>ТВОЙ РЕЙТИНГ</span><b>★ '+average+'</b><small>'+(rated.length? rated.length+" оценок":"Пока нет оценок")+'</small></div></section>'+
- '<section class="profile-dashboard"><div class="profile-section-heading"><div><span class="eyebrow">СТАТИСТИКА</span><h2>Твоя активность</h2></div><span class="profile-section-note">'+total+' тайтлов в списках</span></div><div class="profile-stats profile-stats-modern"><div><b>'+total+'</b><span>В коллекции</span><i>Все списки</i></div><div><b>'+counts.watching+'</b><span>Смотрю сейчас</span><i>В процессе</i></div><div><b>'+counts.completed+'</b><span>Просмотрено</span><i>Завершено</i></div><div><b>'+fav+'</b><span>Избранное</span><i>Сохранённые тайтлы</i></div><div><b>'+started+'</b><span>Начато</span><i>История просмотра</i></div><div><b>'+average+'</b><span>Средняя оценка</span><i>'+rated.length+' оценок</i></div></div>'+
- '<div class="profile-analytics"><div class="profile-pie-card"><div class="profile-section-heading"><div><span class="eyebrow">АНАЛИТИКА</span><h2>Распределение списков</h2></div></div><div class="profile-pie-layout"><div class="profile-donut" style="background:'+pie+'"><div><b>'+total+'</b><span>тайтлов</span></div></div><div class="profile-pie-legend"><div><i class="watching"></i><span>Смотрю</span><b>'+counts.watching+'</b></div><div><i class="planned"></i><span>В планах</span><b>'+counts.planned+'</b></div><div><i class="completed"></i><span>Просмотрено</span><b>'+counts.completed+'</b></div><div><i class="dropped"></i><span>Брошено</span><b>'+counts.dropped+'</b></div></div></div></div><div class="profile-progress-card"><div class="profile-progress-copy"><div><b>Прогресс коллекции</b><span>Доля завершённых тайтлов</span></div><strong>'+progress+'%</strong></div><div class="profile-progress-track"><i style="width:'+progress+'%"></i></div><div class="profile-progress-foot"><span>'+counts.completed+' завершено</span><span>'+(total-counts.completed)+' осталось</span></div></div></div></section>'+
- '<section class="profile-achievements"><div class="profile-section-heading"><div><span class="eyebrow">ТВОИ НАГРАДЫ</span><h2>Достижения</h2></div><span class="profile-section-note">'+unlocked+' из '+achievements.length+' открыто</span></div><div class="profile-achievement-grid">'+achievements.map(a=>'<article class="profile-achievement '+(a[3]?'is-unlocked':'is-locked')+'"><div class="profile-achievement-icon">'+a[4]+'</div><div><b>'+a[1]+'</b><span>'+a[2]+'</span></div><strong>'+(a[3]?'Получено':'Закрыто')+'</strong></article>').join("")+'</div></section>'+
- '<section class="profile-lower"><div class="panel profile-settings"><div class="profile-section-heading"><div><span class="eyebrow">ПЕРСОНАЛИЗАЦИЯ</span><h2>Настройки профиля</h2></div></div><form id="profile-form" class="auth-form profile-nick"><label>Отображаемый ник<input id="nm" value="'+escapeHtml(state.name||"Гость")+'" maxlength="20" required placeholder="Твой ник"></label><button class="btn" type="submit">Сохранить изменения</button></form><p class="profile-hint">Фото профиля: JPG, PNG или WebP, не более 1 МБ. Для облачного аккаунта фото сохраняется между устройствами.</p></div><div class="panel profile-data-panel"><div class="profile-section-heading"><div><span class="eyebrow">ТВОИ ДАННЫЕ</span><h2>Резервная копия</h2></div></div><p>Сохрани свою коллекцию в файл или восстанови её из ранее созданной копии.</p><div class="backup-actions"><button class="btn" type="button" data-a="export">Экспортировать</button><button class="btn ghost" type="button" data-a="import">Импортировать</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div><button class="profile-reset" type="button" data-a="reset">Сбросить локальные данные</button></div></section>'+
- '<section class="profile-login-section">'+accountCard+'</section>';
+ const progress=total?Math.round(counts.completed/total*100):0;
+ const initial=String(state.name||user?.email||"A").trim().slice(0,1).toUpperCase();
+ const avatar=typeof state.avatar==="string"&&(/^(https:\/\/|data:image\/)/i).test(state.avatar)
+  ?'<img class="profile-avatar-image" src="'+escapeHtml(state.avatar)+'" alt="">':escapeHtml(initial);
+ const account=user
+  ?'<div class="profile-account-inline"><span class="profile-online-dot"></span><span>Аккаунт синхронизирован</span><button type="button" class="profile-logout" data-a="auth-logout">Выйти</button></div>'
+  :'<div class="profile-account-inline is-guest"><span class="profile-online-dot"></span><span>Гостевой профиль · данные на этом устройстве</span><button type="button" class="profile-login" data-a="profile-entry">Войти в аккаунт</button></div>';
+ app.innerHTML=
+ '<section class="profile-page">'+
+  '<header class="profile-top-card"><div class="profile-top-main">'+
+   '<button class="profile-avatar profile-avatar-edit" type="button" data-a="profile-avatar" aria-label="Изменить фото">'+avatar+'<span class="profile-avatar-camera">✎</span></button>'+
+   '<input id="profile-avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>'+
+   '<div class="profile-top-identity"><span class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</span><h1>'+escapeHtml(state.name||"Гость")+'</h1><p>'+(user?escapeHtml(user.email||"Аккаунт AniWatch"):"Твоя история, оценки и коллекция аниме")+'</p></div>'+
+  '</div>'+account+'</header>'+
+  '<section class="profile-overview"><div class="profile-block-title"><div><span class="eyebrow">ТВОЯ АКТИВНОСТЬ</span><h2>Статистика</h2></div><span>'+total+' в списках</span></div>'+
+   '<div class="profile-metric-grid">'+
+    '<article><b>'+total+'</b><span>В коллекции</span></article>'+
+    '<article><b>'+counts.watching+'</b><span>Смотрю</span></article>'+
+    '<article><b>'+counts.completed+'</b><span>Завершено</span></article>'+
+    '<article><b>'+fav+'</b><span>Избранное</span></article>'+
+   '</div>'+
+   '<div class="profile-progress"><div><div><b>Завершение коллекции</b><small>'+counts.completed+' из '+total+' тайтлов</small></div><strong>'+progress+'%</strong></div><div class="profile-progress-track"><i style="width:'+progress+'%"></i></div></div>'+
+  '</section>'+
+  '<section class="profile-status-block"><div class="profile-block-title"><div><span class="eyebrow">РАСПРЕДЕЛЕНИЕ</span><h2>Мои списки</h2></div><a href="lists.html">Открыть списки ↗</a></div>'+
+   '<div class="profile-status-list">'+
+    '<div><span class="status-mark watching"></span><span>Смотрю</span><b>'+counts.watching+'</b></div>'+
+    '<div><span class="status-mark planned"></span><span>В планах</span><b>'+counts.planned+'</b></div>'+
+    '<div><span class="status-mark completed"></span><span>Просмотрено</span><b>'+counts.completed+'</b></div>'+
+    '<div><span class="status-mark dropped"></span><span>Брошено</span><b>'+counts.dropped+'</b></div>'+
+   '</div>'+
+  '</section>'+
+  '<section class="profile-bottom-grid">'+
+   '<div class="profile-clean-panel"><div class="profile-block-title"><div><span class="eyebrow">ПЕРСОНАЛИЗАЦИЯ</span><h2>Профиль</h2></div></div>'+
+    '<form id="profile-form" class="profile-clean-form"><label for="nm">Отображаемое имя</label><input id="nm" value="'+escapeHtml(state.name||"Гость")+'" maxlength="20" required><button class="btn" type="submit">Сохранить имя</button></form>'+
+    '<p class="profile-clean-hint">Фото профиля: JPG, PNG или WebP, до 1 МБ.</p>'+
+   '</div>'+
+   '<div class="profile-clean-panel"><div class="profile-block-title"><div><span class="eyebrow">УПРАВЛЕНИЕ</span><h2>Мои данные</h2></div></div>'+
+    '<p class="profile-clean-description">Создай резервную копию коллекции или восстанови данные из файла.</p>'+
+    '<div class="profile-clean-actions"><button class="btn" type="button" data-a="export">Экспорт</button><button class="btn ghost" type="button" data-a="import">Импорт</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div>'+
+    '<button class="profile-reset" type="button" data-a="reset">Сбросить локальные данные</button>'+
+   '</div>'+
+  '</section>'+
+ '</section>';
 }
