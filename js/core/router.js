@@ -67,7 +67,19 @@ export function legacyRedirect(){
 export function updateNavigation(state){
  const page=activePage();
  const avatar=document.querySelector(".av");
- if(avatar)avatar.textContent=(state.name||"Г")[0].toUpperCase();
+ if(avatar){
+  const photo=typeof state.avatar==="string"&&(state.avatar.startsWith("data:image/")||/^https:\/\//i.test(state.avatar))?state.avatar:"";
+  if(photo){
+   let image=avatar.querySelector("img");
+   if(!image){avatar.textContent="";image=document.createElement("img");image.alt="";image.loading="lazy";avatar.appendChild(image)}
+   image.src=photo;
+   image.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block";
+   avatar.setAttribute("data-has-avatar","true");
+  }else{
+   avatar.removeAttribute("data-has-avatar");
+   avatar.textContent=(state.name||"Г").trim().slice(0,1).toUpperCase();
+  }
+ }
  document.documentElement.style.setProperty("--ac",state.acc);
  document.querySelectorAll("nav a").forEach(link=>{
   const on=link.dataset.page===page;
