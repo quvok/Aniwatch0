@@ -11,14 +11,14 @@ export async function fetchRandomAnime(){
  return result;
 }
 
-export async function fetchCatalogPage({query="",page=1,order="popularity",format="",year="",status="",signal}={}){
+export async function fetchCatalogPage({query="",page=1,order="popularity",format="",season="",status="",signal}={}){
  const url=new URL(API_ROOT+"/animes");
  url.searchParams.set("limit","50");
  url.searchParams.set("page",String(page));
  url.searchParams.set("order",order);
  if(query)url.searchParams.set("search",query);
  if(format)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[format]||format);
- if(year)url.searchParams.set("season",String(year));
+ if(season)url.searchParams.set("season",String(season));
  if(status)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[status]||status);
  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
  if(!response.ok)throw new Error("Shikimori API: HTTP "+response.status);
