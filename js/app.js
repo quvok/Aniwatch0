@@ -131,6 +131,7 @@ async function enrichShikimori(list){
    need.slice(i,i+50).forEach(id=>{if(!cache[id])cache[id]={russian:"",name:"",description:"",at:now}});
   }catch(e){console.warn("[AniWatch] Shikimori metadata lookup failed:",e);break}
  }
+ var keys=Object.keys(cache);if(keys.length>500){keys.sort((a,b)=>(cache[b].at||0)-(cache[a].at||0)).slice(500).forEach(id=>delete cache[id])}
  try{localStorage.setItem("aw-shiki-meta-v1",JSON.stringify(cache))}catch(e){}
  items.forEach(d=>{
   var a=cache[d.mal];if(!a)return;
@@ -349,11 +350,7 @@ xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RE
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
 GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
 // русские названия для произвольного списка (пачками по 50, кэш awr2)
-async function xrn(L){var m=L.filter(d=>d.mal&&!d.o),c;try{c=JSON.parse(localStorage.getItem("awr2")||"{}")}catch(e){c={}}
- var need=m.filter(d=>!(d.mal in c));
- for(var i=0;i<need.length;i+=50){var ch=need.slice(i,i+50);try{var r=await fetch("https://shikimori.io/api/animes?limit=50&ids="+ch.map(d=>d.mal).join());(await r.json()).forEach(x=>c[x.id]=x.russian||"");ch.forEach(d=>{if(!(d.mal in c))c[d.mal]=""})}catch(e){break}}
- try{localStorage.setItem("awr2",JSON.stringify(c))}catch(e){}
- m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
+async function xrn(L){return enrichShikimori(L)}
 // избранное/история/списки, найденные через каталог, подгружаем по id после перезагрузки
 async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{})).map(Number)),w=S.watchlist;if(w&&!Array.isArray(w))Object.keys(w).forEach(k=>ids.add(+k));
  var saved=S.shikiAnime||{};ids.forEach(i=>{if(!M[i]&&saved[i])M[i]=saved[i]});
