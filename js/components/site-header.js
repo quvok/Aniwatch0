@@ -15,8 +15,5 @@ export function renderSiteHeader(){
  if(!host)return;
  const links=NAV.map(([page,label,hint])=>'<a href="'+PAGES[page]+'" data-page="'+page+'"'+(hint?' title="'+hint+'"':"")+'>'+label+'</a>').join("");
  host.innerHTML='<a class="logo" href="'+PAGES.home+'">AniWatch</a>'+
-  '<nav aria-label="Основная навигация">'+links+'</nav>'+
-  '<form id="site-search" class="site-search" action="'+PAGES.catalog+'" method="get" role="search">'+
-  '<input id="q" name="q" placeholder="Поиск…" autocomplete="off" aria-label="Поиск по каталогу"></form>'+
-  '<a class="av" href="'+PAGES.profile+'" aria-label="Профиль"></a>';
+  '<nav aria-label="Основная навигация">'+links+'</nav>'+  '<a class="av" href="'+PAGES.profile+'" aria-label="Профиль"></a>';
 }
