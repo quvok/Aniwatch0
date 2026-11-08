@@ -2014,3 +2014,22 @@ header{display:block;min-height:64px}
  #related-anime .relation-track>.card>b{font-size:11px;margin-top:6px}
  #related-anime .relation-track>.card>small{font-size:8px}
 }
+
+
+/* Inline anime-page player */
+.inline-watch-section{margin:0 0 26px;padding:18px;border:1px solid rgba(167,139,250,.2);border-radius:18px;background:linear-gradient(145deg,rgba(24,25,41,.72),rgba(10,11,19,.82))}
+.inline-watch-section[hidden]{display:none!important}
+.inline-watch-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.inline-watch-head h2{font-size:21px;margin-top:4px}
+.inline-watch-section .player-wrap{width:100%;max-width:100%;margin:0}
+.inline-watch-section .stream-player{width:100%;aspect-ratio:16/9;min-height:0}
+.episode-inline-play{display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(167,139,250,.22);border-radius:7px;background:rgba(167,139,250,.1);color:#c9b8ff;font-size:10px;cursor:pointer}
+.episode-inline-play:hover,.episode-inline-play.on{background:#7651d5;color:#fff;border-color:#a78bfa}
+@media(max-width:700px){
+ .inline-watch-section{padding:11px;border-radius:14px;margin-bottom:18px}
+ .inline-watch-head{align-items:flex-start;flex-direction:column}
+ .inline-watch-head h2{font-size:18px}
+ .inline-watch-head .btn{min-height:34px}
+ .inline-watch-section .stream-player{aspect-ratio:16/9}
+ .episode-inline-play{width:21px;height:21px;font-size:9px}
+}
