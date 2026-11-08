@@ -425,7 +425,7 @@ async function loadHomeCollections(){
  if(homeCollections.trending.length)H=homeCollections.trending;
  return homeCollections;
 }
-var xCQ="query($p:Int,$s:String,$g:[String],$y:Int,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort],$score:Int){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,seasonYear:$y,season:$season,status:$st,format_in:$f,averageScore_greater:$score,sort:$o){"+xMF+"}}}",
+var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort],$score:Int){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,averageScore_greater:$score,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
@@ -543,7 +543,7 @@ async function xcq(reset){
    payload=await xgq(xCQ,{
     p:sourcePage,s:q||null,
     g:xCF.g?[GR[xCF.g]||xCF.g]:null,
-    y:xCF.y?Number(xCF.y):null,
+    y:xCF.y?String(xCF.y)+"%":null,
     season:xCF.season?String(xCF.season).toUpperCase():null,
     st:xCF.st||null,
     f:xCF.f?[xCF.f]:null,
