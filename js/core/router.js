@@ -40,6 +40,7 @@ export function routeArgs(){
  const page=activePage();
  if(page==="title")return[Number(query.get("id"))||0];
  if(page==="watch")return[Number(query.get("id"))||0,Math.max(Number(query.get("ep"))||1,1)];
+ if(page==="collections")return[query.get("id")||""];
  return[];
 }
 
@@ -51,7 +52,7 @@ export function isRoute(page,id){
 export function legacyRedirect(){
  const raw=String(location.hash||"").replace(/^#/,"");
  if(!raw)return false;
- const parts=raw.split("-"),aliases={home:"home",catalog:"catalog",schedule:"schedule",favorites:"favorites",fav:"favorites",mylist:"mylist",together:"together",profile:"profile",random:"random",title:"title",watch:"watch"};
+ const parts=raw.split("-"),aliases={home:"home",catalog:"catalog",schedule:"schedule",favorites:"favorites",fav:"favorites",mylist:"mylist",together:"together",profile:"profile",random:"random",title:"title",watch:"watch",collections:"collections"};
  if(!has(aliases,parts[0]))return false;
  const page=aliases[parts[0]];
  let params={};
