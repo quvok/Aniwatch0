@@ -267,10 +267,10 @@ V.watch=p=>{
  if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1",roomChanged=S.room!==normalized;if(roomChanged||guestInvite){S.room=normalized;if(roomChanged||guestInvite)S.roomHost=false;S.roomAnime=d.id;sv()}}
  var n=Math.max(p[1]||1,1),h=S.hist[d.id],available=availableEpCount(d);if(epTotal(d)>0)n=Math.min(n,epTotal(d));if(available!==null&&n>available){document.title=htmlText(d.n)+" · серия ещё не вышла — AniWatch";app.innerHTML='<section class="offline-state"><div class="eyebrow">СКОРО</div><h1>Эта серия ещё не вышла</h1><p>Сейчас доступно '+available+' серий. Вернись позже, когда выйдет серия '+n+'.</p><a class="btn" href="'+titleUrl(d.id)+'">Вернуться к аниме</a></section>';return}document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;
- P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
+ P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:h&&h.ep==n&&Number(h.speed)>0?Number(h.speed):1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
- STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv()},onPlayback:media=>{
+ STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextAvailable=availableEpCount(d);if(nextAvailable!==null&&n<nextAvailable){S.hist[d.id]={ep:n+1,t:0,at:Date.now(),speed:P.sp||1};sv();setTimeout(()=>{location.href=watchUrl(d.id,n+1)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{delete S.hist[d.id];sv();toast("Серия завершена")}},onPlayback:media=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
@@ -311,7 +311,7 @@ async function loadCollectionsView(params){
 V.collections=loadCollectionsView;
 V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d))});
 V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d))});
-V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,user:AUTH_USER});
+V.profile=()=>renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
  if(document.getElementById("auth-modal"))return;
