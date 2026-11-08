@@ -1,5 +1,6 @@
-import { supabase } from "./supabase.js";
+import { getSupabaseClient } from "./supabase.js";
 let activeChannel = null;
+let activeClient = null;
 let activeCode = "";
 const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 export function createRoomCode(length = 8) {
@@ -9,14 +10,15 @@ export function createRoomCode(length = 8) {
  return Array.from(bytes,value=>alphabet[value%alphabet.length]).join("");
 }
 export async function connectRoom(code,handlers={}) {
+ const client=await getSupabaseClient();
  await disconnectRoom();
  const roomCode=String(code||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);
  if(!roomCode)throw new Error("Не указан код комнаты.");
  const presenceKey=globalThis.crypto?.randomUUID?.()||("guest-"+Math.random().toString(36).slice(2));
- const channel=supabase.channel("aw-room-"+roomCode,{config:{broadcast:{self:false,ack:true},presence:{key:presenceKey}}});
+ const channel=client.channel("aw-room-"+roomCode,{config:{broadcast:{self:false,ack:true},presence:{key:presenceKey}}});
  channel.on("broadcast",{event:"room-event"},message=>{if(typeof handlers.onEvent==="function")handlers.onEvent(message.payload||{})})
   .on("presence",{event:"sync"},()=>{if(typeof handlers.onPresence==="function")handlers.onPresence(channel.presenceState())});
- activeChannel=channel;activeCode=roomCode;
+ activeChannel=channel;activeClient=client;activeCode=roomCode;
  return new Promise((resolve,reject)=>{
   let settled=false;
   channel.subscribe(async status=>{
@@ -36,6 +38,6 @@ export async function sendRoomEvent(type,payload={}) {
  return result==="ok";
 }
 export async function disconnectRoom(){
- const channel=activeChannel;activeChannel=null;activeCode="";
- if(channel){try{await supabase.removeChannel(channel)}catch(error){console.warn("[AniWatch] Room disconnect failed:",error)}}
+ const channel=activeChannel,client=activeClient;activeChannel=null;activeClient=null;activeCode="";
+ if(channel){try{await client.removeChannel(channel)}catch(error){console.warn("[AniWatch] Room disconnect failed:",error)}}
 }

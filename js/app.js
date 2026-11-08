@@ -576,12 +576,59 @@ async function ru(d){
 
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
-async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){
+ var initialUrl=location.href,c=null;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
-  r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-  clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;else D=[];await rn();idx();hydrateStash();initRouteFilters();await xhyd();await ensureRouteItem();if(activePage()==="home"){try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}}draw()}
+ var cached=!!(c&&Array.isArray(c.a)&&c.a.length>0&&c.a.length<=30);
+ D=cached?c.a:[];
+ idx();hydrateStash();initRouteFilters();
+ var page=activePage(),routeId=routeArgs()[0];
+ // Paint from the last successful cache before opening IndexedDB or contacting any API.
+ var homeTask=page==="home"?loadHomeCollections().catch(e=>{console.warn("[AniWatch] Home collections unavailable:",e);return null}):null;
+ if((page==="title"||page==="watch")&&routeId&&!M[routeId])app.innerHTML='<p class="empty">Загружаем аниме…</p>';
+ else if(page==="home"&&!D.length&&!homeCollections)app.innerHTML='<p class="empty">Загружаем каталог…</p>';
+ else draw();
+
+ var localTask=(async()=>{
+  S=await initializeLocalState(S,value=>{S=value;df()});
+  df();
+  if(activePage()==="home")refreshContinueShelf();
+  else if(location.href===initialUrl&&["favorites","mylist","profile"].includes(activePage()))draw();
+ })().catch(e=>console.warn("[AniWatch] Local state restore failed:",e));
+
+ var authTask=localTask.then(async()=>{
+  try{
+   var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;
+   if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}
+   hd();
+   if(activePage()==="home")refreshContinueShelf();
+   else if(location.href===initialUrl&&["favorites","mylist","profile"].includes(activePage()))draw();
+  }catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}
+ });
+
+ var dataTask=(async()=>{
+  var fresh=cached&&Number.isFinite(Number(c.t))&&Date.now()-Number(c.t)<=216e5;
+  if(!fresh){
+   var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000);
+   try{
+    var r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
+    if(!r.ok)throw new Error("AniList "+r.status);
+    var j=await r.json(),media=j.data&&j.data.Page&&j.data.Page.media;
+    if(!Array.isArray(media))throw new Error("AniList returned invalid data");
+    c={t:Date.now(),a:media.map(mp)};D=c.a;
+    try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}
+    idx();
+   }catch(e){console.warn("[AniWatch] AniList catalog refresh failed:",e)}
+   finally{clearTimeout(tm)}
+  }
+  await localTask;
+  await rn();idx();hydrateStash();initRouteFilters();
+  await xhyd();await ensureRouteItem();
+  if(location.href===initialUrl)draw();
+  if(homeTask){await homeTask;if(location.href===initialUrl)draw()}
+ })().catch(e=>console.warn("[AniWatch] Startup hydration failed:",e));
+ await Promise.allSettled([dataTask,authTask,homeTask].filter(Boolean));
+}
 
 // ---- v2: каталог по всей базе AniList и трейлеры ----
 var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
@@ -591,9 +638,8 @@ async function loadHomeCollections(){
  var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v3")||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
-  var seen=new Set();
   async function collect(options){
-   var result=[],page=1;
+   var result=[],page=1,seen=new Set();
    while(result.length<15&&page<=8){
     var batch=await fetchCatalogPage(Object.assign({page:page,limit:50},options));
     if(!batch.length)break;
@@ -606,10 +652,10 @@ async function loadHomeCollections(){
    }
    return result;
   }
-  var trending=await collect({order:"popularity"});
-  var popular=await collect({order:"ranked"});
-  var ongoing=await collect({order:"popularity",status:"ongoing"});
-  var recent=await collect({order:"aired_on",status:"released"});
+  var [trending,popular,ongoing,recent]=await Promise.all([
+   collect({order:"popularity"}),collect({order:"ranked"}),
+   collect({order:"popularity",status:"ongoing"}),collect({order:"aired_on",status:"released"})
+  ]);
   data={trending:trending,popular:popular,ongoing:ongoing,recent:recent};
   try{localStorage.setItem("aw-home-v3",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
  }
