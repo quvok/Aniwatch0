@@ -351,7 +351,7 @@ async function loadRelated(d){
     recommendations=rawSimilar.map(convert).filter(x=>x&&!seen[x.id]&&(seen[x.id]=true)).slice(0,8);
     var fallbackList=relations.map(x=>x.anime).concat(recommendations);
     fallbackList.forEach(x=>{M[x.id]=x});
-    await xaniPosters(fallbackList);
+    await xshikiPosters(fallbackList);
    }
    var all=relations.map(x=>x.anime).concat(recommendations,creatorWorks);
    await translateRelated(all);
@@ -442,83 +442,29 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
  var saved=S.shikiAnime||{};ids.forEach(i=>{if(!M[i]&&saved[i])M[i]=saved[i]});
  var need=[...ids].filter(i=>i>0&&!M[i]&&i<1000000000).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
-// Shikimori supplies MAL IDs; use them only as a bridge to AniList artwork.
-function xaniTitleKey(value){
- return String(value||"").toLowerCase().replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim().split(" ").filter(Boolean).join(" ");
-}
-function xaniTitleSimilarity(a,b){
- if(!a||!b)return 0;if(a===b)return 1;
- var aa=a.split(" "),bb=b.split(" "),common=aa.filter(x=>bb.includes(x)).length;
- var token=common/Math.max(aa.length,bb.length);
- if(Math.min(a.length,b.length)<5)return token;
- var prev=Array.from({length:b.length+1},(_,i)=>i);
- for(var i=1;i<=a.length;i++){var cur=[i];for(var j=1;j<=b.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur}
- return Math.max(token,1-prev[b.length]/Math.max(a.length,b.length));
-}
-function xaniPickByTitle(d,items){
- var wanted=[d.o,d.n].map(xaniTitleKey).filter(Boolean);
- if(!wanted.length)return null;
- var best=null,bestScore=0;
- (items||[]).forEach(a=>{
-  var names=[a.title&&a.title.romaji,a.title&&a.title.english,a.title&&a.title.native].concat(a.synonyms||[]).map(xaniTitleKey).filter(Boolean);
-  var score=0;
-  wanted.forEach(w=>names.forEach(n=>{score=Math.max(score,xaniTitleSimilarity(w,n))}));
-  var year=Number(d.y)||0,aniYear=Number(a.startDate&&a.startDate.year)||0;
-  if(year&&aniYear&&Math.abs(year-aniYear)>1)score*=0.65;
-  if(score>bestScore){bestScore=score;best=a}
- });
- return bestScore>=0.90?best:null;
-}
-// Shikimori supplies metadata; poster artwork is always resolved from AniList.
-async function xaniPosters(L){
- var ids=[...new Set(L.map(d=>Number(d.mal)).filter(id=>Number.isInteger(id)&&id>0))],map={};
+// Shikimori is the single source for poster artwork. Keep image URLs transient.
+async function xshikiPosters(L){
+ var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
+ if(!ids.length)return;
  try{
-  for(var i=0;i<ids.length;i+=40){
-   var chunk=ids.slice(i,i+40),res=await xgq("query($ids:[Int]){Page(perPage:50){media(idMal_in:$ids,type:ANIME){id idMal coverImage{extraLarge large} bannerImage}}}",{ids:chunk});
-   (res.Page.media||[]).forEach(a=>{map[a.idMal]=a});
-  }
-  function apply(d,a){
-   if(!a)return false;
-   d.aniId=a.id;
-   var cover=a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large);
-   if(cover)d.img=cover;
-   if(a.bannerImage)d.ban=a.bannerImage;
-   M[d.id]=d;S.shikiAnime[d.id]=d;return !!cover;
-  }
-  L.forEach(d=>{if(d.mal)apply(d,map[d.mal])});
-  // Fallback: titles are searched in AniList only when MAL mapping did not return artwork.
-  var missing=L.filter(d=>!d.img);
-  for(var p=0;p<missing.length;p+=18){
-   var batch=missing.slice(p,p+18),parts=[];
-   batch.forEach((d,j)=>{
-    var term=String(d.o||d.n||"").replace(/<[^>]*>/g,"").trim();
-    if(!term)return;
-    parts.push("a"+j+": Page(perPage:10){media(search:"+JSON.stringify(term)+",type:ANIME){id idMal title{romaji english native} synonyms startDate{year} coverImage{extraLarge large} bannerImage}}");
+  for(var i=0;i<ids.length;i+=50){
+   var batch=await fetchAnimeByIds(ids.slice(i,i+50));
+   batch.forEach(a=>{
+    var d=(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(a.id));
+    if(!d)return;
+    var image=a.image||{},path=image.original||image.preview||image.x96||"";
+    if(path)d.img=path.startsWith("http")?path:"https://shikimori.io"+(path.startsWith("/")?path:"/"+path);
+    M[d.id]=d;
+    if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
-   if(!parts.length)continue;
-   var found=await xgq("query{"+parts.join(" ")+"}");
-   batch.forEach((d,j)=>{
-    var page=found["a"+j],items=page&&page.media||[],chosen=xaniPickByTitle(d,items);
-    if(chosen)apply(d,chosen);
-   });
-   var secondary=batch.filter(d=>!d.img&&d.n&&d.o&&xaniTitleKey(d.n)!==xaniTitleKey(d.o));
-   if(secondary.length){
-    var altParts=[];
-    secondary.forEach((d,j)=>{
-     var term=String(d.n).replace(/<[^>]*>/g,"").trim();
-     altParts.push("b"+j+": Page(perPage:10){media(search:"+JSON.stringify(term)+",type:ANIME){id idMal title{romaji english native} synonyms startDate{year} coverImage{extraLarge large} bannerImage}}");
-    });
-    var altFound=await xgq("query{"+altParts.join(" ")+"}");
-    secondary.forEach((d,j)=>{
-     var page=altFound["b"+j],chosen=xaniPickByTitle(d,page&&page.media||[]);
-     if(chosen)apply(d,chosen);
-    });
-   }
   }
   var cards=Array.from(document.querySelectorAll("#cr .card[data-anime-id]"));
   cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var poster=c.querySelector(".poster");if(poster){poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}});
   sv();
- }catch(e){console.warn("[AniWatch] AniList poster lookup failed:",e)}
+ }catch(e){console.warn("[AniWatch] Shikimori poster lookup failed:",e)}
+}
+function dHasImage(list,id){
+ return (list||[]).some(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))===id&&!!d.img);
 }
 var xSG=["Экшен","Приключения","Комедия","Драма","Фэнтези","Ужасы","Махо-сёдзё","Меха","Музыка","Детектив","Психология","Романтика","Фантастика","Повседневность","Спорт","Сверхъестественное","Триллер"];
 V.catalog=()=>{
@@ -565,7 +511,7 @@ async function xcq(reset){
   L.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xaniPosters(L);
+  xshikiPosters(L);
   xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
@@ -584,7 +530,7 @@ async function xrandom(){
   var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
   var d={id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
   M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;sv();
-  xaniPosters([d]);
+  xshikiPosters([d]);
   if(activePage()==="random"){stashItems([id]);location.replace(titleUrl(id))}
  }catch(e){
   console.error("[AniWatch] Random anime:",e);
@@ -673,7 +619,7 @@ function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
  var image=a.image||{},path=image.original||image.preview||image.x96||"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:path?(path.startsWith("http")?path:"https://shikimori.one"+path):"",ban:"",kind:String(a.kind||"").toLowerCase()}
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:path?(path.startsWith("http")?path:"https://shikimori.io"+(path.startsWith("/")?path:"/"+path)):"",ban:"",kind:String(a.kind||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){
@@ -682,7 +628,7 @@ async function ensureRouteItem(){
  try{
   if(id>=1000000000){
    var d=shikiToItem(await fetchAnimeById(id-1000000000));
-   M[d.id]=d;S.shikiAnime=S.shikiAnime||{};await xaniPosters([d]);
+   M[d.id]=d;S.shikiAnime=S.shikiAnime||{};await xshikiPosters([d]);
   }else{
    var L=(await xgq("query($i:[Int]){Page(perPage:1){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:[id]})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)
   }
