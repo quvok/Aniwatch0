@@ -1549,3 +1549,54 @@ input,select,textarea{border-radius:11px}
 .aw-player-footer .stream-status{flex:1;margin:0;color:#898397;font-size:9px;line-height:1.4}
 .aw-player-footer .aw-player-reload{width:25px;height:25px;flex:0 0 25px;border:1px solid rgba(255,255,255,.08);border-radius:7px;background:#191622;color:#b8a7e7;font-size:15px}
 @media(max-width:620px){.aw-player-heading{padding:9px 10px}.aw-player-chip{font-size:7px}.aw-player-controls{align-items:stretch;padding:9px;gap:9px}.aw-player-controls .stream-provider-tabs{width:100%}.aw-player-controls .stream-provider-tabs button{flex:1;justify-content:center}.aw-player-controls .stream-options{width:100%;justify-content:stretch}.aw-player-controls .stream-options label{flex:1;min-width:calc(50% - 5px)}.aw-player-controls .stream-options select{width:100%;max-width:none}.aw-player-controls .stream-load{flex:1;justify-content:center}.aw-player-shell .stream-stage,.aw-player-shell .stream-frame,.aw-player-shell .stream-video,.aw-player-shell .stream-placeholder{min-height:185px}}
+
+/* Mobile-first watch page refinement */
+.watch-page{width:100%;min-width:0}
+.watch-head,.watch-layout,.watch-main,.player-wrap,.aw-player-shell{min-width:0}
+.watch-layout.has-chat{grid-template-columns:minmax(0,1fr) 300px}
+.watch-toolbar .nv{min-width:0}
+.watch-episodes .eps{max-height:260px;overflow:auto;overscroll-behavior:contain;padding-bottom:3px}
+@media(max-width:760px){
+ main{padding-left:12px!important;padding-right:12px!important}
+ .watch-page{gap:12px}
+ .watch-head{gap:10px}
+ .watch-head>div:first-child{width:100%;min-width:0}
+ .watch-head h1{font-size:clamp(19px,5.4vw,25px);overflow-wrap:anywhere}
+ .watch-head p{line-height:1.6}
+ .watch-room{width:100%;flex-wrap:wrap}
+ .watch-room>div{flex:1;min-width:120px}
+ .watch-room .room-copy,.watch-room .room-leave{min-height:36px}
+ .watch-layout.has-chat{display:flex;flex-direction:column}
+ .watch-main{width:100%;gap:11px}
+ .player-wrap{padding:0;border:0;border-radius:11px;overflow:hidden}
+ .aw-player-shell{border-radius:11px}
+ .aw-player-heading{padding:8px 10px}
+ .aw-player-chip{display:none}
+ .aw-player-shell .stream-stage{min-height:0;aspect-ratio:16/9;max-height:none}
+ .aw-player-shell .stream-frame,.aw-player-shell .stream-video{min-height:0}
+ .aw-player-shell .stream-placeholder{min-height:0}
+ .aw-player-controls{padding:8px;gap:8px}
+ .aw-player-controls .stream-provider-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .aw-player-controls .stream-provider-tabs button{min-width:0;min-height:38px;padding:8px 6px;font-size:10px}
+ .aw-player-controls .stream-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .aw-player-controls .stream-options label{min-width:0}
+ .aw-player-controls .stream-options select{min-width:0}
+ .aw-player-controls .stream-load{grid-column:1/-1;min-height:40px;justify-content:center}
+ .aw-player-footer{padding:7px 9px}
+ .watch-toolbar{display:grid;grid-template-columns:1fr;gap:9px}
+ .watch-toolbar .nv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:7px}
+ .watch-toolbar .nv .btn{min-width:0;min-height:38px;padding:8px 6px;font-size:10px}
+ .watch-hint{padding:9px 10px}
+ .watch-hint p{font-size:10px}
+ .watch-episodes{padding:11px;border-radius:12px}
+ .watch-section-title h2{font-size:17px}
+ .watch-episodes .eps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;max-height:220px}
+ .watch-episodes .eps a{min-width:0;padding:9px 2px;font-size:11px}
+ .party-chat{width:100%;height:320px;min-height:320px}
+}
+@media(max-width:380px){
+ .watch-room{gap:6px}
+ .watch-room .room-copy,.watch-room .room-leave{padding:6px 7px;font-size:9px}
+ .aw-player-controls .stream-provider-tabs button{font-size:9px}
+ .watch-episodes .eps{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
