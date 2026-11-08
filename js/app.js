@@ -16,6 +16,7 @@ import { renderTogetherPage } from "./pages/together.js";
 import { listCollections, getCollection, createCollection, updateCollection, deleteCollection, addCollectionAnime, removeCollectionAnime, rateCollection } from "./core/collections.js";
 import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
+import { mountStreamPlayer } from "./core/streaming-player.js";
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
@@ -157,8 +158,9 @@ V.watch=p=>{
  var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(epTotal(d)>0)n=Math.min(n,epTotal(d));document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
- renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal,durationLabel:fm});
- tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000));loadBanner(d);
+ renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
+ mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n});
+ loadBanner(d);
  if(inRoom)connectWatchParty();
 };
 
