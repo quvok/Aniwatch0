@@ -90,7 +90,19 @@ function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/
 function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.slice(0,n);return cut.slice(0,cut.lastIndexOf(" "))+"…"}
 
 var featuredIndex=0;
-function featured(){var d=H[featuredIndex%H.length]||D[0];loadBanner(d);ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="--hero-poster:url(\''+(shikiImageUrl(d.img)||"")+'\');background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
+function heroArtwork(d){return shikiImageUrl(d&&d.ban)||shikiImageUrl(d&&d.img)||""}
+function refreshHeroArtwork(d){
+ var url=heroArtwork(d);if(!url)return;
+ var art=$("#hw .hero-slide-art");if(art)art.style.backgroundImage="url("+JSON.stringify(url)+")";
+ document.querySelectorAll("#hw .hero-thumb").forEach(function(el){var item=H.find(function(x){return String(x.id)===el.dataset.slideId});if(item){var image=heroArtwork(item);if(image)el.style.backgroundImage="url("+JSON.stringify(image)+")"}});
+}
+function featured(){
+ var d=H[featuredIndex%H.length]||D[0],url=heroArtwork(d),trailer=xXC[d.id]&&xXC[d.id].trailer;
+ loadBanner(d);ru(d);
+ var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,210);
+ var previews=H.length>1?H.map(function(item,k){return{item:item,index:k}}).filter(function(x){return x.index!==featuredIndex%H.length}).slice(0,3).map(function(x){var image=heroArtwork(x.item);return '<button class="hero-thumb" type="button" data-a="slide-to" data-v="'+x.index+'" data-slide-id="'+x.item.id+'" style="background-image:url('+JSON.stringify(image)+')" aria-label="Открыть '+esc(un(x.item.n))+'"><span>'+esc(un(x.item.n))+'</span></button>'}).join(""):"";
+ return '<section class="hero hero-editorial hero-cinematic" aria-label="Аниме в центре внимания"><div class="hero-slide-art" style="background-image:url('+JSON.stringify(url)+')"></div><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В тренде · '+String(featuredIndex+1).padStart(2,"0")+'</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+(d.y||"")+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a>'+(trailer&&trailer.site==="youtube"&&trailer.id?'<a class="btn ghost hero-trailer" href="https://www.youtube-nocookie.com/embed/'+encodeURIComponent(trailer.id)+'" target="_blank" rel="noopener">Трейлер</a>':"")+'</div></div>'+(previews?'<div class="hero-thumbs" aria-label="Следующие аниме">'+previews+'</div>':"")+(H.length>1?'<div class="hero-controls"><button class="hero-arrow hero-prev" data-a="slide" data-v="-1" type="button" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" type="button" aria-label="Следующий баннер">›</button><div class="hero-progress"><i style="width:'+((featuredIndex+1)/H.length*100)+'%"></i></div><span class="hero-counter">'+String(featuredIndex+1).padStart(2,"0")+' <small>/ '+String(H.length).padStart(2,"0")+'</small></span></div>':"")+'</section>';
+}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 function animeProgress(d){
  var total=availableEpCount(d)||epTotal(d);
@@ -134,7 +146,7 @@ V.home=()=>{
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
  renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  refreshContinueShelf();
- if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
+ if(H.length>1){H.slice(0,8).forEach(loadBanner);T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},8000))}
 
 };
 
@@ -694,7 +706,7 @@ async function xshikiPosters(L){
   else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="eager";img.fetchPriority="low";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;img.onerror=function(){this.removeAttribute("src");this.style.display="none"};var letter=poster.querySelector("i");if(letter)letter.remove()}
  });
  var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&shikiImageUrl(current.img))player.style.background=bn(current);
- var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
+ var featuredItem=H[featuredIndex%H.length];if(featuredItem)refreshHeroArtwork(featuredItem);H.slice(0,4).forEach(refreshHeroArtwork);
  sv();
 }
 function dHasImage(list,id){
@@ -799,7 +811,7 @@ var xXP={};
 function applyBanner(d){
  var tb=$(".title-backdrop");if(tb&&isRoute("title",d.id))tb.style.background=bn(d);
  var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
- var hero=$("#hw .hero-editorial");if(hero&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id){hero.style.background=bn(d);hero.style.setProperty("--hero-poster","url('"+(shikiImageUrl(d.img)||"")+"')");}
+ if(H.some(function(item){return item.id===d.id}))refreshHeroArtwork(d);
 }
 function aniMedia(d){
  var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
