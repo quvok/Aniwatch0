@@ -92,6 +92,28 @@ var featuredIndex=0;
 function featured(){var d=H[featuredIndex%H.length]||D[0];loadBanner(d);ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="--hero-poster:url(\''+(shikiImageUrl(d.img)||"")+'\');background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 function refreshContinueShelf(){var host=$("#continue-shelf");if(!host)return;var keys=Object.keys(S.hist||{}).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6);var cards=keys.map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));host.outerHTML=row("Продолжить просмотр",cards.length?cards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf")}
+
+var cloudRefreshPromise=null,cloudRefreshAt=0;
+async function refreshCloudProgress(force=false){
+ if(!AUTH_USER||cloudRefreshPromise||(!force&&Date.now()-cloudRefreshAt<20000))return cloudRefreshPromise;
+ cloudRefreshAt=Date.now();
+ cloudRefreshPromise=(async()=>{
+  try{
+   var merged=await restoreCloudState(S,AUTH_USER.id);
+   if(!AUTH_USER)return;
+   S=merged;
+   saveLocalState(S,M);
+   await xhyd();
+   if(activePage()==="home")refreshContinueShelf();
+  }catch(error){console.warn("[AniWatch] Cloud progress refresh failed:",error)}
+  finally{cloudRefreshPromise=null}
+ })();
+ return cloudRefreshPromise;
+}
+window.addEventListener("focus",()=>refreshCloudProgress(true));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
+setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
+
 V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.trending&&homeCollections.trending.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.trending.length)D=homeCollections.trending;
