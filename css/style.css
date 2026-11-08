@@ -2369,3 +2369,27 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .home-primary .hero-poster{max-width:76px}
  .home-primary .row{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px 7px}
 }
+
+
+/* Fix: backdrop-filter on the sticky header was trapping its fixed sidebar
+   inside the 70px header. Keep the header translucent without creating a
+   fixed-position containing block; the sidebar must occupy the viewport. */
+#site-header{
+ backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important
+}
+#site-header .desktop-sidebar{
+ position:fixed!important;
+ inset:0 auto 0 0!important;
+ width:224px;
+ height:100vh;
+ height:100dvh;
+ display:flex!important
+}
+@media(min-width:701px){
+ #site-header{padding-left:252px}
+ main{width:calc(100% - 252px);margin-left:252px}
+}
+@media(max-width:700px){
+ #site-header .desktop-sidebar{display:none!important}
+}
