@@ -60,8 +60,9 @@ function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progres
 var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
+var availableEpCount=d=>{var id=Number(d&&d.id),mal=Number(d&&d.mal),counts=[Number(d&&d.ae),Number(S.aniEpisodes&&S.aniEpisodes[id]&&S.aniEpisodes[id].available),Number(S.aniZipEpisodes&&S.aniZipEpisodes[id]&&S.aniZipEpisodes[id].available),Number(S.kitsuEpisodes&&S.kitsuEpisodes[mal]&&S.kitsuEpisodes[mal].available)].filter(n=>Number.isInteger(n)&&n>0);if(counts.length)return Math.max(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):0};
 var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].map(Number):[];
-var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n);return '<span class="episode-item'+(done?' is-watched':'')+'"><a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>'+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="Смотреть серию '+n+' здесь">▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'">'+(done?'✓':'○')+'</button></span>'}).join('')};
+var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id),available=availableEpCount(d);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n),upcoming=available>0&&n>available;return '<span class="episode-item'+(done?' is-watched':'')+(upcoming?' is-upcoming':'')+'">'+(upcoming?'<span class="episode-number" aria-label="Серия '+n+' ещё не вышла">'+n+'</span><small class="episode-upcoming-label">Скоро</small>':'<a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>')+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':'Смотреть серию '+n+' здесь')+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>'+(upcoming?'–':done?'✓':'○')+'</button></span>'}).join('')};
 function refreshEpisodeMarks(id){var watched=watchedFor(id),total=epTotal(M[id]||{}),count=watched.length;document.querySelectorAll('.episode-item').forEach(item=>{var b=item.querySelector('[data-a="episode-toggle"]');if(!b||Number(b.dataset.i)!==Number(id))return;var n=Number(b.dataset.v),done=watched.includes(n);item.classList.toggle('is-watched',done);b.classList.toggle('is-watched',done);b.setAttribute('aria-pressed',String(done));b.setAttribute('aria-label',(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n);b.textContent=done?'✓':'○'});document.querySelectorAll('[data-episode-progress="'+id+'"]').forEach(el=>{el.textContent=count+' / '+(total||'—')+' просмотрено'})}
 function setEpisodeWatched(id,episode,done){S.watchedEpisodes=S.watchedEpisodes||{};var list=watchedFor(id).filter(n=>n!==Number(episode));if(done)list.push(Number(episode));list.sort((a,b)=>a-b);if(list.length)S.watchedEpisodes[id]=list;else delete S.watchedEpisodes[id];sv();refreshEpisodeMarks(id)}
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
@@ -134,6 +135,7 @@ V.home=()=>{
 var rc;
 
 function startInlineWatch(anime,episode){
+ var available=availableEpCount(anime);if(available>0&&Number(episode)>available){toast("Эта серия ещё не вышла");return}
  var host=$("#inline-stream-player"),section=$("#inline-watch-section");if(!host||!section)return;
  if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}
  section.hidden=false;
@@ -209,7 +211,7 @@ V.watch=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  var queryRoom=new URLSearchParams(location.search).get("room");
  if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1",roomChanged=S.room!==normalized;if(roomChanged||guestInvite){S.room=normalized;if(roomChanged||guestInvite)S.roomHost=false;S.roomAnime=d.id;sv()}}
- var n=Math.max(p[1]||1,1),h=S.hist[d.id];if(epTotal(d)>0)n=Math.min(n,epTotal(d));document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
+ var n=Math.max(p[1]||1,1),h=S.hist[d.id],available=availableEpCount(d);if(epTotal(d)>0)n=Math.min(n,epTotal(d));if(available>0&&n>available){document.title=htmlText(d.n)+" · серия ещё не вышла — AniWatch";app.innerHTML='<section class="offline-state"><div class="eyebrow">СКОРО</div><h1>Эта серия ещё не вышла</h1><p>Сейчас доступно '+available+' серий. Вернись позже, когда выйдет серия '+n+'.</p><a class="btn" href="'+titleUrl(d.id)+'">Вернуться к аниме</a></section>';return}document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
@@ -517,7 +519,7 @@ function renderRelated(d,data){
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
  if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);
- if(et&&et.dataset.id==d.id){et.textContent=epLabel(d);var el=$(".title-episodes .eps"),ec=$(".title-episodes .episode-count");if(el)el.innerHTML=eps(d,0);if(ec)ec.textContent=epTotal(d)>0?epTotal(d)+" серий":"Серии"}
+ if(et&&et.dataset.id==d.id){et.textContent=epLabel(d);var el=$(".title-episodes .eps"),ec=$(".title-episodes .episode-count");if(el)el.innerHTML=eps(d,0,true);if(ec)ec.textContent=epTotal(d)>0?epTotal(d)+" серий":"Серии"}
 }
 async function ru(d){
  anilibriaCount(d);if(!d.mal)return;
