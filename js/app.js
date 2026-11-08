@@ -207,6 +207,15 @@ V.collections=loadCollectionsView;
 V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card});
 V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card});
 V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,user:AUTH_USER});
+function openAuthModal(){
+ if(AUTH_USER){location.href=PAGES.profile;return}
+ if(document.getElementById("auth-modal"))return;
+ var modal=document.createElement("div");
+ modal.id="auth-modal";modal.className="auth-modal";modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");modal.setAttribute("aria-labelledby","auth-modal-title");
+ modal.innerHTML='<div class="auth-modal-backdrop" data-a="auth-close"></div><section class="auth-modal-panel"><button class="auth-modal-close" type="button" data-a="auth-close" aria-label="Закрыть">×</button><div class="auth-box"><div class="auth-heading"><span class="eyebrow">ANIWATCH ACCOUNT</span><h2 id="auth-modal-title">Смотри на любом устройстве</h2><p>Войди или создай аккаунт, чтобы синхронизировать избранное, списки и историю просмотра.</p></div><div class="auth-tabs"><button type="button" class="on" data-a="auth-mode" data-v="login" data-auth-mode="login">Вход</button><button type="button" data-a="auth-mode" data-v="signup" data-auth-mode="signup">Регистрация</button></div><form id="auth-form" class="auth-form" novalidate><input type="hidden" name="auth-mode" value="login"><label id="auth-username-wrap" hidden>Ник<input id="auth-username" type="text" maxlength="20" autocomplete="nickname" placeholder="Придумай уникальный ник"></label><label id="auth-login-wrap">Логин или электронная почта<input id="auth-login" type="text" autocomplete="username" placeholder="Ник или name@example.com" required></label><label id="auth-email-wrap" hidden>Электронная почта<input id="auth-email" type="email" autocomplete="email" placeholder="name@example.com"></label><label>Пароль<input id="auth-password" type="password" autocomplete="current-password" minlength="6" placeholder="Минимум 6 символов" required></label><button class="btn auth-submit" id="auth-submit" type="submit">Войти</button><p id="auth-message" class="auth-message" role="status" aria-live="polite"></p></form></div></section>';
+ document.body.appendChild(modal);
+ var login=document.getElementById("auth-login");if(login)login.focus();
+}
 async function handleAuthSubmit(form){
  if(AUTH_BUSY)return;
  var mode=form.querySelector("[name=auth-mode]")?.value||"login";
@@ -222,7 +231,7 @@ async function handleAuthSubmit(form){
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
-   S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");V.profile();
+   S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();
   }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
@@ -769,7 +778,9 @@ function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
- if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
+ if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
+ else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove()}
+ else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-toggle"){e.preventDefault();e.stopPropagation();var watched=watchedFor(i),already=watched.includes(Number(v));setEpisodeWatched(i,v,!already);toast(!already?"Серия отмечена как просмотренная":"Отметка о просмотре снята")}
  else if(a=="desc"){var p=$("#td"),open=t.getAttribute("aria-expanded")==="true";if(p){p.classList.toggle("collapsed",open);t.setAttribute("aria-expanded",String(!open));t.textContent=open?"Читать полностью":"Свернуть"}}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
@@ -834,7 +845,7 @@ listen(document,"input",e=>{var i=e.target.id;
  if(i=="q"&&activePage()==="catalog"){F.q=e.target.value.trim();rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
 listen(document,"change",async e=>{if(e.target.id==="profile-avatar-file"){var file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;try{if(AUTH_USER){S.avatar=await uploadProfileAvatar(file,AUTH_USER.id)}else{if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>1024*1024)throw new Error("Выбери JPG, PNG или WebP до 1 МБ.");S.avatar=await new Promise((resolve,reject)=>{var reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(file)})}sv();hd();toast("Фото профиля обновлено");V.profile()}catch(error){toast(error.message||"Не удалось загрузить фото")};return}if(e.target.id==="backup-file"){var selected=e.target.files&&e.target.files[0];importBackup(selected);e.target.value="";return}if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
-listen(window,"keydown",e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;var video=$("#stream-player video");if(!video)return;
+listen(window,"keydown",e=>{if(e.key==="Escape"){var authModal=document.getElementById("auth-modal");if(authModal){authModal.remove();return}}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;var video=$("#stream-player video");if(!video)return;
  if(e.code==="Space"){e.preventDefault();if(video.paused)video.play().catch(()=>{});else video.pause()}else if(e.code==="ArrowRight"){video.currentTime=Math.min(video.duration||video.currentTime+10,video.currentTime+10)}else if(e.code==="ArrowLeft"){video.currentTime=Math.max(0,video.currentTime-10)}});
 listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.q=xCF.q;var hq=$("#q");if(hq)hq.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)});
  listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
