@@ -13,6 +13,8 @@ import { renderWatchPage } from "./pages/watch.js";
 import { renderSchedulePage, renderRandomLoading, renderRandomError } from "./pages/discovery.js";
 import { listen } from "./core/events.js";
 import { renderTogetherPage } from "./pages/together.js";
+import { listCollections, getCollection, createCollection, updateCollection, deleteCollection, addCollectionAnime, removeCollectionAnime, rateCollection } from "./core/collections.js";
+import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
 (function(){
 if(legacyRedirect())return;
@@ -746,6 +748,10 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="random"){if(activePage()==="random")xrandom();else location.href=pageUrl("random")}
  else if(a=="g"){location.href=pageUrl("catalog",{g:v})}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
+ else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
+ else if(a==="collection-rate"){if(!AUTH_USER){toast("Войди в аккаунт, чтобы оценить коллекцию");return}var collectionId=new URLSearchParams(location.search).get("id");rateCollection(collectionId,AUTH_USER.id,+v).then(()=>loadCollectionsView([collectionId])).then(()=>toast("Оценка сохранена")).catch(error=>toast(error.message||"Не удалось сохранить оценку"))}
+ else if(a==="collection-remove-item"){removeCollectionAnime(t.dataset.id).then(()=>loadCollectionsView(routeArgs())).then(()=>toast("Аниме удалено из коллекции")).catch(error=>toast(error.message||"Не удалось удалить"))}
+ else if(a==="collection-delete"){if(!confirm("Удалить коллекцию вместе со всеми её аниме и оценками?"))return;var collectionId=new URLSearchParams(location.search).get("id");deleteCollection(collectionId).then(()=>{toast("Коллекция удалена");location.href="collections.html"}).catch(error=>toast(error.message||"Не удалось удалить коллекцию"))}
  else if(a=="slide"&&H.length>1){featuredIndex=(featuredIndex+(+v)+H.length)%H.length;showFeatured()}
  else if(a=="slide-to"&&H.length>1){featuredIndex=(+v)%H.length;showFeatured()}
  else if(a=="pp"&&P){P.on=!P.on;tick(0);pauseSave();broadcastPlayback("playback")}
@@ -758,9 +764,19 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a==="profile-avatar"){var avatarInput=$("#profile-avatar-file");if(avatarInput)avatarInput.click()}else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
-listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
+listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
  if(f=="site-search"){var sq=($("#q").value||"").trim();if(activePage()==="catalog"){F.q=sq;rc()}else location.href=pageUrl("catalog",{q:sq});return}
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
+ if(f==="collection-create-form"||f==="collection-edit-form"||f==="collection-add-anime-form"){
+  if(!AUTH_USER){toast("Войди в аккаунт, чтобы управлять коллекциями");return}
+  var fd=new FormData(e.target),collectionId=new URLSearchParams(location.search).get("id");
+  try{
+   if(f==="collection-create-form"){var created=await createCollection(AUTH_USER.id,{title:fd.get("title"),description:fd.get("description"),cover_url:fd.get("cover_url"),is_public:fd.has("is_public")});toast("Коллекция создана");location.href="collections.html?id="+encodeURIComponent(created.id);}
+   else if(f==="collection-edit-form"){await updateCollection(collectionId,{title:fd.get("title"),description:fd.get("description"),cover_url:fd.get("cover_url"),is_public:fd.has("is_public")});toast("Изменения сохранены");await loadCollectionsView([collectionId]);}
+   else{var anime=M[Number(fd.get("anime_id"))];if(!anime)throw new Error("Сначала выбери аниме");await addCollectionAnime(collectionId,anime);toast("Аниме добавлено");await loadCollectionsView([collectionId]);}
+  }catch(error){console.error("[AniWatch] Collection action failed:",error);toast(error.message||"Не удалось выполнить действие")}
+  return;
+ }
  if(f==="auth-form"){handleAuthSubmit(e.target);return}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;if(!ROOM_CONNECTED){toast("Нет соединения с комнатой");return}msg(S.name||"Вы",v);sendRoomEvent("chat",{name:S.name||"Гость",text:v.slice(0,500)}).catch(()=>toast("Не удалось отправить сообщение"));$("#ci").value=""}
  if(f=="jf"){var code=$("#jc").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");if(!code)return;var targetAnime=Number(D[0]&&D[0].id);if(!targetAnime){toast("Каталог ещё загружается");return}S.room=code;S.roomHost=false;S.roomAnime=targetAnime;sv();location.href=watchUrl(targetAnime,1)+"&room="+encodeURIComponent(code)}});
