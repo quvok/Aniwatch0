@@ -19,7 +19,7 @@ function getLibertyStreams(ep){
  const urls=[ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480];
  return [...new Set(urls.filter(v=>typeof v==="string"&&v.indexOf("http")===0))];
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{}}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
@@ -39,6 +39,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  const bindVideo=el=>{
   ["play","pause","seeked","ratechange"].forEach(event=>el.addEventListener(event,()=>emit(true)));
   el.addEventListener("timeupdate",()=>emit(false));
+  el.addEventListener("ended",()=>{try{onEpisodeEnded()}catch(error){console.warn("[AniWatch] Episode completion callback failed:",error)}});
   el.addEventListener("waiting",()=>setStatus("Буферизация видео…"));
   el.addEventListener("stalled",()=>setStatus("Поток задерживается. Ждём данные…"));
   el.addEventListener("playing",()=>setStatus("Воспроизведение"));
