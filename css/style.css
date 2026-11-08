@@ -1306,3 +1306,49 @@ input,select,textarea{border-radius:11px}
  .profile-account-state{font-size:9px}
  .profile-stats-modern>div{padding:11px}
 }
+
+
+/* Profile achievements, avatar editor and circular analytics */
+.profile-avatar-edit{position:relative;padding:0;overflow:hidden;cursor:pointer}
+.profile-avatar-edit:hover{transform:translateY(-2px);filter:brightness(1.12)}
+.profile-avatar-image{width:100%;height:100%;object-fit:cover;display:block}
+.profile-avatar-camera{position:absolute;right:4px;bottom:4px;display:grid;place-items:center;width:25px;height:25px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(12,10,22,.86);color:#fff;font-size:14px;box-shadow:0 4px 12px #0008}
+.profile-analytics{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:13px;margin-top:13px}
+.profile-pie-card{padding:19px 20px;border:1px solid rgba(190,197,230,.13);border-radius:15px;background:linear-gradient(145deg,rgba(25,26,42,.86),rgba(14,16,26,.9))}
+.profile-pie-card .profile-section-heading{margin-bottom:14px}
+.profile-pie-layout{display:flex;align-items:center;justify-content:space-around;gap:18px;min-height:170px}
+.profile-donut{position:relative;display:grid;place-items:center;width:154px;height:154px;flex:0 0 154px;border-radius:50%;background:conic-gradient(#a78bfa 0 25%,#67c5db 25% 50%,#6ed49a 50% 75%,#e58ca7 75% 100%);box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.profile-donut:before{content:"";position:absolute;inset:15px;border-radius:50%;background:#171827;box-shadow:inset 0 2px 8px rgba(0,0,0,.35)}
+.profile-donut>div{position:relative;display:grid;text-align:center;gap:2px}
+.profile-donut b{font-size:28px;color:#f2edff}
+.profile-donut span{font-size:9px;color:#a8a8bd}
+.profile-pie-legend{display:grid;gap:12px;min-width:130px}
+.profile-pie-legend>div{display:grid;grid-template-columns:9px 1fr auto;align-items:center;gap:8px;font-size:10px;color:#b9b9ca}
+.profile-pie-legend i{width:8px;height:8px;border-radius:50%}
+.profile-pie-legend i.watching{background:#a78bfa}.profile-pie-legend i.planned{background:#67c5db}.profile-pie-legend i.completed{background:#6ed49a}.profile-pie-legend i.dropped{background:#e58ca7}
+.profile-pie-legend b{color:#f0eaff;font-size:11px;font-variant-numeric:tabular-nums}
+.profile-achievements{margin:25px 0}
+.profile-achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.profile-achievement{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px;border:1px solid rgba(190,197,230,.13);border-radius:14px;background:linear-gradient(145deg,rgba(25,26,42,.86),rgba(14,16,26,.9))}
+.profile-achievement-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:rgba(147,115,226,.15);color:#c7b2ff;font-size:20px}
+.profile-achievement>div:nth-child(2){display:grid;gap:4px;min-width:0}
+.profile-achievement>div:nth-child(2) b{font-size:11px;color:#eeeafa}
+.profile-achievement>div:nth-child(2) span{font-size:9px;line-height:1.45;color:#999db2}
+.profile-achievement>strong{font-size:8px;color:#9c9eb0;white-space:nowrap}
+.profile-achievement.is-unlocked{border-color:rgba(150,119,238,.3);background:linear-gradient(145deg,rgba(68,49,105,.28),rgba(17,18,30,.92))}
+.profile-achievement.is-unlocked .profile-achievement-icon{background:linear-gradient(145deg,#9d7ae9,#593a9e);color:white;box-shadow:0 5px 16px rgba(103,70,173,.25)}
+.profile-achievement.is-unlocked>strong{color:#bba4ff}
+.profile-achievement.is-locked{opacity:.62}
+@media(max-width:760px){
+ .profile-analytics{grid-template-columns:1fr}
+ .profile-pie-layout{justify-content:flex-start;gap:clamp(18px,8vw,55px)}
+ .profile-achievement-grid{grid-template-columns:1fr}
+}
+@media(max-width:390px){
+ .profile-pie-layout{gap:12px}
+ .profile-donut{width:128px;height:128px;flex-basis:128px}
+ .profile-donut:before{inset:13px}
+ .profile-pie-legend{min-width:112px;gap:9px}
+ .profile-achievement{grid-template-columns:36px minmax(0,1fr) auto;gap:8px;padding:10px}
+ .profile-achievement-icon{width:36px;height:36px}
+}
