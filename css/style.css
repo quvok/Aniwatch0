@@ -2062,3 +2062,13 @@ header{display:block;min-height:64px}
  .row>.card>b{font-size:10px}
  .row>.card>small{font-size:8px}
 }
+
+
+/* Use native lazy-loaded poster images instead of dozens of eager CSS background requests. */
+.poster{overflow:hidden}
+.poster>.poster-image{
+ position:absolute;inset:0;width:100%;height:100%;display:block;
+ object-fit:cover;object-position:center;
+ border-radius:inherit;
+}
+.poster>.poster-image:not([src]),.poster>.poster-image[src=""]{display:none}
