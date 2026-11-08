@@ -113,8 +113,13 @@ V.title=p=>{
  ru(d);loadRelated(d)
 };
 
-var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0;
-function broadcastPlayback(type){if(!ROOM_CONNECTED||!P)return;sendRoomEvent(type||"playback",{animeId:P.d.id,episode:P.n,time:P.t,playing:P.on,speed:P.sp||1}).catch(e=>console.warn("[AniWatch] Playback broadcast failed:",e))}
+var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null;
+function broadcastPlayback(type){
+ if(!ROOM_CONNECTED||!P)return;
+ var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
+ var state=media||{time:P.t,playing:P.on,speed:P.sp||1};
+ sendRoomEvent(type||"playback",{animeId:P.d.id,episode:P.n,time:state.time,playing:state.playing,speed:state.speed}).catch(e=>console.warn("[AniWatch] Playback broadcast failed:",e))
+}
 function connectWatchParty(){
  ROOM_CONNECTED=false;
  var status=$("#room-status"),online=$("#room-online");
@@ -135,6 +140,7 @@ function connectWatchParty(){
     var drift=Math.max(0,(Date.now()-Number(payload.sentAt||Date.now()))/1000);
     P.t=Math.max(0,Math.min(DUR,Number(payload.time)||0)+(payload.playing?drift*(Number(payload.speed)||1):0));
     P.on=!!payload.playing;P.sp=Number(payload.speed)||1;tick(0);
+    if(STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback({time:P.t,playing:P.on,speed:P.sp});
     var speed=$("#sp");if(speed)speed.textContent=P.sp+"×";
    }
   }
@@ -159,7 +165,11 @@ V.watch=p=>{
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
- mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n});
+ STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,onPlayback:media=>{
+  if(!ROOM_CONNECTED)return;
+  var now=Date.now();if(now-ROOM_LAST_SYNC<900&&media.playing)return;ROOM_LAST_SYNC=now;
+  sendRoomEvent("playback",{animeId:d.id,episode:n,time:media.time,playing:media.playing,speed:media.speed}).catch(e=>console.warn("[AniWatch] Player sync failed:",e));
+ }});
  loadBanner(d);
  if(inRoom)connectWatchParty();
 };
