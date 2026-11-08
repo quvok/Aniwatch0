@@ -6,7 +6,7 @@ self.addEventListener("fetch",e=>{
  var r=e.request;
  if(r.method!=="GET")return;
  var u=new URL(r.url);
- if(u.origin!==location.origin)return;
+ if(u.origin!==location.origin){if(r.destination==="image")e.respondWith(fetch(new Request(r,{cache:"no-store"})));return;}
  if(r.mode==="navigate"){
   var key=u.origin+u.pathname;
   e.respondWith(fetch(r).then(x=>{
