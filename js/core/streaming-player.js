@@ -19,7 +19,7 @@ function getLibertyStreams(ep){
  const urls=[ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480];
  return [...new Set(urls.filter(v=>typeof v==="string"&&v.indexOf("http")===0))];
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{}}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
@@ -34,9 +34,19 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
+ const savedTime=Math.max(0,Number(resumeAt)||0),savedSpeed=Number(resumeSpeed)>0?Number(resumeSpeed):1;
+ let savedProgressApplied=false;
+ const restoreSavedProgress=el=>{
+  if(savedProgressApplied||!el||savedTime<5)return;
+  savedProgressApplied=true;
+  const target=Number.isFinite(el.duration)&&el.duration>0?Math.min(savedTime,Math.max(0,el.duration-3)):savedTime;
+  try{el.currentTime=target;el.playbackRate=savedSpeed;setStatus("Продолжение с "+Math.floor(target/60)+":"+String(Math.floor(target%60)).padStart(2,"0"))}catch(error){console.warn("[AniWatch] Resume position could not be restored:",error)}
+ };
  const getPlaybackState=()=>{const v=video();return v?{time:Number(v.currentTime)||0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1}:null};
  const emit=force=>{const state=getPlaybackState();if(!state||remoteApplying)return;const now=Date.now();if(!force&&now-lastEmit<2500)return;if(force){clearTimeout(emitTimer);emitTimer=setTimeout(()=>{if(remoteApplying)return;const latest=getPlaybackState();if(!latest)return;const key=[latest.time.toFixed(1),latest.playing,latest.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=Date.now();onPlayback(latest)},100);return}const key=[state.time.toFixed(1),state.playing,state.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=now;onPlayback(state)};
  const bindVideo=el=>{
+  el.playbackRate=savedSpeed;
+  el.addEventListener("loadedmetadata",()=>restoreSavedProgress(el),{once:true});
   ["play","pause","seeked","ratechange"].forEach(event=>el.addEventListener(event,()=>emit(true)));
   el.addEventListener("timeupdate",()=>emit(false));
   el.addEventListener("ended",()=>{try{onEpisodeEnded()}catch(error){console.warn("[AniWatch] Episode completion callback failed:",error)}});
@@ -129,7 +139,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   if(!Array.isArray(streams)||!streams.length)throw new Error("AnimeVost не вернул видеопоток для этой серии");
   const preferred=[...streams].sort((a,b)=>Number((b.quality||"").match(/\d+/)?.[0]||0)-Number((a.quality||"").match(/\d+/)?.[0]||0));
   options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><label>Скорость<select id="animevost-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label><span class="stream-note">AnimeVost · русская озвучка</span>';
-  let resume={time:0,playing:false,speed:1};
+  let resume={time:savedTime,playing:false,speed:savedSpeed};
   const start=async index=>{
    const previous=video();
    if(previous)resume={time:Number(previous.currentTime)||0,playing:!previous.paused&&!previous.ended,speed:Number(previous.playbackRate)||1};
