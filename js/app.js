@@ -115,9 +115,9 @@ function connectWatchParty(){
  ROOM_CONNECTED=false;
  var status=$("#room-status"),online=$("#room-online");
  if(status)status.textContent="Подключение…";
- connectRoom(S.room,{name:S.name||"Гость",
+ connectRoom(S.room,{name:S.name||"Гость",host:!!S.roomHost,
   onStatus:(state,error)=>{if(status)status.textContent=state==="connected"?"На связи":"Нет связи";if(state==="error")console.warn("[AniWatch] Room status:",error)},
-  onPresence:presence=>{var count=Object.values(presence||{}).reduce((sum,users)=>sum+(Array.isArray(users)?users.length:1),0);if(online)online.textContent=count+" "+(count===1?"участник":count<5?"участника":"участников")},
+  onPresence:presence=>{var users=Object.values(presence||{}).flat(),count=users.length,hostOnline=users.some(user=>user&&user.host);if(online)online.textContent=count+" "+(count===1?"участник":count<5?"участника":"участников");if(status)status.textContent=S.roomHost?"Вы ведущий":hostOnline?"Ведущий на связи":"Ожидание ведущего"},
   onEvent:payload=>{
    if(payload.type==="request-state"&&S.roomHost){broadcastPlayback("state");return}
    if(payload.type==="chat"){var empty=$("#ms .chat-empty");if(empty)empty.remove();msg(payload.name||"Гость",String(payload.text||"").slice(0,500));return}
