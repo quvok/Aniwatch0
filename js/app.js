@@ -254,23 +254,31 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===5&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===6&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
-   var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";
-   var payload=await xgq(query,{id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null}),media=payload&&payload.Media;
-   if(!media)throw new Error("No related data");
+   // Keep the primary request small: relations and recommendations are independent
+   // of staff credits, and a failure in optional creator data must not hide them.
+   var lookup={id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null};
+   var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
+   var payload=await xgq(query,lookup),media=payload&&payload.Media;
+   if(!media)throw new Error("AniList не вернул данные об этом аниме");
    var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
    var recSeen={},recommendations=(media.recommendations&&media.recommendations.nodes||[]).map(x=>x.mediaRecommendation).filter(x=>x&&x.type==="ANIME"&&x.format!=="MUSIC").filter(x=>x.id!==d.id&&!relSeen[x.id]&&!recSeen[x.id]&&(recSeen[x.id]=true)).map(mp).slice(0,8);
-   var creatorEdges=(media.staff&&media.staff.edges||[]).filter(e=>e.node&&/original creator|原作|原案/i.test(e.role||""));
-   var creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
-   var creatorSeen={},creatorWorks=[];
-   creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==d.id&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
-   creatorWorks=creatorWorks.slice(0,12);
+   var creatorName="",creatorWorks=[];
+   try{
+    var staffQuery="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";
+    var staffPayload=await xgq(staffQuery,lookup),staffMedia=staffPayload&&staffPayload.Media;
+    var creatorEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&/original creator|原作|原案/i.test(e.role||""));
+    creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
+    var creatorSeen={};
+    creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==d.id&&!relSeen[m.id]&&!recSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
+    creatorWorks=creatorWorks.slice(0,12);
+   }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
    var all=relations.map(x=>x.anime).concat(recommendations,creatorWorks);
    await translateRelated(all);
-   var data={v:5,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,at:Date.now()};
+   var data={v:6,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
