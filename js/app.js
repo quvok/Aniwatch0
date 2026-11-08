@@ -48,7 +48,7 @@ function shikiImageUrl(path){
  try{var parsed=new URL(url);if(/\/missing_original(?:\.[a-z0-9]+)?$/i.test(parsed.pathname))return "";return url}catch(e){return ""}
 }
 var bg=d=>{var image=shikiImageUrl(d.img);return(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
-var bn=d=>"linear-gradient(0deg,#000 5%,transparent 70%),"+(d.ban?"url('"+d.ban+"') center/cover no-repeat,":"")+gr(d);
+var bn=d=>{var image=shikiImageUrl(d.ban)||shikiImageUrl(d.img);return "linear-gradient(0deg,#000 5%,transparent 70%),"+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
 function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id)})}
@@ -81,10 +81,11 @@ function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/
 function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.slice(0,n);return cut.slice(0,cut.lastIndexOf(" "))+"…"}
 
 var featuredIndex=0;
-function featured(){var d=H[featuredIndex%H.length]||D[0];ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
+function featured(){var d=H[featuredIndex%H.length]||D[0];loadBanner(d);ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 V.home=()=>{
- if(!D.length){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
+ if(!D.length&&!(homeCollections&&homeCollections.trending&&homeCollections.trending.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
+ if(!D.length&&homeCollections&&homeCollections.trending.length)D=homeCollections.trending;
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),watchUrl(k,S.hist[k].ep)));
  var source=homeCollections||{trending:D,popular:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
@@ -412,7 +413,7 @@ async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var a
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
   clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;else D=[];await rn();idx();hydrateStash();initRouteFilters();await xhyd();await ensureRouteItem();draw();if(activePage()==="home")loadHomeCollections().then(()=>{if(activePage()==="home")draw()}).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e))}
+ if(c&&c.a&&c.a.length)D=c.a;else D=[];await rn();idx();hydrateStash();initRouteFilters();await xhyd();await ensureRouteItem();if(activePage()==="home"){try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}}draw()}
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
@@ -461,7 +462,7 @@ var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:Me
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null,xGenrePromise=null,xGenreOptions=null;
+xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xXC={},xSD=0,xSC=null,xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -512,7 +513,7 @@ function dHasImage(list,id){
 }
 var xSG=["Экшен","Приключения","Комедия","Драма","Фэнтези","Ужасы","Махо-сёдзё","Меха","Музыка","Детектив","Психология","Романтика","Фантастика","Повседневность","Спорт","Сверхъестественное","Триллер"];
 V.catalog=()=>{
- xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
+ clearTimeout(xCF.h);xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
  renderCatalogPage({
   app,filters:xCF,escapeHtml:esc,genreOptions:xGenreOptions||xSG.map((name,i)=>[String(i+1),name]),genreLabels:{},
   yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
@@ -529,14 +530,14 @@ V.catalog=()=>{
  var routeKey=xCF.k;
  xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
-rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
+rc=()=>{var s=$("#cs");xCF.q=s?s.value.trim():(F.q||"");F.q=xCF.q;if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
+ if(reset){xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
- xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
+ var requestId=++xSearchRequest;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
   var q=xCF.q.trim(),sourcePage=xCF.p;
-  var key="aw-shikimori-catalog-v2:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
+  var key="aw-shikimori-catalog-v3:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
   var cached=null,raw=null;
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
   if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
@@ -545,7 +546,7 @@ async function xcq(reset){
    raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g});
    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
   }
-  if(k!==xCF.k)return;
+  if(requestId!==xSearchRequest||k!==xCF.k||activePage()!=="catalog")return;
   var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
 
   if(xCF.y)L=L.filter(d=>String(d.y)===String(xCF.y));
@@ -565,7 +566,7 @@ async function xcq(reset){
   sv();
  }catch(e){
   console.error("[AniWatch] Shikimori catalog:",e);
-  if(k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
+  if(requestId===xSearchRequest&&k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
  }
 }
 async function xrandom(){
@@ -725,7 +726,7 @@ listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);if(D[0])location.href=watchUrl(D[0].id,1)}});
 listen(document,"input",e=>{var i=e.target.id;
- if(i=="q"&&activePage()==="catalog"){F.q=e.target.value.trim().toLowerCase();rc()}
+ if(i=="q"&&activePage()==="catalog"){F.q=e.target.value.trim();rc()}
  if(i=="nm"){S.name=e.target.value.trim()||"Гость";sv();hd()}});
 listen(document,"change",e=>{if(e.target.id==="backup-file"){var selected=e.target.files&&e.target.files[0];importBackup(selected);e.target.value="";return}if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 listen(window,"keydown",e=>{if(!P||/INPUT|SELECT/.test(e.target.tagName))return;
