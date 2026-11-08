@@ -156,9 +156,14 @@ async function handleAuthLogout(){
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
 var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
-function mp(m){return{id:m.id,mal:m.idMal,n:esc(m.title.english||m.title.romaji),g:(m.genres.length?m.genres:["Аниме"]).map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||new Date().getFullYear(),r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:[m.coverImage.color||"#7c3aed","#0f0f1a"],img:m.coverImage.extraLarge,ban:m.bannerImage}}
+function mp(m){
+ var title=m.title||{},cover=m.coverImage||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
+ var primary=title.english||title.romaji||title.native||"Без названия";
+ var alternate=title.romaji&&title.romaji!==primary?title.romaji:(title.native&&title.native!==primary?title.native:"");
+ return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:esc((m.description||"Описание отсутствует.").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()),c:[cover.color||"#7c3aed","#0f0f1a"],img:cover.extraLarge||cover.large||"",ban:m.bannerImage||"",kind:String(m.format||"").toLowerCase()}
+}
 
-// Shikimori owns titles and descriptions; AniList IDs/artwork remain the app's navigation keys.
+// AniList is the source of truth for catalog metadata and navigation IDs.
 async function enrichShikimori(list){
  var items=(list||[]).filter(d=>d&&Number(d.mal)>0),cache={};
  try{cache=JSON.parse(localStorage.getItem("aw-shiki-meta-v1")||"{}")}catch(e){}
@@ -420,7 +425,7 @@ async function loadHomeCollections(){
  if(homeCollections.trending.length)H=homeCollections.trending;
  return homeCollections;
 }
-var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
+var xCQ="query($p:Int,$s:String,$g:[String],$y:Int,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort],$score:Int){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,seasonYear:$y,season:$season,status:$st,format_in:$f,averageScore_greater:$score,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
@@ -527,85 +532,43 @@ V.catalog=()=>{
 };
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;xCF.aniFallback=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
+ if(reset){xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
- xCF.busy=true;var k=++xCF.k,box=$("#more");box.textContent="Загрузка…";
+ xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
-  var q=xCF.q.trim(),needLocalFilter=!!xCF.g||!!xCF.minScore||!!xCF.y||!!xCF.season,all=[],lastPageLength=0,sourcePage=xCF.p,pagesFetched=0;
-  // Status is filtered by Shikimori itself; genre remains a local filter.
-  // Scan more pages when genre or minimum-score filtering is applied locally.
-  var maxPages=needLocalFilter?6:1;
-  if(!xCF.aniFallback)for(var step=0;step<maxPages;step++){
-   var page=sourcePage+step,key="awshiki2:"+JSON.stringify([q,page,xCF.o,xCF.g,xCF.y,xCF.season,xCF.f,xCF.st,xCF.minScore]),cached=null;
-   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
-   var data=cached&&Date.now()-cached.at<1800000?cached.data:null;
-   if(!data){
-    var ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
-    try{
-     data=await fetchCatalogPage({
-      query:q,page:page,
-      order:xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity",
-      format:xCF.f,season:(xCF.y&&xCF.season?xCF.season+"_"+xCF.y:""),status:xCF.st,signal:ctl.signal
-     });
-    }finally{clearTimeout(timer)}
-    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
-   }
-   if(k!==xCF.k)return;
-   lastPageLength=data.length;pagesFetched++;all=all.concat(data);
-   var matched=all.filter(a=>{
-    var gs=Array.isArray(a.genres)?a.genres.map(g=>g.russian||g.name||""):[];
-    var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-    var month=Number(String(a.aired_on||"").slice(5,7)),season=month>=3&&month<=5?"spring":month>=6&&month<=8?"summer":month>=9&&month<=11?"fall":month>0?"winter":"";
-     return (!xCF.st||st===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||gs.includes(GR[xCF.g]||xCF.g))&&(!xCF.y||String(a.aired_on||"").slice(0,4)===String(xCF.y))&&(!xCF.season||season===xCF.season)&&(!xCF.minScore||Number(a.score)>=Number(xCF.minScore));
+  var q=xCF.q.trim(),sourcePage=xCF.p,key="aw-anilist-catalog-v1:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]),cached=null,payload=null;
+  try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
+  if(cached&&Date.now()-cached.at<10*60*1000)payload=cached.data;
+  if(!payload){
+   payload=await xgq(xCQ,{
+    p:sourcePage,s:q||null,
+    g:xCF.g?[GR[xCF.g]||xCF.g]:null,
+    y:xCF.y?Number(xCF.y):null,
+    season:xCF.season?String(xCF.season).toUpperCase():null,
+    st:xCF.st||null,
+    f:xCF.f?[xCF.f]:null,
+    o:[xCF.o||"POPULARITY_DESC"],
+    score:xCF.minScore?Math.max(0,Number(xCF.minScore)*10-1):null
    });
-   if(!needLocalFilter||matched.length>=50||data.length<50)break;
+   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:payload}))}catch(e){}
   }
   if(k!==xCF.k)return;
-  // Если Shikimori не нашёл ничего по запросу, пробуем AniList Search.
-  // Это помогает с английскими/ромадзи-названиями и не ломает обычный каталог.
-  if((!all.length||xCF.aniFallback)&&q){
-   xCF.aniFallback=true;
-   var fallback=await xgq("query($s:String,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}media(search:$s,type:ANIME,isAdult:false,sort:SEARCH_MATCH){"+xMF+"}}}",{s:q,p:sourcePage});
-   if(k!==xCF.k)return;
-   var fp=fallback.Page;
-   var fallbackList=(fp.media||[]).map(mp).filter(d=>
-    (!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&
-    (!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&
-    (!xCF.minScore||d.r>=Number(xCF.minScore))&&
-    (!xCF.y||String(d.y)===String(xCF.y))&&
-    (!xCF.f||({TV:["TV"],MOVIE:["MOVIE"],OVA:["OVA"],ONA:["ONA"],SPECIAL:["SPECIAL"]}[xCF.f]||[]).includes((fp.media||[]).find(m=>m.id===d.id)?.format))
-   );
-   await enrichShikimori(fallbackList);
-   fallbackList.forEach(d=>M[d.id]=d);
-   var fb=$("#cr");if(!fb)return;
-   fb.insertAdjacentHTML("beforeend",fallbackList.map(d=>card(d)).join(""));
-   xCF.p=sourcePage+1;xCF.more=!!fp.pageInfo.hasNextPage;xCF.busy=false;
-   $("#cc").textContent="Результаты поиска по английскому названию";
-   box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
-   if(!fallbackList.length&&!xCF.more)box.textContent="Ничего не найдено";
-   return;
-  }
-  var L=all.map(a=>{
-   var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-   var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
-   // Постеры каталога загружаются только из AniList через xaniPosters().
-   var poster="";
-   return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:poster,ban:"",kind:kind};
-  }).filter(d=>(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&(!xCF.y||String(d.y)===String(xCF.y))&&(!xCF.season||({winter:[12,1,2],spring:[3,4,5],summer:[6,7,8],fall:[9,10,11]}[xCF.season]||[]).includes(Number(String(all.find(a=>Number(a.id)===d.shikiId)?.aired_on||"").slice(5,7))))&&(!xCF.minScore||d.r>=Number(xCF.minScore)));
-  L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
+  var page=payload&&payload.Page,media=page&&Array.isArray(page.media)?page.media:[];
+  var L=media.map(mp);
+  L.forEach(d=>{M[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xCF.p=sourcePage+pagesFetched;
-  // If we reached the end of the source, there is nothing more to request.
-  xCF.more=lastPageLength===50;
+  xCF.p=sourcePage+1;
+  xCF.more=!!(page&&page.pageInfo&&page.pageInfo.hasNextPage);
   xCF.busy=false;
-  $("#cc").textContent=q?"Результаты поиска":xCF.st==="RELEASING"?"Онгоинги":"Каталог";
-  box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
-  if(!L.length&&!xCF.more)box.textContent="Ничего не найдено";
-  xaniPosters(L);
+  var total=page&&page.pageInfo&&Number(page.pageInfo.total);
+  $("#cc").textContent=q?"Результаты поиска":"Каталог";
+  if(total>0)$("#cc").textContent+=" · "+total.toLocaleString("ru-RU")+" тайтлов";
+  if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
+  if(!L.length)$("#cc").textContent=q?"Ничего не найдено":"В каталоге пока нет результатов";
  }catch(e){
-  console.error("[AniWatch] Shikimori catalog:",e);
-  if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
+  console.error("[AniWatch] AniList catalog:",e);
+  if(k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог AniList. Попробуй позже.")}
  }
 }
 async function xrandom(){
@@ -625,8 +588,6 @@ async function xrandom(){
  }
 }
 V.random=()=>{xrandom()};
-listen(document,"change",e=>{var m={"cf-g":"g","cf-y":"y","cf-st":"st","cf-f":"f","cf-o":"o","cf-r":"minScore"}[e.target.id];if(m){xCF[m]=e.target.value;if(m==="g")F.g=e.target.value;xcq(true)}});
-listen(document,"input",e=>{if(e.target.id=="cs"){xCF.q=e.target.value.trim();F.q=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)}});
 listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
 listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
 // расписание
