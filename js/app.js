@@ -42,7 +42,7 @@ function moscowDataDay(){
 function refreshPublicDataIfDue(){
  var day=moscowDataDay(),last="";
  try{last=localStorage.getItem("aw-data-refresh-day")||""}catch(e){}
- if(last===day)return;
+ if(last===day)return false;
  try{
   ["awc","aw-home-v1","aw-shiki-meta-v1"].forEach(k=>localStorage.removeItem(k));
   Object.keys(localStorage).filter(k=>k.startsWith("awshiki2:")||k.startsWith("awr2")).forEach(k=>localStorage.removeItem(k));
@@ -50,7 +50,16 @@ function refreshPublicDataIfDue(){
  }catch(e){}
  S.relatedAnime={};
  sv();
- console.info("[AniWatch] Daily public-data refresh scheduled for 07:00 Europe/Moscow:",day);
+ console.info("[AniWatch] Public anime data cache invalidated for Moscow day:",day);
+ return true;
+}
+function scheduleMoscowRefresh(){
+ var p=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Moscow",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()),v={};
+ p.forEach(x=>v[x.type]=x.value);
+ // Moscow is UTC+3: 07:00 MSK = 04:00 UTC.
+ var target=Date.UTC(Number(v.year),Number(v.month)-1,Number(v.day),4);
+ if(Date.now()>=target)target+=86400000;
+ setTimeout(()=>{refreshPublicDataIfDue();location.reload()},Math.max(1000,target-Date.now()+1500));
 }
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
@@ -378,7 +387,7 @@ async function ru(d){
 }
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
-async function boot(){S=await initializeLocalState(S,value=>{S=value});refreshPublicDataIfDue();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){S=await initializeLocalState(S,value=>{S=value});refreshPublicDataIfDue();scheduleMoscowRefresh();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
