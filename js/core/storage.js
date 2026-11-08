@@ -36,6 +36,9 @@ export async function initializeLocalState(state,setState){
   });
   if(saved&&typeof saved==="object")state=saved;
   state=normalizeState(state);
+  stripCachedArtwork(state.shikiAnime);
+  stripCachedArtwork(state.relatedAnime);
+  try{localStorage.setItem("aw",JSON.stringify(state))}catch(e){}
   setState(state);
   if(!saved)await new Promise((resolve,reject)=>{
    const tx=db.transaction("state","readwrite");
