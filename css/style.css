@@ -1422,3 +1422,9 @@ input,select,textarea{border-radius:11px}
  .collection-anime-grid{grid-template-columns:1fr}
  .collection-rating-panel{align-items:flex-start;flex-direction:column}
 }
+
+.collection-picker{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0;padding:13px;border:1px solid rgba(190,197,230,.14);border-radius:12px;background:rgba(20,21,35,.92)}
+.collection-picker label{display:grid;gap:5px;min-width:min(100%,260px);color:#bdb5d3;font-size:10px}
+.collection-picker select{min-width:220px;padding:10px;border:1px solid rgba(190,197,230,.18);border-radius:9px;background:#111321;color:#eeeafa}
+.collection-picker>span{font-size:11px;color:#aaa5bd}
+.collection-picker>a{color:#c6adff;font-size:11px}
