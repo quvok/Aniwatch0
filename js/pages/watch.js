@@ -1,6 +1,6 @@
 import {titleUrl,watchUrl} from "../core/router.js";
 export function renderWatchPage({app,anime,episode,inRoom,state,escapeHtml,backdrop,episodes,episodeTotal}){
- const d=anime,n=episode,total=episodeTotal(d),roomQuery=inRoom?"&room="+encodeURIComponent(state.room):"";
+ const d=anime,n=episode,total=episodeTotal(d),watched=(state.watchedEpisodes&&state.watchedEpisodes[d.id]||[]).length,roomQuery=inRoom?"&room="+encodeURIComponent(state.room):"";
  app.innerHTML='<section class="watch-page"><div class="watch-head"><div><a class="watch-back" href="'+titleUrl(d.id)+'">← К странице аниме</a><h1>'+d.n+'</h1><p>'+d.g.slice(0,3).join(" · ")+' <span>•</span> '+(d.y||"")+' <span>•</span> '+(d.s||"Аниме")+'</p></div>'+
  (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Совместный просмотр</b><small>Комната '+escapeHtml(state.room)+' · <span id="room-status">Подключение…</span></small></div><button type="button" class="room-copy" data-a="room-copy">Пригласить</button><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
  '</div><div class="watch-layout'+(inRoom?' has-chat':'')+'"><div class="watch-main"><div class="player-wrap"><div class="player stream-player" id="stream-player" style="background:'+backdrop(d)+'"><div class="stream-placeholder"><b>ANIWATCH</b><span>Подключаем источники видео…</span></div></div></div>'+
