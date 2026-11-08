@@ -6,7 +6,8 @@ const NAV=[
  ["catalog","Каталог",""],
  ["schedule","Эфир","Расписание выхода серий"],
  ["favorites","Избранное",""],
- ["mylist","Мои списки",""]
+ ["mylist","Мои списки",""],
+ ["together","Вместе","Совместный просмотр"]
 ];
 
 export function renderSiteHeader(){
