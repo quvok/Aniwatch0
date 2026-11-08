@@ -2480,12 +2480,12 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  display:flex;align-items:center;gap:10px;z-index:3;
 }
 .hero-cinematic .hero-arrow{
- position:static!important;display:grid;place-items:center;
+ position:static!important;display:grid!important;place-items:center;transform:none;
  width:39px;height:39px;flex:0 0 39px;border-radius:50%;
  border:1px solid rgba(255,255,255,.58);background:rgba(9,8,18,.3);
  color:#fff;font-size:25px;line-height:1;backdrop-filter:blur(8px);
 }
-.hero-cinematic .hero-arrow:hover{background:rgba(167,139,250,.35);border-color:#c4b5fd}
+.hero-cinematic .hero-arrow:hover{background:rgba(167,139,250,.35);border-color:#c4b5fd;transform:scale(1.04)}
 .hero-progress{height:2px;flex:1;margin:0 5px 0 8px;background:rgba(255,255,255,.3);overflow:hidden}
 .hero-progress i{display:block;height:100%;background:#b69aff;transition:width .35s}
 .hero-counter{font-size:20px;font-weight:800;color:#c4b5fd;font-variant-numeric:tabular-nums}
