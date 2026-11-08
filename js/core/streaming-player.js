@@ -13,7 +13,10 @@ async function searchLibertyReleases(anime){const names=[...new Set([anime?.n,an
 async function getLibertyRelease(id){return libertyRequest("/anime/releases/"+encodeURIComponent(id))}
 async function getLibertyEpisode(id){return libertyRequest("/anime/releases/episodes/"+encodeURIComponent(id))}
 function getLibertyEpisodeNumber(ep){return Number(ep?.ordinal??ep?.sort_order??0)}
-function getLibertyStream(ep){return ep?.hls_1080||ep?.hls_720||ep?.hls_480||ep?.hls?.hls_1080||ep?.hls?.hls_720||ep?.hls?.hls_480||""}
+function getLibertyStreams(ep){
+ const h=ep?.hls||{};
+ return [...new Set([ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480].filter(v=>typeof v==="string"&&/^https?:\\/\\//i.test(v)))];
+}
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
@@ -36,7 +39,56 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  const setActive=name=>{active=name;destroyHls();tabs.forEach(b=>b.classList.toggle("on",b.dataset.provider===name));if(name==="aniweeb")showAniweeb();else showLiberty()};
  const showAniweeb=()=>{const id=Number(anime?.aniId)||0,mal=Number(anime?.mal)||0;if(!id&&!mal){stage.innerHTML='<div class="stream-placeholder"><b>Aniweeb</b><small>Для этого тайтла нет AniList/MAL ID.</small></div>';options.innerHTML="";setStatus("Нет ID для сопоставления тайтла.");return}options.innerHTML='<label>Дорожка<select id="aniweeb-track"><option value="sub">SUB · субтитры</option><option value="dub">DUB · дубляж</option></select></label><button type="button" class="stream-load" id="aniweeb-load">Запустить плеер <span>→</span></button>';const load=()=>{const track=options.querySelector("#aniweeb-track").value,route=id?"/embed/ani/"+id:"/embed/mal/"+mal,url=ANIWEEB_BASE+route+"/"+Math.max(1,Number(episode)||1)+"?track="+track;stage.innerHTML='<iframe class="stream-frame" src="'+url+'" title="Aniweeb player" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="eager" referrerpolicy="strict-origin-when-cross-origin"></iframe>';setStatus("Подключаем Aniweeb · "+track.toUpperCase()+". Если сервер не запустится, выбери AniLiberty.")};options.querySelector("#aniweeb-load").addEventListener("click",load);load()};
  const addHlsControls=v=>{const quality=options.querySelector("#liberty-quality"),speed=options.querySelector("#liberty-speed");if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});if(quality)quality.addEventListener("change",()=>{if(hlsInstance)hlsInstance.currentLevel=quality.value==="auto"?-1:Number(quality.value)})};
- const playLiberty=async()=>{const eps=Array.isArray(releaseData?.episodes)?releaseData.episodes:[],wanted=eps.find(e=>getLibertyEpisodeNumber(e)===Number(episode));if(!wanted)throw new Error("Серия не найдена в выбранном релизе");setStatus("Получаем видеопоток…");let detail=wanted,stream=getLibertyStream(detail);if(!stream&&wanted.id){detail=await getLibertyEpisode(wanted.id);stream=getLibertyStream(detail)}if(!stream)throw new Error("AniLiberty не вернул HLS-ссылку");options.querySelector(".liberty-extra")?.remove();const extra=document.createElement("div");extra.className="liberty-extra";extra.innerHTML='<label>Качество<select id="liberty-quality"><option value="auto">Авто</option></select></label><label>Скорость<select id="liberty-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label>';options.appendChild(extra);stage.innerHTML='<video class="stream-video" controls playsinline preload="metadata"></video>';const v=video();bindVideo(v);if(v.canPlayType("application/vnd.apple.mpegurl")){v.src=stream;addHlsControls(v);setStatus("AniLiberty · поток готов. Синхронизация комнаты активна.");return}const Hls=await loadHls();if(Hls.isSupported()){destroyHls();hlsInstance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});hlsInstance.loadSource(stream);hlsInstance.attachMedia(v);hlsInstance.on(Hls.Events.MANIFEST_PARSED,()=>{const q=options.querySelector("#liberty-quality");if(q)q.innerHTML='<option value="auto">Авто</option>'+hlsInstance.levels.map((l,i)=>'<option value="'+i+'">'+(l.height?l.height+"p":Math.round(l.bitrate/1000)+" kbps")+'</option>').reverse().join("");setStatus("AniLiberty · поток готов. Синхронизация комнаты активна.")});hlsInstance.on(Hls.Events.ERROR,(_,data)=>{if(data?.fatal)setStatus("Ошибка потока: "+(data.details||data.type||"неизвестно"))})}else{v.src=stream;setStatus("Прямая загрузка HLS-потока")}addHlsControls(v)};
+ const playLiberty=async()=>{
+  const eps=Array.isArray(releaseData?.episodes)?releaseData.episodes:[];
+  const wanted=eps.find(e=>getLibertyEpisodeNumber(e)===Number(episode));
+  if(!wanted)throw new Error("В релизе нет серии "+episode);
+  setStatus("Получаем видеопоток…");
+  let detail=wanted,streams=getLibertyStreams(detail);
+  if(!streams.length&&wanted.id){detail=await getLibertyEpisode(wanted.id);streams=getLibertyStreams(detail)}
+  if(!streams.length)throw new Error("AniLiberty не вернул HLS-ссылки для этой серии");
+  options.querySelector(".liberty-extra")?.remove();
+  const extra=document.createElement("div");
+  extra.className="liberty-extra";
+  extra.innerHTML='<label>Качество<select id="liberty-quality"><option value="auto">Авто</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option></select></label><label>Скорость<select id="liberty-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label>';
+  options.appendChild(extra);
+  stage.innerHTML='<video class="stream-video" controls playsinline preload="metadata"></video>';
+  const v=video();bindVideo(v);
+  const labels=["1080p","720p","480p"],qualities=[detail?.hls_1080||detail?.hls?.hls_1080,detail?.hls_720||detail?.hls?.hls_720,detail?.hls_480||detail?.hls?.hls_480];
+  const candidates=streams.map(url=>({url,label:labels[qualities.indexOf(url)]||"резерв"}));
+  let attempt=0,settled=false;
+  const quality=options.querySelector("#liberty-quality");
+  const speed=options.querySelector("#liberty-speed");
+  if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});
+  const fail=reason=>{
+   if(attempt+1<candidates.length){attempt++;setStatus("Не загрузилось "+candidates[attempt-1].label+". Переключаемся на "+candidates[attempt].label+"…");startCandidate();return}
+   settled=true;setStatus("Ошибка видеопотока: "+reason+". Попробуй другой релиз или Aniweeb.");
+  };
+  const startCandidate=async()=>{
+   const current=candidates[attempt];if(!current)return;
+   destroyHls();v.pause();v.removeAttribute("src");v.load();
+   if(v.canPlayType("application/vnd.apple.mpegurl")){v.src=current.url;setStatus("AniLiberty · проверяем "+current.label+"…");return}
+   try{
+    const Hls=await loadHls();
+    if(!Hls.isSupported()){v.src=current.url;setStatus("Проверяем прямой поток "+current.label+"…");return}
+    const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
+    hlsInstance=instance;instance.loadSource(current.url);instance.attachMedia(v);
+    instance.on(Hls.Events.MANIFEST_PARSED,()=>{
+     if(hlsInstance!==instance)return;settled=true;setStatus("AniLiberty · "+current.label+" · поток готов");
+     const q=options.querySelector("#liberty-quality");
+     if(q&&instance.levels?.length){q.innerHTML='<option value="auto">Авто</option>'+instance.levels.map((l,i)=>'<option value="'+i+'">'+(l.height?l.height+"p":Math.round(l.bitrate/1000)+" kbps")+'</option>').join("");q.onchange=()=>{if(hlsInstance===instance)instance.currentLevel=q.value==="auto"?-1:Number(q.value)}}
+    });
+    instance.on(Hls.Events.ERROR,(_,data)=>{
+     if(hlsInstance!==instance||!data?.fatal)return;
+     if(data.type===Hls.ErrorTypes.MEDIA_ERROR){try{instance.recoverMediaError();setStatus("Восстанавливаем видеопоток…");return}catch{}}
+     fail(data.details||data.type||"ошибка HLS");
+    });
+   }catch(error){fail(error.message||"не удалось запустить HLS.js")}
+  };
+  v.addEventListener("error",()=>{if(!settled||attempt<candidates.length-1)fail("ошибка видео, код "+(v.error?.code||"неизвестно"))});
+  if(quality)quality.addEventListener("change",()=>{if(quality.value==="auto")return;const i=qualities.findIndex((url,n)=>url&&labels[n]===quality.value+"p");if(i>=0){attempt=Math.max(0,candidates.findIndex(x=>x.url===qualities[i]));startCandidate()}});
+  startCandidate();
+ };
  const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
  const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
  tabs.forEach(b=>b.addEventListener("click",()=>setActive(b.dataset.provider)));reload.addEventListener("click",()=>{destroyHls();if(active==="aniweeb")showAniweeb();else{releaseData=null;showLiberty()}});showLiberty()
