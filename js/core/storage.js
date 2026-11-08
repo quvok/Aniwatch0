@@ -55,7 +55,7 @@ function pruneState(state,mediaMap){
   if(k){
    const keep=new Set([].concat(state.fav||[],Object.keys(state.hist||{}),Array.isArray(state.watchlist)?[]:Object.keys(state.watchlist||{})).map(Number));
    Object.keys(k).forEach(i=>{if(!keep.has(+i))delete k[i]});
-   keep.forEach(i=>{if(!k[i]&&mediaMap[i]&&mediaMap[i].source)k[i]=mediaMap[i]});
+   keep.forEach(i=>{if(!k[i]&&mediaMap[i]&&mediaMap[i].source)k[i]=JSON.parse(JSON.stringify(mediaMap[i]))});
   }
   const rel=state.relatedAnime;
   if(rel){const keys=Object.keys(rel);if(keys.length>25)keys.sort((a,b)=>(rel[b].at||0)-(rel[a].at||0)).slice(25).forEach(i=>delete rel[i])}
