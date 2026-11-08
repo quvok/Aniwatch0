@@ -256,8 +256,15 @@ function authErrorText(error){
  return m||"Не удалось выполнить запрос. Попробуй ещё раз.";
 }
 async function handleAuthLogout(){
- try{await signOut();AUTH_USER=null;toast("Вы вышли из аккаунта");V.profile()}
- catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
+ try{
+  await signOut();
+  AUTH_USER=null;
+  S.avatar="";
+  saveLocalState(S,M);
+  hd();
+  toast("Вы вышли из аккаунта");
+  V.profile();
+ }catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
 }
 
 // ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
