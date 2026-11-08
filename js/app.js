@@ -688,7 +688,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0)}
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
- else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти"}
+ else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
  else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
