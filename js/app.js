@@ -426,6 +426,7 @@ async function loadHomeCollections(){
  return homeCollections;
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort],$score:Int){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,averageScore_greater:$score,sort:$o){"+xMF+"}}}",
+xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort],$score:Int){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,averageScore_greater:$score,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
@@ -540,7 +541,7 @@ async function xcq(reset){
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
   if(cached&&Date.now()-cached.at<10*60*1000)payload=cached.data;
   if(!payload){
-   payload=await xgq(xCQ,{
+   var vars={
     p:sourcePage,s:q||null,
     g:xCF.g?[GR[xCF.g]||xCF.g]:null,
     y:xCF.y?String(xCF.y)+"%":null,
@@ -549,7 +550,12 @@ async function xcq(reset){
     f:xCF.f?[xCF.f]:null,
     o:[xCF.o||"POPULARITY_DESC"],
     score:xCF.minScore?Math.max(0,Number(xCF.minScore)*10-1):null
-   });
+   };
+   try{payload=await xgq(xCQ,vars)}catch(primaryError){
+    if(!/^AniList вернул HTTP 5|^Получен некорректный ответ \(HTTP 5/.test(String(primaryError&&primaryError.message||"")))throw primaryError;
+    console.warn("[AniWatch] AniList full catalog query failed; retrying with a smaller field set",primaryError);
+    payload=await xgq(xCQ_SAFE,vars);
+   }
    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:payload}))}catch(e){}
   }
   if(k!==xCF.k)return;
