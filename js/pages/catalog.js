@@ -3,11 +3,12 @@ function selectHtml(id,label,current,options,all){
  return '<label>'+label+'<select id="'+id+'">'+(all?'<option value="">'+all+'</option>':"")+options.map(option=>'<option value="'+option[0]+'"'+(current==option[0]?" selected":"")+'>'+option[1]+'</option>').join("")+'</select></label>';
 }
 
-export function renderCatalogPage({app,filters,escapeHtml,genreOptions,genreLabels,yearOptions,statusOptions,formatOptions,sortOptions,ratingOptions}){
+export function renderCatalogPage({app,filters,escapeHtml,genreOptions,genreLabels,yearOptions,seasonOptions,statusOptions,formatOptions,sortOptions,ratingOptions}){
  app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Каталог Shikimori</div><h1>Каталог аниме</h1><p>Данные и русские названия — Shikimori. Постеры загружаются только из AniList.</p></div><div class="catalog-count"><b>SHIKIMORI</b><span>каталог</span></div></div>'+
  '<div class="catalog-tools"><label class="catalog-search-label">Поиск по названию<input id="cs" type="search" value="'+escapeHtml(filters.q||'')+'" placeholder="Например, Наруто или Frieren…" autocomplete="off"></label>'+
  '<div class="catalog-selects">'+selectHtml("cf-g","Жанр",filters.g,genreOptions.map(g=>[g,genreLabels[g]||g]),"Все жанры")+
  selectHtml("cf-y","Год",filters.y,yearOptions,"Любой год")+
+ selectHtml("cf-season","Сезон",filters.season,seasonOptions,"Любой сезон")+
  selectHtml("cf-st","Статус",filters.st,statusOptions,"Любой статус")+
  selectHtml("cf-f","Формат",filters.f,formatOptions,"Любой формат")+
  selectHtml("cf-r","Рейтинг от",filters.minScore,ratingOptions,"Любой рейтинг")+
