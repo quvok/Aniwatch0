@@ -59,12 +59,24 @@ function pruneState(state,mediaMap){
  }catch(e){}
 }
 
+function stripCachedArtwork(value){
+ if(!value||typeof value!=="object")return;
+ if(Array.isArray(value)){value.forEach(stripCachedArtwork);return}
+ ["img","ban","poster","coverImage","bannerImage"].forEach(key=>{if(key in value)delete value[key]});
+ Object.keys(value).forEach(key=>stripCachedArtwork(value[key]));
+}
+
 export function saveLocalState(state,mediaMap){
- pruneState(state,mediaMap||{});
- try{localStorage.setItem("aw",JSON.stringify(state))}catch(e){}
+ let snapshot;
+ try{snapshot=JSON.parse(JSON.stringify(state))}catch(e){return}
+ pruneState(snapshot,mediaMap||{});
+ // Poster URLs are transient display data, not persistent application state.
+ stripCachedArtwork(snapshot.shikiAnime);
+ stripCachedArtwork(snapshot.relatedAnime);
+ try{localStorage.setItem("aw",JSON.stringify(snapshot))}catch(e){}
  openLocalDB().then(db=>{
   if(!db)return;
-  try{const tx=db.transaction("state","readwrite");tx.objectStore("state").put(state,"app")}
+  try{const tx=db.transaction("state","readwrite");tx.objectStore("state").put(snapshot,"app")}
   catch(e){console.warn("[AniWatch] Local database write failed",e)}
  });
 }
