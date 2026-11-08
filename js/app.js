@@ -366,7 +366,7 @@ async function findScheduleShikimori(d){
  })().finally(()=>{delete scheduleShikiPending[d.id]});
  return scheduleShikiPending[d.id];
 }
-async function enrichShikimori(list){
+async function enrichScheduleShikimori(list){
  var items=[...new Set((list||[]).filter(Boolean))];
  var next=0,workers=Array.from({length:5},async()=>{
   while(next<items.length){var d=items[next++];await findScheduleShikimori(d)}
@@ -374,6 +374,8 @@ async function enrichShikimori(list){
  await Promise.all(workers);
  return items;
 }
+
+async function enrichShikimori(list){return list||[];}
 
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,8);if(H.length<8){var featuredIds=new Set(H.map(d=>d.id));H=H.concat(D.filter(d=>!featuredIds.has(d.id)).slice(0,8-H.length))}}
 var aniCountPending={};
@@ -777,7 +779,7 @@ function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";
 async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return xSC;var st=new Date();st.setHours(0,0,0,0);var a=Math.floor(st/1000),out=[];
  for(var p=1;p<=6;p++){var pg=(await xgq(xSQ,{a:a,b:a+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules);if(!pg.pageInfo.hasNextPage)break}
  out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.id]||(M[x.media.id]=mp(x.media)));
- await xrn([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
+ await enrichScheduleShikimori([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
 function renderHomeAiring(){
  if(activePage()!=="home"||!xSC)return;
  var now=Date.now()/1000,upcoming={};
