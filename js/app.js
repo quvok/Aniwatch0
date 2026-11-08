@@ -93,9 +93,9 @@ V.watch=p=>{
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;
  app.innerHTML='<section class="watch-page">'+
  '<div class="watch-head"><div><a class="watch-back" href="#title-'+d.id+'">← К странице аниме</a><h1>'+d.n+'</h1><p>'+d.g.slice(0,3).join(" · ")+' <span>•</span> '+(d.y||"")+' <span>•</span> '+(d.s||"Аниме")+'</p></div>'+
- (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Совместный просмотр</b><small>Комната '+esc(S.room)+'</small></div><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
+ (inRoom?'<div class="watch-room"><span class="live-dot"></span><div><b>Локальная комната</b><small>Комната '+esc(S.room)+'</small></div><button type="button" class="room-leave" data-a="room-leave">Выйти</button></div>':'<span class="watch-mode">Личный просмотр</span>')+
  '</div><div class="watch-layout'+(inRoom?' has-chat':'')+'"><div class="watch-main">'+
- '<div class="player-wrap"><div class="player" style="background:'+bn(d)+'"><div class="shade"></div><span class="player-label">ANIWATCH <i>•</i> '+(inRoom?'WATCH PARTY':'PLAYER')+'</span><button class="play" data-a="pp" aria-label="Воспроизвести или поставить на паузу">▶</button><b class="cap">'+d.n+' · серия '+n+'</b><div class="ctl"><span id="tc"></span><div class="bar" data-a="seek"><i id="pg"></i></div><span>'+fm(DUR)+'</span><button data-a="sp" id="sp">1×</button></div></div></div>'+
+ '<div class="player-wrap"><div class="player" style="background:'+bn(d)+'"><div class="shade"></div><span class="player-label">ANIWATCH <i>•</i> '+(inRoom?'LOCAL ROOM':'PLAYER')+'</span><button class="play" data-a="pp" aria-label="Воспроизвести или поставить на паузу">▶</button><b class="cap">'+d.n+' · серия '+n+'</b><div class="ctl"><span id="tc"></span><div class="bar" data-a="seek"><i id="pg"></i></div><span>'+fm(DUR)+'</span><button data-a="sp" id="sp">1×</button></div></div></div>'+
  '<div class="watch-toolbar"><div><b>Серия '+n+'</b><span>из '+(d.e||'?')+'</span></div><div class="nv">'+(n>1?'<a class="btn ghost" href="#watch-'+d.id+'-'+(n-1)+'">← Предыдущая</a>':"")+'<a class="btn ghost" href="#title-'+d.id+'">Об аниме</a>'+(n<d.e?'<a class="btn" href="#watch-'+d.id+'-'+(n+1)+'">Следующая серия →</a>':"")+'</div></div>'+
  '<div class="watch-hint"><span>ⓘ</span><p>Это демонстрационный плеер AniWatch. Пробел — пауза, ←/→ — перемотка на 10 секунд. Видеоисточник пока не подключён.</p></div>'+
  '<section class="watch-episodes"><div class="watch-section-title"><div><span class="eyebrow">ПРОСМОТР</span><h2>Все серии</h2></div><span>'+(d.e||"—")+' серий</span></div><div class="eps">'+eps(d,n)+'</div></section>'+
@@ -105,7 +105,7 @@ V.watch=p=>{
  tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000))
 };
 
-V.together=()=>{app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте комнату и отправьте код друзьям — чат откроется рядом с плеером. Синхронизация между устройствами требует сервера (см. README), сейчас комната работает локально.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+S.room+'</b></p>':"")+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
+V.together=()=>{app.innerHTML='<h2>Смотреть вместе</h2><div class="panel"><p>Создайте локальную комнату для чата в этом браузере. Код комнаты пока не подключён к серверу и не позволит друзьям войти с другого устройства; для общего доступа и синхронизации нужен сервер.</p><div class="acts"><button class="btn" data-a="room">Создать комнату</button><form id="jf" class="inl"><input id="jc" placeholder="Код комнаты" maxlength="6"><button class="btn ghost">Войти</button></form></div>'+(S.room?'<p class="m">Текущая комната: <b>'+S.room+'</b></p>':"")+'</div>'+row("Что смотрим?",D.slice(0,6).map(d=>card(d)))};
 V.favorites=()=>{var a=S.fav.filter(i=>M[i]).map(i=>card(M[i]));app.innerHTML='<h2>Избранное</h2>'+(a.length?'<div class="row">'+a.join("")+'</div>':'<p class="empty">Пока пусто. Нажмите «♡ В избранное» на странице тайтла.</p>')};
 V.mylist=()=>{var key=F.listStatus||"all",items=S.watchlist||{},ids=Object.keys(items).filter(id=>key==="all"||items[id]===key).map(Number).filter(id=>M[id]).sort((a,b)=>M[a].n.localeCompare(M[b].n));app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Отмечай просмотренное и планируй, что посмотреть дальше.</p></div><b>'+ids.length+'</b></div><div class="list-chips">'+[["all","Все"],...LISTS].map(x=>'<button type="button" data-a="list-filter" data-v="'+x[0]+'" class="'+(key===x[0]?"on":"")+'">'+x[1]+'</button>').join("")+'</div><div class="list-results">'+(ids.length?'<div class="row">'+ids.map(id=>card(M[id])).join("")+'</div>':'<p class="empty">В этом списке пока пусто. Открой страницу любого аниме и выбери статус.</p>')+'</div>'};
 V.profile=()=>{app.innerHTML='<h2>Локальный профиль</h2><div class="panel account-panel"><div class="account-head"><div class="account-avatar">'+esc((S.name||"Гость").slice(0,1).toUpperCase())+'</div><div><b>'+esc(S.name||"Гость")+'</b><p class="m">Данные хранятся в этом браузере</p></div></div><form id="profile-form" class="auth-form"><label>Ник<input id="nm" value="'+esc(S.name||"Гость")+'" maxlength="20" required></label><button class="btn" type="submit">Сохранить ник</button></form><p class="m">Избранное: '+S.fav.length+' · История: '+Object.keys(S.hist).length+' · Оценки: '+Object.keys(S.rate).length+'</p><p class="m">Пока данные доступны только на этом устройстве. При переносе на сервер добавим регистрацию и синхронизацию.</p><button class="btn ghost" data-a="reset" style="justify-self:start">Сбросить локальные данные</button></div>'};
@@ -309,12 +309,37 @@ async function rn(){var m=D.filter(d=>d.mal),c;try{c=JSON.parse(localStorage.get
   (await r.json()).forEach(x=>c[x.id]=x.russian||"");need.forEach(d=>{if(!(d.mal in c))c[d.mal]=""});
   try{localStorage.setItem("awr",JSON.stringify(c))}catch(e){}}catch(e){}}
  m.forEach(d=>{if(c[d.mal]){d.o=d.n;d.n=esc(c[d.mal])}})}
-async function boot(){await initLocalDB();app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function refreshRemoteData(c,initialHash){
+ var fresh=c&&Array.isArray(c.a)&&c.a.length>0&&c.a.length<=30&&Date.now()-c.t<=216e5;
+ if(!fresh){
+  var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000);
+  try{
+   var r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
+   if(!r.ok)throw new Error("AniList "+r.status);
+   var j=await r.json();
+   if(!j.data||!j.data.Page||!Array.isArray(j.data.Page.media))throw new Error("AniList returned invalid data");
+   c={t:Date.now(),a:j.data.Page.media.map(mp)};
+   D=c.a;
+   try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}
+   idx();
+  }catch(e){console.warn("[AniWatch] Home data refresh failed",e)}
+  finally{clearTimeout(tm)}
+ }
+ await Promise.allSettled([rn(),xhyd()]);
+ if(location.hash===initialHash){idx();draw()}
+}
+async function boot(){
+ var initialHash=location.hash,c=null;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
-  r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-  clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
- if(c&&c.a&&c.a.length)D=c.a;await rn();idx();await xhyd();draw();verifyOnePiece()}
+ // Показываем кэш сразу, даже если он устарел: сеть не должна блокировать первый экран.
+ if(c&&Array.isArray(c.a)&&c.a.length)D=c.a;
+ idx();draw();
+ // IndexedDB восстанавливает локальный профиль в фоне уже после первого отображения.
+ await initLocalDB();
+ if(location.hash===initialHash){idx();draw()}
+ // Обновление AniList, русских названий и пользовательских тайтлов не блокирует интерфейс.
+ refreshRemoteData(c,initialHash);
+}
 
 // ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
 var xMF="id idMal title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
