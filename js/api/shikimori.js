@@ -53,3 +53,16 @@ export async function fetchAnimeById(id,{signal}={}){
  if(!result||!Number(result.id))throw new Error("Shikimori вернул пустой результат");
  return result;
 }
+ 
+export async function fetchAnimeRelated(id,{signal}={}){
+ const numeric=Number(id);if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный Shikimori ID");
+ const response=await fetch(API_ROOT+"/animes/"+numeric+"/related",{signal,headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Shikimori related API: HTTP "+response.status);
+ const result=await response.json();if(!Array.isArray(result))throw new Error("Некорректный ответ Shikimori related");return result;
+}
+export async function fetchAnimeSimilar(id,{signal}={}){
+ const numeric=Number(id);if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный Shikimori ID");
+ const response=await fetch(API_ROOT+"/animes/"+numeric+"/similar",{signal,headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Shikimori similar API: HTTP "+response.status);
+ const result=await response.json();if(!Array.isArray(result))throw new Error("Некорректный ответ Shikimori similar");return result;
+}
