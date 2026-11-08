@@ -98,23 +98,6 @@ function animeProgress(d){
  var watched=watchedFor(d.id).filter(n=>n>0&&n<=total).length;
  return Math.min(100,Math.round(watched/total*100));
 }
-function personalizedHomeCards(){
- var seedIds=[].concat(S.fav||[],Object.keys(S.watchlist||{}),Object.keys(S.rate||{}),Object.keys(S.hist||{})).map(Number);
- var seeds=[...new Set(seedIds)].map(id=>M[id]).filter(Boolean);
- if(!seeds.length)return [];
- var weights={};
- seeds.forEach(d=>{
-  var factor=(S.fav||[]).includes(d.id)?3:1;
-  if(S.rate&&S.rate[d.id]>=4)factor+=2;
-  if(S.watchlist&&S.watchlist[d.id]==='watching')factor+=1;
-  (d.g||[]).forEach(g=>{var key=String(g).toLocaleLowerCase('ru');weights[key]=(weights[key]||0)+factor});
- });
- var excluded=new Set([].concat(S.fav||[],Object.keys(S.watchlist||{}).filter(id=>S.watchlist[id]==='completed')));
- var pool=[].concat(homeCollections?homeCollections.trending||[]:[],homeCollections?homeCollections.popular||[]:[],homeCollections?homeCollections.ongoing||[]:[],homeCollections?homeCollections.recent||[]:[]);
- var unique=new Map();pool.forEach(d=>{if(d&&d.id&&!excluded.has(d.id)&&animeProgress(d)<100)unique.set(d.id,d)});
- return [...unique.values()].map(d=>({d,score:(d.g||[]).reduce((sum,g)=>sum+(weights[String(g).toLocaleLowerCase('ru')]||0),0)+(Number(d.r)||0)/10}))
-  .filter(x=>x.score>0).sort((x,y)=>y.score-x.score||Number(y.d.r||0)-Number(x.d.r||0)).slice(0,12).map(x=>card(x.d));
-}
 function refreshContinueShelf(){var host=$("#continue-shelf");if(!host)return;var keys=Object.keys(S.hist||{}).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6);var cards=keys.map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));host.outerHTML=row("Продолжить просмотр",cards.length?cards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf")}
 
 var cloudRefreshPromise=null,cloudRefreshAt=0;
@@ -149,8 +132,7 @@ V.home=()=>{
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- var personalized=personalizedHomeCards();
- renderHomePage({app,featured:featured(),continueCards:cont,personalizedCards:personalized,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
  loadHomeAiring();
