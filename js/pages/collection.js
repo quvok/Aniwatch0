@@ -6,12 +6,15 @@ export function renderFavorites({app,state,mediaMap,card}){
 
 export function renderMyList({app,state,mediaMap,filters,lists,card}){
  const key=filters.listStatus||"all",items=state.watchlist||{};
- const ids=Object.keys(items)
-  .filter(id=>key==="all"||items[id]===key)
-  .map(Number)
-  .filter(id=>mediaMap[id])
-  .sort((a,b)=>mediaMap[a].n.localeCompare(mediaMap[b].n));
- app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Отмечай просмотренное и планируй, что посмотреть дальше.</p></div><b>'+ids.length+'</b></div><div class="list-chips">'+[["all","Все"],...lists].map(item=>'<button type="button" data-a="list-filter" data-v="'+item[0]+'" class="'+(key===item[0]?"on":"")+'">'+item[1]+'</button>').join("")+'</div><div class="list-results">'+(ids.length?'<div class="row">'+ids.map(id=>card(mediaMap[id])).join("")+'</div>':'<p class="empty">В этом списке пока пусто. Открой страницу любого аниме и выбери статус.</p>')+'</div>';
+ const favorites=key==="favorites";
+ const ids=favorites
+  ?(state.fav||[]).map(Number).filter(id=>mediaMap[id]).sort((a,b)=>mediaMap[a].n.localeCompare(mediaMap[b].n))
+  :Object.keys(items).filter(id=>key==="all"||items[id]===key).map(Number).filter(id=>mediaMap[id]).sort((a,b)=>mediaMap[a].n.localeCompare(mediaMap[b].n));
+ const tabs=[["all","Все"],...lists];
+ app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Все сохранённые тайтлы в одном месте.</p></div><b>'+ids.length+'</b></div>'+
+ '<div class="collection-switch" role="group" aria-label="Раздел коллекции"><button type="button" data-a="list-filter" data-v="all" class="'+(!favorites?"on":"")+'">Мои списки</button><button type="button" data-a="list-filter" data-v="favorites" class="'+(favorites?"on":"")+'">♥ Избранное <span>'+(state.fav||[]).length+'</span></button></div>'+
+ (favorites?'':'<div class="list-chips">'+tabs.map(item=>'<button type="button" data-a="list-filter" data-v="'+item[0]+'" class="'+(key===item[0]?"on":"")+'">'+item[1]+'</button>').join("")+'</div>')+
+ '<div class="list-results">'+(ids.length?'<div class="row">'+ids.map(id=>card(mediaMap[id])).join("")+'</div>':'<p class="empty">'+(favorites?'В избранном пока пусто. Нажми «♡ В избранное» на странице аниме.':'В этом списке пока пусто. Открой страницу любого аниме и выбери статус.')+'</p>')+'</div>';
 }
 
 export function renderProfile({app,state,escapeHtml,user}){
