@@ -1,15 +1,6 @@
 // Shikimori HTTP client. UI and anime-model normalization stay outside this module.
 const API_ROOT="https://shikimori.io/api";
 
-
-export async function fetchAnimeCalendar({signal}={}) {
- const response=await fetch(API_ROOT+"/calendar?censored=true",{signal,headers:{Accept:"application/json"}});
- if(!response.ok)throw new Error("Ошибка загрузки календаря Shikimori (HTTP "+response.status+")");
- const result=await response.json();
- if(!Array.isArray(result))throw new Error("Некорректный календарь Shikimori");
- return result;
-}
-
 export async function fetchRandomAnime(){
  const response=await fetch(API_ROOT+"/animes?limit=1&order=random",{headers:{Accept:"application/json"}});
  if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);

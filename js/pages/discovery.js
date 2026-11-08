@@ -1,6 +1,6 @@
 import {pageUrl} from "../core/router.js";
 export function renderSchedulePage(app){
- app.innerHTML='<section class="schedule-intro"><div class="eyebrow">КАЛЕНДАРЬ РЕЛИЗОВ</div><h1>Расписание серий</h1><p>Новые эпизоды аниме на ближайшие семь дней.</p><div class="schedule-intro-note"><span class="live-dot"></span> Время указано по часовому поясу устройства</div></section><div class="schedule-days-wrap"><div class="schedule-days-label">ВЫБЕРИ ДЕНЬ</div><div class="schedule-days" id="sdays"></div></div><section class="schedule-results"><div class="schedule-results-head"><h2>Выход серий</h2><span>Ближайшие релизы</span></div><div id="slist"><p class="empty">Загрузка расписания…</p></div></section>';
+ app.innerHTML='<div class="catalog-heading"><div><div class="eyebrow">Время вашего устройства</div><h1>Расписание серий</h1><p>Что выходит ближайшие 7 дней и сколько осталось до новой серии.</p></div></div><div class="chips" id="sdays"></div><div id="slist"><p class="empty">Загрузка…</p></div>';
 }
 
 export function renderRandomLoading(app){
