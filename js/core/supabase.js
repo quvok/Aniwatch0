@@ -131,7 +131,8 @@ export async function restoreCloudState(localState, userId) {
     .from("profiles").select("username,avatar_url").eq("id", userId).maybeSingle();
   if (savedProfileError) throw savedProfileError;
 
-  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");\n  if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
+  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
+  if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
   await syncCloudState(merged, userId);
   return merged;
 }
