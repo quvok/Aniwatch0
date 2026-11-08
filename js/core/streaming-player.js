@@ -15,7 +15,8 @@ async function getLibertyEpisode(id){return libertyRequest("/anime/releases/epis
 function getLibertyEpisodeNumber(ep){return Number(ep?.ordinal??ep?.sort_order??0)}
 function getLibertyStreams(ep){
  const h=ep?.hls||{};
- return [...new Set([ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480].filter(v=>typeof v==="string"&&(v.startsWith("https://")||v.startsWith("http://")))))];
+ const urls=[ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480];
+ return [...new Set(urls.filter(v=>typeof v==="string"&&v.indexOf("http")===0))];
 }
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
