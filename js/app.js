@@ -577,57 +577,23 @@ async function ru(d){
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
 async function boot(){
- var initialUrl=location.href,c=null;
- try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- var cached=!!(c&&Array.isArray(c.a)&&c.a.length>0&&c.a.length<=30);
- D=cached?c.a:[];
+ S=await initializeLocalState(S,value=>{S=value});
+ // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M);if(activePage()==="home")refreshContinueShelf()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ app.innerHTML='<p class="empty">Загрузка каталога…</p>';
+ var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
+ if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
+  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
+ }
+ if(c&&c.a&&c.a.length)D=c.a;else D=[];
  idx();hydrateStash();initRouteFilters();
- var page=activePage(),routeId=routeArgs()[0];
- // Paint from the last successful cache before opening IndexedDB or contacting any API.
- var homeTask=page==="home"?loadHomeCollections().catch(e=>{console.warn("[AniWatch] Home collections unavailable:",e);return null}):null;
- if((page==="title"||page==="watch")&&routeId&&!M[routeId])app.innerHTML='<p class="empty">Загружаем аниме…</p>';
- else if(page==="home"&&!D.length&&!homeCollections)app.innerHTML='<p class="empty">Загружаем каталог…</p>';
- else draw();
-
- var localTask=(async()=>{
-  S=await initializeLocalState(S,value=>{S=value;df()});
-  df();
-  if(activePage()==="home")refreshContinueShelf();
-  else if(location.href===initialUrl&&["favorites","mylist","profile"].includes(activePage()))draw();
- })().catch(e=>console.warn("[AniWatch] Local state restore failed:",e));
-
- var authTask=localTask.then(async()=>{
-  try{
-   var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;
-   if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}
-   hd();
-   if(activePage()==="home")refreshContinueShelf();
-   else if(location.href===initialUrl&&["favorites","mylist","profile"].includes(activePage()))draw();
-  }catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}
- });
-
- var dataTask=(async()=>{
-  var fresh=cached&&Number.isFinite(Number(c.t))&&Date.now()-Number(c.t)<=216e5;
-  if(!fresh){
-   var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000);
-   try{
-    var r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-    if(!r.ok)throw new Error("AniList "+r.status);
-    var j=await r.json(),media=j.data&&j.data.Page&&j.data.Page.media;
-    if(!Array.isArray(media))throw new Error("AniList returned invalid data");
-    c={t:Date.now(),a:media.map(mp)};D=c.a;
-    try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}
-    idx();
-   }catch(e){console.warn("[AniWatch] AniList catalog refresh failed:",e)}
-   finally{clearTimeout(tm)}
-  }
-  await localTask;
-  await rn();idx();hydrateStash();initRouteFilters();
-  await xhyd();await ensureRouteItem();
-  if(location.href===initialUrl)draw();
-  if(homeTask){await homeTask;if(location.href===initialUrl)draw()}
- })().catch(e=>console.warn("[AniWatch] Startup hydration failed:",e));
- await Promise.allSettled([dataTask,authTask,homeTask].filter(Boolean));
+ var enrichment=rn(),hydration=xhyd();
+ await ensureRouteItem();
+ if(activePage()==="home"){
+  try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}
+  draw();
+  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home")refreshContinueShelf()});
+ }else{await Promise.allSettled([enrichment,hydration]);draw()}
 }
 
 // ---- v2: каталог по всей базе AniList и трейлеры ----
@@ -667,7 +633,8 @@ async function loadHomeCollections(){
   trending:map(data.trending),popular:map(data.popular),ongoing:map(data.ongoing),recent:map(data.recent)
  };
  var allHome=homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent);
- await xshikiPosters(allHome);
+ // Не задерживаем рендер главной сетевым обогащением постеров.
+ xshikiPosters(allHome).catch(error=>console.warn("[AniWatch] Poster enrichment failed:",error));
  allHome.forEach(d=>M[d.id]=d);
  if(homeCollections.trending.length)H=homeCollections.trending;
  return homeCollections;
