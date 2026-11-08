@@ -136,6 +136,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
   setStatus("AnimeVost · "+(data.episode||("серия "+episode))+" · поток готов");
  };
  const showAnimeVost=async()=>{
+  destroyHls();
   options.innerHTML='<span class="stream-note">Ищем на AnimeVost…</span>';
   stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>Поиск по названию</small></div>';
   setStatus("AnimeVost · ищем аниме…");
