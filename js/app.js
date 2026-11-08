@@ -172,7 +172,7 @@ V.watch=p=>{
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
- STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,onPlayback:media=>{
+ STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,onEpisodeEnded:()=>setEpisodeWatched(d.id,n,true),onPlayback:media=>{
   if(!ROOM_CONNECTED||!S.roomHost)return;
   var now=Date.now();if(now-ROOM_LAST_SYNC<650&&media.playing)return;ROOM_LAST_SYNC=now;
   sendRoomEvent("playback",{animeId:d.id,episode:n,time:media.time,playing:media.playing,speed:media.speed,host:true}).catch(e=>console.warn("[AniWatch] Player sync failed:",e));
