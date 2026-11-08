@@ -166,7 +166,7 @@ async function loadCollectionsView(params){
  app.innerHTML='<p class="empty">Загружаем коллекции…</p>';
  try{
   var id=params&&params[0],currentUserId=AUTH_USER?.id||null;
-  if(id){var detail=await getCollection(id);detail.items.forEach(item=>{if(item.anime_data&&!M[item.anime_id])M[item.anime_id]=item.anime_data});renderCollectionsPage({app,detail,user:AUTH_USER,animeList:Object.values(M),currentUserId});}
+  if(id){var detail=await getCollection(id);detail.items.forEach(item=>{if(item.anime_data&&!M[item.anime_id])M[item.anime_id]=item.anime_data});renderCollectionsPage({app,detail,user:AUTH_USER,animeList:Object.values(M),currentUserId});xshikiPosters(detail.items.map(item=>M[item.anime_id]).filter(Boolean));}
   else{var collections=await listCollections(currentUserId);renderCollectionsPage({app,collections,user:AUTH_USER,animeList:Object.values(M),currentUserId});}
  }catch(error){console.error("[AniWatch] Collections load failed:",error);app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить коллекции</h1><p>Проверь подключение и попробуй ещё раз.</p><button class="btn" data-a="collections-reload">Повторить</button></section>'}
 }
@@ -757,7 +757,7 @@ function syncCatalogUrl(){
  var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore};
  try{history.replaceState(null,"",pageUrl("catalog",o))}catch(e){}
 }
-function draw(){renderRoute(V,T,()=>{P=null},S)}
+function draw(){renderRoute(V,T,()=>{P=null},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,document.createTextNode(String(t||"")));m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
