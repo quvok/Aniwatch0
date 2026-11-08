@@ -10,6 +10,7 @@ import { renderAnimePage } from "./pages/anime.js";
 import { renderWatchPage } from "./pages/watch.js";
 import { renderSchedulePage, renderRandomLoading, renderRandomError } from "./pages/discovery.js";
 import { listen } from "./core/events.js";
+import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState } from "./core/supabase.js";
 import { renderTogetherPage } from "./pages/together.js";
 (function(){
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
@@ -28,7 +29,7 @@ var D=[
 ["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
-var M={},H=[];
+var M={},H=[],authUser=null,authMessage="";
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M)}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
@@ -112,7 +113,7 @@ V.watch=p=>{
 V.together=()=>renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,card,row});
 V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card});
 V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card});
-V.profile=()=>renderProfile({app,state:S,escapeHtml:esc});
+V.profile=()=>renderProfile({app,state:S,escapeHtml:esc,authUser,authMessage});
 // ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
 var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage}}}";
 var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
@@ -357,7 +358,7 @@ async function ru(d){
 }
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
-async function boot(){S=await initializeLocalState(S,value=>{S=value});app.innerHTML='<p class="empty">Загрузка…</p>';var c;
+async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var auth=await initializeSupabaseAuth();authUser=auth.user;if(authUser){S=await restoreCloudState(S,authUser.id);saveLocalState(S,M)}}catch(e){console.error("[AniWatch] Supabase session restore failed:",e);authMessage="Не удалось подключиться к облаку: "+(e.message||"ошибка")};app.innerHTML='<p class="empty">Загрузка…</p>';var c;
  try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),
   r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
@@ -601,8 +602,11 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="room"){S.room=Math.random().toString(36).slice(2,7).toUpperCase();sv();toast("Комната создана: "+S.room);draw()}
  else if(a=="room-leave"){S.room="";sv();toast("Вы вышли из комнаты");draw()}
  else if(a=="acc"){S.acc=v;sv();hd()}
+ else if(a=="auth-logout"){signOut().then(()=>{authUser=null;authMessage="";toast("Вы вышли из аккаунта");draw()}).catch(err=>{authMessage=err.message||"Ошибка выхода";V.profile()})}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
-listen(document,"submit",e=>{e.preventDefault();var f=e.target.id;
+listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
+ if(f=="auth-login-form"){var lf=e.target;authMessage="";try{var login=await signInWithEmail(lf.elements.email.value.trim(),lf.elements.password.value);authUser=login.user;S=await restoreCloudState(S,authUser.id);saveLocalState(S,M);toast("Вход выполнен");draw()}catch(err){authMessage=err.message||"Не удалось войти";V.profile()}return}
+ if(f=="auth-signup-form"){var sf=e.target;authMessage="";try{var signup=await signUpWithEmail(sf.elements.email.value.trim(),sf.elements.password.value,sf.elements.username.value.trim()||"Аноним");if(signup.session&&signup.user){authUser=signup.user;S=await restoreCloudState(S,authUser.id);saveLocalState(S,M);toast("Аккаунт создан");draw()}else{authMessage="Проверь почту и подтверди регистрацию, затем войди в аккаунт.";V.profile()}}catch(err){authMessage=err.message||"Не удалось создать аккаунт";V.profile()}return}
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
  if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;msg(S.name||"Вы",v);$("#ci").value=""}
  if(f=="jf"){var c=$("#jc").value.trim().toUpperCase();if(!c)return;S.room=c;sv();toast("Вы в комнате "+c);location.hash="watch-"+D[0].id+"-1"}});
