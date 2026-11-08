@@ -2033,3 +2033,6 @@ header{display:block;min-height:64px}
  .inline-watch-section .stream-player{aspect-ratio:16/9}
  .episode-inline-play{width:21px;height:21px;font-size:9px}
 }
+
+/* Hint for inline episode playback */
+.episode-inline-hint{display:flex;align-items:center;gap:7px;margin:6px 0 0;color:var(--muted,#9b9bad);font-size:12px;line-height:1.45}.episode-inline-hint span{display:inline-grid;place-items:center;flex:0 0 19px;width:19px;height:19px;border:1px solid rgba(167,139,250,.35);border-radius:6px;background:rgba(167,139,250,.12);color:#c9b8ff;font-size:9px}@media(max-width:700px){.episode-inline-hint{max-width:260px;font-size:11px}}
