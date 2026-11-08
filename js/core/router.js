@@ -68,7 +68,7 @@ export function legacyRedirect(){
 
 export function updateNavigation(state){
  const page=activePage();
- const avatar=document.querySelector(".av");
+ const avatar=document.querySelector("#site-header .profile-link");
  if(avatar){
   const photo=typeof state.avatar==="string"&&(state.avatar.startsWith("data:image/")||/^https:\/\//i.test(state.avatar))?state.avatar:"";
   if(photo){
