@@ -54,16 +54,5 @@ export function renderProfile({app,state,escapeHtml,user}){
     '<div><span class="status-mark dropped"></span><span>Брошено</span><b>'+counts.dropped+'</b></div>'+
    '</div>'+
   '</section>'+
-  '<section class="profile-bottom-grid">'+
-   '<div class="profile-clean-panel"><div class="profile-block-title"><div><span class="eyebrow">ПЕРСОНАЛИЗАЦИЯ</span><h2>Профиль</h2></div></div>'+
-    '<form id="profile-form" class="profile-clean-form"><label for="nm">Отображаемое имя</label><input id="nm" value="'+escapeHtml(state.name||"Гость")+'" maxlength="20" required><button class="btn" type="submit">Сохранить имя</button></form>'+
-    '<p class="profile-clean-hint">Фото профиля: JPG, PNG или WebP, до 1 МБ.</p>'+
-   '</div>'+
-   '<div class="profile-clean-panel"><div class="profile-block-title"><div><span class="eyebrow">УПРАВЛЕНИЕ</span><h2>Мои данные</h2></div></div>'+
-    '<p class="profile-clean-description">Создай резервную копию коллекции или восстанови данные из файла.</p>'+
-    '<div class="profile-clean-actions"><button class="btn" type="button" data-a="export">Экспорт</button><button class="btn ghost" type="button" data-a="import">Импорт</button><input id="backup-file" type="file" accept="application/json,.json" hidden></div>'+
-    '<button class="profile-reset" type="button" data-a="reset">Сбросить локальные данные</button>'+
-   '</div>'+
-  '</section>'+
  '</section>';
 }
