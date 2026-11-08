@@ -79,7 +79,7 @@ export function updateNavigation(state){
    avatar.setAttribute("data-has-avatar","true");
   }else{
    avatar.removeAttribute("data-has-avatar");
-   avatar.textContent=(state.name||"Г").trim().slice(0,1).toUpperCase();
+   avatar.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"></path></svg>';
   }
  }
  document.documentElement.style.setProperty("--ac",state.acc);
