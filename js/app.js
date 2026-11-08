@@ -49,7 +49,7 @@ function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progres
 var row=(t,a,sub)=>'<section class="shelf"><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
-var eps=(d,cur)=>epTotal(d)>0?Array.from({length:epTotal(d)},(_,k)=>'<a href="'+watchUrl(d.id,k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join(""):'<p class="m">Количество серий пока не указано источниками.</p>';
+var eps=(d,cur)=>epTotal(d)>0?Array.from({length:epTotal(d)},(_,k)=>'<a href="'+watchUrl(d.id,k+1)+'" class="'+(k+1==cur?"on":"")+'">'+(k+1)+'</a>').join(""):'<p class="m">Количество серий пока неизвестно.</p>';
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
 function exportBackup(){
  try{
@@ -78,7 +78,7 @@ var featuredIndex=0;
 function featured(){var d=H[featuredIndex%H.length]||D[0];ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 V.home=()=>{
- if(!D.length){app.innerHTML='<section class="offline-state"><div class="eyebrow">ANILIST API</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
+ if(!D.length){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]).sort((a,b)=>S.hist[b].at-S.hist[a].at).slice(0,6).map(k=>card(M[k],Math.round(S.hist[k].t/DUR*100),watchUrl(k,S.hist[k].ep)));
  var source=homeCollections||{trending:D,popular:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
@@ -370,7 +370,7 @@ function renderRelated(d,data){
  if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
  var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
- root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Рекомендации AniList для этого тайтла</p></div></div>'+recHtml+'</section>';
+ root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Подборка похожих тайтлов</p></div></div>'+recHtml+'</section>';
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
@@ -518,7 +518,7 @@ async function xcq(reset){
    var fb=$("#cr");if(!fb)return;
    fb.insertAdjacentHTML("beforeend",fallbackList.map(d=>card(d)).join(""));
    xCF.p=sourcePage+1;xCF.more=!!fp.pageInfo.hasNextPage;xCF.busy=false;
-   $("#cc").textContent="Результаты AniList · поиск по английскому названию";
+   $("#cc").textContent="Результаты поиска по английскому названию";
    box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
    if(!fallbackList.length&&!xCF.more)box.textContent="Ничего не найдено";
    return;
@@ -536,13 +536,13 @@ async function xcq(reset){
   // If we reached the end of the source, there is nothing more to request.
   xCF.more=lastPageLength===50;
   xCF.busy=false;
-  $("#cc").textContent=q?"Результаты поиска":xCF.st==="RELEASING"?"Онгоинги · постеры AniList":"Каталог · постеры AniList";
+  $("#cc").textContent=q?"Результаты поиска":xCF.st==="RELEASING"?"Онгоинги":"Каталог";
   box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
   if(!L.length&&!xCF.more)box.textContent="Ничего не найдено";
   xaniPosters(L);
  }catch(e){
   console.error("[AniWatch] Shikimori catalog:",e);
-  if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог Shikimori")}
+  if(k===xCF.k){xCF.busy=false;var b=$("#more");if(b)b.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
  }
 }
 async function xrandom(){
@@ -660,7 +660,7 @@ async function ensureRouteItem(){
 }
 function renderMissing(){
  document.title="Тайтл не найден — AniWatch";
- app.innerHTML='<section class="offline-state"><div class="eyebrow">404</div><h1>Тайтл не найден</h1><p>Не удалось загрузить это аниме. Ссылка могла устареть, или нет соединения с источником данных.</p><a class="btn" href="'+pageUrl("catalog")+'">Открыть каталог</a> <button class="btn ghost" type="button" data-a="reload">Повторить</button></section>'
+ app.innerHTML='<section class="offline-state"><div class="eyebrow">404</div><h1>Тайтл не найден</h1><p>Не удалось загрузить это аниме. Ссылка могла устареть или возникла ошибка соединения.</p><a class="btn" href="'+pageUrl("catalog")+'">Открыть каталог</a> <button class="btn ghost" type="button" data-a="reload">Повторить</button></section>'
 }
 var URL_FILTERS={y:"y",season:"season",status:"st",format:"f",sort:"o",score:"minScore"};
 function initRouteFilters(){
