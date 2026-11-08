@@ -494,12 +494,21 @@ async function xaniPosters(L){
    var found=await xgq("query{"+parts.join(" ")+"}");
    batch.forEach((d,j)=>{
     var page=found["a"+j],items=page&&page.media||[],chosen=xaniPickByTitle(d,items);
-    if(!chosen&&d.n&&d.o&&xaniTitleKey(d.n)!==xaniTitleKey(d.o)){
-     // Russian title can be indexed separately; query it only when the primary title did not match.
-     // This secondary pass is handled in the next bounded batch below.
-    }
     if(chosen)apply(d,chosen);
    });
+   var secondary=batch.filter(d=>!d.img&&d.n&&d.o&&xaniTitleKey(d.n)!==xaniTitleKey(d.o));
+   if(secondary.length){
+    var altParts=[];
+    secondary.forEach((d,j)=>{
+     var term=String(d.n).replace(/<[^>]*>/g,"").trim();
+     altParts.push("b"+j+": Page(perPage:10){media(search:"+JSON.stringify(term)+",type:ANIME){id idMal title{romaji english native} synonyms startDate{year} coverImage{extraLarge large} bannerImage}}");
+    });
+    var altFound=await xgq("query{"+altParts.join(" ")+"}");
+    secondary.forEach((d,j)=>{
+     var page=altFound["b"+j],chosen=xaniPickByTitle(d,page&&page.media||[]);
+     if(chosen)apply(d,chosen);
+    });
+   }
   }
   var cards=Array.from(document.querySelectorAll("#cr .card[data-anime-id]"));
   cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var poster=c.querySelector(".poster");if(poster){poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}});
