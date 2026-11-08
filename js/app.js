@@ -301,7 +301,7 @@ async function loadRelated(d){
    try{
     var query,vars;
     if(d.source==="shikimori"){
-     if(!(Number(d.mal)>0))throw new Error("У тайтла нет MAL ID для поиска в AniList");
+     if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
      query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}}}}";
      vars={mal:Number(d.mal)};
     }else{
@@ -309,7 +309,7 @@ async function loadRelated(d){
      vars={id:Number(d.aniId||d.id)};
     }
     var payload=await xgq(query,vars),media=payload&&payload.Media;
-    if(!media)throw new Error("AniList не вернул данные об этом аниме");
+    if(!media)throw new Error("Не удалось получить данные об этом аниме");
     var relSeen={};
     relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id)).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
     var recSeen={};
@@ -334,7 +334,7 @@ async function loadRelated(d){
      var shikiMatches=await fetchAnimeByIds([Number(d.mal)]);
      shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0;
     }
-    if(!(shikiId>0))throw new Error("Не удалось найти соответствующий тайтл в Shikimori (нет корректного MAL ID)");
+    if(!(shikiId>0))throw new Error("Не удалось найти связанные данные об этом аниме");
     var rawRelated=await fetchAnimeRelated(shikiId),rawSimilar=await fetchAnimeSimilar(shikiId);
     var convert=function(a){
      if(!a||!Number(a.id))return null;
