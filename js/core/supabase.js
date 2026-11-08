@@ -18,25 +18,40 @@ export async function initializeSupabaseAuth() {
   return { user: data.session?.user || null };
 }
 
-async function ensureProfile(user, username = "Аноним") {
+async function ensureProfile(user, username) {
   if (!user?.id) return;
-  const { data, error } = await supabase.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  const desiredName = String(username || user.user_metadata?.username || "Аноним").trim().slice(0, 20) || "Аноним";
+  const { data, error } = await supabase.from("profiles").select("id,username").eq("id", user.id).maybeSingle();
   if (error) throw error;
   if (!data) {
-    const { error: insertError } = await supabase.from("profiles").insert({
-      id: user.id,
-      username: String(username || "Аноним").slice(0, 20)
-    });
+    const { error: insertError } = await supabase.from("profiles").insert({ id: user.id, username: desiredName });
     if (insertError) throw insertError;
+  } else if ((!data.username || ["аноним", "гость"].includes(String(data.username).toLowerCase())) && desiredName !== "Аноним") {
+    const { error: updateError } = await supabase.from("profiles").update({ username: desiredName }).eq("id", user.id);
+    if (updateError) throw updateError;
   }
 }
 
-export async function signInWithEmail(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  activeUserId = data.user?.id || null;
-  if (data.user) await ensureProfile(data.user);
-  return data;
+export async function signInWithEmail(login, password) {
+  let data;
+  if (String(login).includes("@")) {
+    const result = await supabase.auth.signInWithPassword({ email: String(login).trim(), password });
+    if (result.error) throw result.error;
+    data = result.data;
+  } else {
+    const { data: result, error } = await supabase.functions.invoke("login-with-username", {
+      body: { username: String(login).trim(), password }
+    });
+    if (error) throw error;
+    if (result?.error) throw new Error(result.error);
+    if (!result?.access_token || !result?.refresh_token) throw new Error("Не удалось получить сессию.");
+    const sessionResult = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
+    if (sessionResult.error) throw sessionResult.error;
+    data = sessionResult.data;
+  }
+  activeUserId = data.user?.id || data.session?.user?.id || null;
+  if (data.user || data.session?.user) await ensureProfile(data.user || data.session.user);
+  return { ...data, user: data.user || data.session?.user || null, session: data.session || null };
 }
 
 export async function signUpWithEmail(email, password, username) {
