@@ -1207,3 +1207,22 @@ input,select,textarea{border-radius:11px}
 .watch-room{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid rgba(167,139,250,.22);border-radius:13px;background:rgba(24,20,42,.76)}.watch-room>div{display:flex;flex-direction:column;gap:3px}.watch-room b{font-size:12px}.watch-room small{font-size:10px;color:#b4abc9}.room-copy,.room-leave{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.07);color:#e8e1ff;font-size:10px}.room-leave{color:#f2b7c2}
 .party-chat{min-height:420px}.party-chat #ms{display:flex;flex-direction:column;gap:9px;overflow:auto}.party-chat #ms>div{padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.045);font-size:12px;line-height:1.5;overflow-wrap:anywhere}.party-chat #ms em{display:block;margin-bottom:3px;color:#c4afff;font-size:10px;font-style:normal;font-weight:800}.party-chat .chat-empty{color:#9296aa;text-align:center;font-size:11px;padding:25px 10px}.party-chat .chat-online{white-space:nowrap}
 @media(max-width:760px){.together-grid{grid-template-columns:1fr}.together-hero{padding:25px 18px;border-radius:17px}.together-panel{padding:18px}.together-panel p{min-height:0}.watch-room{width:100%;justify-content:flex-start}.watch-room>div{flex:1;min-width:120px}.watch-layout.has-chat{grid-template-columns:1fr}.party-chat{min-height:300px;max-height:430px}}
+
+
+/* Center the desktop header content and keep navigation on the visual axis. */
+@media(min-width:1000px){
+ header{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(220px,1fr);align-items:center;gap:clamp(14px,2vw,28px);padding-left:max(24px,calc((100vw - 1380px)/2));padding-right:max(24px,calc((100vw - 1380px)/2))}
+ header>.logo{grid-column:1;justify-self:start}
+ header>nav{grid-column:2;justify-self:center;white-space:nowrap}
+ header>#site-search{grid-column:3;justify-self:end;width:min(250px,20vw);margin-right:48px}
+ header>#site-search #q{width:100%;margin:0}
+ header>.av{position:absolute;right:max(24px,calc((100vw - 1380px)/2));margin:0}
+}
+@media(min-width:701px) and (max-width:999px){
+ header{justify-content:center;gap:clamp(10px,1.5vw,18px)}
+ header>.logo{margin-right:auto}
+ header>nav{margin:0 auto}
+ header>#site-search{width:190px}
+ header>#site-search #q{width:100%;margin:0}
+ header>.av{margin-left:0}
+}
