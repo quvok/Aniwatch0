@@ -40,7 +40,7 @@ export async function initializeLocalState(state,setState){
   stripCachedArtwork(state.relatedAnime);
   try{localStorage.setItem("aw",JSON.stringify(state))}catch(e){}
   setState(state);
-  if(!saved)await new Promise((resolve,reject)=>{
+  await new Promise((resolve,reject)=>{
    const tx=db.transaction("state","readwrite");
    tx.objectStore("state").put(state,"app");
    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
