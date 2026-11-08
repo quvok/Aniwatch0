@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeCalendar, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar } from "./core/supabase.js";
@@ -723,10 +723,30 @@ listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHe
 listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();var s=e.target.closest("[data-sd]");if(s&&xSC){xSD=+s.dataset.sd;xsch()}});
 // расписание
 function xcd(s){var m=Math.round(s/60);if(m<1)return"меньше минуты";var d=m/1440|0,h=(m%1440)/60|0;m%=60;return d?d+" д "+h+" ч":h?h+" ч "+m+" мин":m+" мин"}
-async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<1800)return xSC;var st=new Date();st.setHours(0,0,0,0);var a=Math.floor(st/1000),out=[];
- for(var p=1;p<=6;p++){var pg=(await xgq(xSQ,{a:a,b:a+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules);if(!pg.pageInfo.hasNextPage)break}
- out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>x.m=M[x.media.id]||(M[x.media.id]=mp(x.media)));
- await xrn([...new Set(out.map(x=>x.m))]);return xSC={t:now,a:out}}
+async function xloadSch(){var now=Date.now()/1000;if(xSC&&now-xSC.t<600)return xSC;var out=[],cacheKey="aw-shikimori-calendar-v1",cached=null;
+ try{cached=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
+ try{
+  var raw=cached&&Date.now()-cached.at<10*60*1000?cached.data:await fetchAnimeCalendar();
+  if(!cached||Date.now()-cached.at>=10*60*1000){try{localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}}
+  out=(Array.isArray(raw)?raw:[]).map(function(entry){
+   var a=entry&&entry.anime;if(!a||!Number(a.id))return null;
+   var d=shikiToItem(a),at=entry.next_episode_at||entry.nextEpisodeAt||entry.next_episode_date||"";
+   var stamp=typeof at==="number"?(at>1e12?at/1000:at):Date.parse(at)/1000;
+   var episode=Number(entry.next_episode||entry.nextEpisode||a.episodesAired+1)||0;
+   if(!Number.isFinite(stamp)||stamp<=0||!episode)return null;
+   M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d;
+   return{airingAt:stamp,episode:episode,m:d};
+  }).filter(Boolean);
+ }catch(err){
+  console.warn("[AniWatch] Shikimori calendar unavailable; using AniList schedule fallback:",err);
+  var st=new Date();st.setHours(0,0,0,0);var a0=Math.floor(st/1000);
+  for(var p=1;p<=6;p++){var pg=(await xgq(xSQ,{a:a0,b:a0+7*86400,p:p})).Page;out=out.concat(pg.airingSchedules);if(!pg.pageInfo.hasNextPage)break}
+  out=out.filter(x=>x.media&&!x.media.isAdult);out.forEach(x=>{x.m=M[x.media.id]||(M[x.media.id]=mp(x.media))});
+ }
+ out.sort((a,b)=>a.airingAt-b.airingAt);
+ await xshikiPosters([...new Map(out.map(x=>[x.m.id,x.m])).values()]);
+ return xSC={t:now,a:out}
+}
 function renderHomeAiring(){
  if(activePage()!=="home"||!xSC)return;
  var now=Date.now()/1000,upcoming={};
@@ -741,7 +761,7 @@ function renderHomeAiring(){
 function loadHomeAiring(){xloadSch().then(()=>renderHomeAiring()).catch(e=>console.warn("[AniWatch] Home episode labels unavailable",e))}
 function xsch(){if(!xSC||!$("#slist"))return;var st=new Date();st.setHours(0,0,0,0);var b=st/1000+xSD*86400,now=Date.now()/1000,L=xSC.a.filter(x=>x.airingAt>=b&&x.airingAt<b+86400);
  $("#sdays").innerHTML=[0,1,2,3,4,5,6].map(i=>'<button class="'+(i==xSD?"on":"")+'" data-sd="'+i+'">'+(i==0?"Сегодня":i==1?"Завтра":new Date((st/1000+i*86400)*1000).toLocaleDateString("ru-RU",{weekday:"short",day:"numeric"}))+'</button>').join("");
- $("#slist").innerHTML=L.length?L.map(x=>{var d=x.m;return'<a class="sch-row" data-anime-id="'+d.id+'" href="'+titleUrl(d.id)+'"><div class="sch-time"><b class="sch-t">'+new Date(x.airingAt*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</b><small>'+(x.airingAt>now?"СКОРО":"ВЫШЛА")+'</small></div><div class="sch-p" style="background:'+bg(d)+'"></div><div class="sch-i"><span>'+d.n+'</span><small><b>Эпизод '+x.episode+'</b><i> · '+(x.airingAt>now?"через "+xcd(x.airingAt-now):"уже вышла")+'</i></small></div><span class="sch-arrow">›</span></a>'}).join(""):'<p class="empty">В этот день серий нет</p>';xshikiPosters(L.map(x=>x.m))}
+ $("#slist").innerHTML=L.length?'<div class="schedule-card-grid">'+L.map(x=>{var d=x.m,dt=new Date(x.airingAt*1000),time=dt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}),date=dt.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),status=x.airingAt>now?"СКОРО":"ВЫШЛА",html=card(d);html=html.replace('</div><b>','<span class="schedule-poster-time">'+time+'</span><span class="schedule-poster-episode">ЭП. '+x.episode+'</span></div><b>');return'<div class="schedule-card-item">'+html+'<div class="schedule-card-meta"><b>Серия '+x.episode+'</b><span>'+date+' · '+(x.airingAt>now?"через "+xcd(x.airingAt-now):"уже вышла")+'</span></div></div>'}).join("")+'</div>':'<p class="empty">В этот день серий нет</p>';xshikiPosters(L.map(x=>x.m))}
 V.schedule=()=>{xSD=0;renderSchedulePage(app);
  xloadSch().then(()=>{if(activePage()==="schedule"){xsch();T.push(setInterval(xsch,6e4))}}).catch(()=>{var s=$("#slist");if(s)s.innerHTML='<p class="empty">Не удалось загрузить расписание. Попробуйте позже.</p>'})};
 // страница тайтла: таймер следующей серии и трейлер
