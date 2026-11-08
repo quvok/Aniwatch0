@@ -324,12 +324,12 @@ function mp(m){
 // AniList remains the source of truth; episode counts are enriched through MAL-aware services.
 // Enrich AniList schedule entries with Shikimori titles and poster IDs.
 // AniList remains authoritative for airingAt/episode; only presentation fields are replaced.
-var scheduleShikiPending={};
+var scheduleShikiPending={},scheduleShikiBatchPending=false,scheduleShikiBlockedUntil=0,scheduleShikiLastRequest=0;
 function scheduleTitleKey(value){
  return String(value||"").normalize("NFKC").toLocaleLowerCase("ru")
   .replace(/&amp;/g,"&").replace(/[ё]/g,"е")
-  .replace(/[：:！!？?]/g," ").replace(/[\u2010-\u2015-]/g," ")
-  .replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
+  .replace(/[：:！!？?]/g," ").replace(/[\\u2010-\\u2015-]/g," ")
+  .replace(/[^\\p{L}\\p{N}]+/gu," ").trim().replace(/\\s+/g," ");
 }
 async function findScheduleShikimori(d){
  var cache=S.scheduleShikimori=S.scheduleShikimori||{},saved=cache[d.id];
@@ -340,39 +340,57 @@ async function findScheduleShikimori(d){
   if(saved.image)d.img=saved.image;
   return;
  }
+ if(Date.now()<scheduleShikiBlockedUntil||Date.now()<Number(S.scheduleShikiBlockedUntil||0))return;
  if(scheduleShikiPending[d.id])return scheduleShikiPending[d.id];
  scheduleShikiPending[d.id]=(async()=>{
-  var names=[un(d.n),un(d.o)].filter(Boolean),keys=new Set(names.map(scheduleTitleKey).filter(Boolean)),found=null;
-  for(var q of names){
-   try{
-    var response=await fetch("https://shikimori.io/api/animes?limit=10&search="+encodeURIComponent(q),{headers:{Accept:"application/json"}});
-    if(!response.ok)continue;
-    var results=await response.json();if(!Array.isArray(results))continue;
-    found=results.find(a=>{
-     var variants=[a.name,a.russian,a.english,a.japanese,...(Array.isArray(a.synonyms)?a.synonyms:[])];
-     return variants.some(v=>keys.has(scheduleTitleKey(v)));
-    });
-    if(found)break;
-   }catch(e){}
-  }
-  if(!found)return;
-  var image=found.image||{},poster=shikiImageUrl(image.original||image.preview||image.x96);
-  d.shikiId=Number(found.id)||null;
-  if(found.russian)d.n=esc(found.russian);
-  else if(found.name)d.n=esc(found.name);
-  if(found.english)d.o=esc(found.english);
-  if(poster)d.img=poster;
-  cache[d.id]={id:d.shikiId,name:found.russian||found.name||"",english:found.english||"",image:poster||"",at:Date.now()};
+  var q=un(d.n)||un(d.o),keys=new Set([un(d.n),un(d.o)].map(scheduleTitleKey).filter(Boolean)),found=null;
+  if(!q)return;
+  var wait=Math.max(0,1300-(Date.now()-scheduleShikiLastRequest));
+  if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
+  if(Date.now()<Number(S.scheduleShikiBlockedUntil||0))return;
+  try{
+   scheduleShikiLastRequest=Date.now();
+   var response=await fetch("https://shikimori.io/api/animes?limit=10&search="+encodeURIComponent(q),{headers:{Accept:"application/json"}});
+   if(response.status===429){
+    var retry=Number(response.headers.get("Retry-After"))||900;
+    S.scheduleShikiBlockedUntil=Date.now()+Math.max(900,retry)*1000;
+    saveLocalState(S,M);
+    return;
+   }
+   if(!response.ok)return;
+   var results=await response.json();if(!Array.isArray(results))return;
+   found=results.find(a=>{
+    var variants=[a.name,a.russian,a.english,a.japanese,...(Array.isArray(a.synonyms)?a.synonyms:[])];
+    return variants.some(v=>keys.has(scheduleTitleKey(v)));
+   });
+   if(!found){cache[d.id]={at:Date.now(),miss:true};saveLocalState(S,M);return}
+   var image=found.image||{},poster=shikiImageUrl(image.original||image.preview||image.x96);
+   d.shikiId=Number(found.id)||null;
+   if(found.russian)d.n=esc(found.russian);else if(found.name)d.n=esc(found.name);
+   if(found.english)d.o=esc(found.english);
+   if(poster)d.img=poster;
+   cache[d.id]={id:d.shikiId,name:found.russian||found.name||"",english:found.english||"",image:poster||"",at:Date.now()};
+   saveLocalState(S,M);
+  }catch(e){}
  })().finally(()=>{delete scheduleShikiPending[d.id]});
  return scheduleShikiPending[d.id];
 }
-async function enrichScheduleShikimori(list){
+function enrichScheduleShikimori(list){
  var items=[...new Set((list||[]).filter(Boolean))];
- var next=0,workers=Array.from({length:5},async()=>{
-  while(next<items.length){var d=items[next++];await findScheduleShikimori(d)}
- });
- await Promise.all(workers);
- return items;
+ if(scheduleShikiBatchPending||Date.now()<Number(S.scheduleShikiBlockedUntil||0))return Promise.resolve(items);
+ scheduleShikiBatchPending=true;
+ (async()=>{
+  try{
+   for(var d of items){
+    if(Date.now()<Number(S.scheduleShikiBlockedUntil||0))break;
+    await findScheduleShikimori(d);
+   }
+  }finally{
+   scheduleShikiBatchPending=false;
+   if(activePage()==="schedule"&&typeof xsch==="function")xsch();
+  }
+ })();
+ return Promise.resolve(items);
 }
 
 async function enrichShikimori(list){return list||[];}
