@@ -3,7 +3,6 @@
 export const PAGES={
  home:"index.html",
  catalog:"catalog.html",
- schedule:"schedule.html",
  favorites:"favorites.html",
  mylist:"lists.html",
  together:"together.html",
@@ -53,7 +52,7 @@ export function isRoute(page,id){
 export function legacyRedirect(){
  const raw=String(location.hash||"").replace(/^#/,"");
  if(!raw)return false;
- const parts=raw.split("-"),aliases={home:"home",catalog:"catalog",schedule:"schedule",favorites:"favorites",fav:"favorites",mylist:"mylist",together:"together",profile:"profile",random:"random",title:"title",watch:"watch",collections:"collections"};
+ const parts=raw.split("-"),aliases={home:"home",catalog:"catalog",favorites:"favorites",fav:"favorites",mylist:"mylist",together:"together",profile:"profile",random:"random",title:"title",watch:"watch",collections:"collections"};
  if(!has(aliases,parts[0]))return false;
  const page=aliases[parts[0]];
  let params={};
