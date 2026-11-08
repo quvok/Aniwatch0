@@ -152,11 +152,41 @@ function startInlineWatch(anime,episode){
  }});
  section.scrollIntoView({behavior:"smooth",block:"start"});
 }
+var nextAiringRequest=0;
+async function loadNextEpisode(d){
+ var host=$("#next-episode-info");
+ if(!host||!d||!(/Онгоинг|RELEASING/i.test(String(d.s||""))))return;
+ var request=++nextAiringRequest;
+ var id=d.source==="shikimori"?0:Number(d.aniId||d.id)||0;
+ var mal=d.source==="shikimori"?Number(d.mal)||0:0;
+ if(!id&&!mal)return;
+ var key="aw-next-airing-"+(id||("mal-"+mal)),cached=null;
+ try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
+ var airing=cached&&Date.now()-Number(cached.at)<15*60*1000?cached.data:undefined;
+ try{
+  if(airing===undefined){
+   var query,vars;
+   if(mal){query="query($mal:Int){Media(idMal:$mal,type:ANIME){status nextAiringEpisode{airingAt episode}}}";vars={mal:mal}}
+   else{query="query($id:Int){Media(id:$id,type:ANIME){status nextAiringEpisode{airingAt episode}}}";vars={id:id}}
+   var result=await xgq(query,vars),media=result&&result.Media;
+   airing=media&&media.status==="RELEASING"?media.nextAiringEpisode:null;
+   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:airing||null}))}catch(e){}
+  }
+  if(request!==nextAiringRequest||!document.getElementById("next-episode-info"))return;
+  if(!airing||!Number(airing.airingAt)||!Number(airing.episode))return;
+  var date=new Date(Number(airing.airingAt)*1000);
+  if(!Number.isFinite(date.getTime()))return;
+  var dateText=new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"long",year:date.getFullYear()!==new Date().getFullYear()?"numeric":undefined}).format(date);
+  var timeText=new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(date);
+  host.innerHTML='<span class="next-episode-icon" aria-hidden="true">◷</span><span class="next-episode-copy"><small>СЛЕДУЮЩАЯ СЕРИЯ · '+Math.floor(Number(airing.episode))+'-Я</small><strong>'+dateText+' · '+timeText+'</strong></span>';
+  host.hidden=false;
+ }catch(error){console.warn("[AniWatch] Next episode lookup failed:",error)}
+}
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true)});
- ru(d);loadRelated(d)
+ loadNextEpisode(d);ru(d);loadRelated(d)
 };
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
