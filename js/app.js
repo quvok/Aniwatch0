@@ -51,7 +51,7 @@ function shikiImageUrl(path){
  try{var parsed=new URL(url);if(/\/missing_original(?:\.[a-z0-9]+)?$/i.test(parsed.pathname))return "";return url}catch(e){return ""}
 }
 var bg=d=>{var image=shikiImageUrl(d.img);return(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
-var bn=d=>{var image=shikiImageUrl(d.ban);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
+var bn=d=>{var image=shikiImageUrl(d.ban)||shikiImageUrl(d.img);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
 function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id)})}
@@ -227,7 +227,7 @@ async function enrichShikimori(list){
  for(var i=0;i<need.length;i+=50){
   try{
    var batch=await fetchAnimeByIds(need.slice(i,i+50));
-   batch.forEach(a=>{cache[a.id]={russian:a.russian||"",name:a.name||"",description:a.description||"",at:now}});
+   batch.forEach(a=>{var image=a.image||{};cache[a.id]={russian:a.russian||"",name:a.name||"",description:a.description||"",image:shikiImageUrl(image.original||image.preview||image.x96),shikiId:Number(a.id)||0,at:now}});
    need.slice(i,i+50).forEach(id=>{if(!cache[id])cache[id]={russian:"",name:"",description:"",image:"",at:now}});
   }catch(e){console.warn("[AniWatch] Shikimori metadata lookup failed:",e);break}
  }
@@ -238,6 +238,7 @@ async function enrichShikimori(list){
   var russian=a.russian||a.name;
   if(russian){if(d.n&&d.n!==russian)d.o=esc(a.name||un(d.n));d.n=esc(russian)}
   if(a.description)d.d=esc(cleanDesc(a.description));
+  if(a.shikiId)d.shikiId=Number(a.shikiId);
   var cachedImage=shikiImageUrl(a.image);if(cachedImage)d.img=cachedImage;
  });
  return list;
@@ -526,6 +527,9 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
 // Shikimori is the single source for poster artwork. Keep image URLs transient.
 async function xshikiPosters(L){
+ L=(L||[]).filter(Boolean);
+ var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
+ if(needsLookup.length)await enrichShikimori(needsLookup);
  var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
  if(!ids.length)return;
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
