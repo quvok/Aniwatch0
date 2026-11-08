@@ -438,17 +438,71 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
  var need=[...ids].filter(i=>i>0&&!M[i]&&i<1000000000).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
 // Shikimori supplies MAL IDs; use them only as a bridge to AniList artwork.
+function xaniTitleKey(value){
+ return String(value||"").toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim().replace(/\\s+/g," ");
+}
+function xaniTitleSimilarity(a,b){
+ if(!a||!b)return 0;if(a===b)return 1;
+ var aa=a.split(" "),bb=b.split(" "),common=aa.filter(x=>bb.includes(x)).length;
+ var token=common/Math.max(aa.length,bb.length);
+ if(Math.min(a.length,b.length)<5)return token;
+ var prev=Array.from({length:b.length+1},(_,i)=>i);
+ for(var i=1;i<=a.length;i++){var cur=[i];for(var j=1;j<=b.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur}
+ return Math.max(token,1-prev[b.length]/Math.max(a.length,b.length));
+}
+function xaniPickByTitle(d,items){
+ var wanted=[d.o,d.n].map(xaniTitleKey).filter(Boolean);
+ if(!wanted.length)return null;
+ var best=null,bestScore=0;
+ (items||[]).forEach(a=>{
+  var names=[a.title&&a.title.romaji,a.title&&a.title.english,a.title&&a.title.native].concat(a.synonyms||[]).map(xaniTitleKey).filter(Boolean);
+  var score=0;
+  wanted.forEach(w=>names.forEach(n=>{score=Math.max(score,xaniTitleSimilarity(w,n))}));
+  var year=Number(d.y)||0,aniYear=Number(a.startDate&&a.startDate.year)||0;
+  if(year&&aniYear&&Math.abs(year-aniYear)>1)score*=0.65;
+  if(score>bestScore){bestScore=score;best=a}
+ });
+ return bestScore>=0.90?best:null;
+}
+// Shikimori supplies metadata; poster artwork is always resolved from AniList.
 async function xaniPosters(L){
- var ids=[...new Set(L.map(d=>Number(d.mal)).filter(id=>Number.isInteger(id)&&id>0))];if(!ids.length)return;
+ var ids=[...new Set(L.map(d=>Number(d.mal)).filter(id=>Number.isInteger(id)&&id>0))],map={};
  try{
-  var map={};
   for(var i=0;i<ids.length;i+=40){
-   var chunk=ids.slice(i,i+40),res=await xgq("query($ids:[Int]){Page(perPage:50){media(idMal_in:$ids,type:ANIME){idMal coverImage{extraLarge large} bannerImage}}}",{ids:chunk});
+   var chunk=ids.slice(i,i+40),res=await xgq("query($ids:[Int]){Page(perPage:50){media(idMal_in:$ids,type:ANIME){id idMal coverImage{extraLarge large} bannerImage}}}",{ids:chunk});
    (res.Page.media||[]).forEach(a=>{map[a.idMal]=a});
   }
-  L.forEach(d=>{var a=map[d.mal];if(!a)return;d.aniId=a.id;d.img=a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large)||d.img;d.ban=a.bannerImage||d.ban;M[d.id]=d;S.shikiAnime[d.id]=d});
+  function apply(d,a){
+   if(!a)return false;
+   d.aniId=a.id;
+   var cover=a.coverImage&&(a.coverImage.extraLarge||a.coverImage.large);
+   if(cover)d.img=cover;
+   if(a.bannerImage)d.ban=a.bannerImage;
+   M[d.id]=d;S.shikiAnime[d.id]=d;return !!cover;
+  }
+  L.forEach(d=>{if(d.mal)apply(d,map[d.mal])});
+  // Fallback: titles are searched in AniList only when MAL mapping did not return artwork.
+  var missing=L.filter(d=>!d.img);
+  for(var p=0;p<missing.length;p+=18){
+   var batch=missing.slice(p,p+18),parts=[];
+   batch.forEach((d,j)=>{
+    var term=String(d.o||d.n||"").replace(/<[^>]*>/g,"").trim();
+    if(!term)return;
+    parts.push("a"+j+": Page(perPage:10){media(search:"+JSON.stringify(term)+",type:ANIME){id idMal title{romaji english native} synonyms startDate{year} coverImage{extraLarge large} bannerImage}}");
+   });
+   if(!parts.length)continue;
+   var found=await xgq("query{"+parts.join(" ")+"}");
+   batch.forEach((d,j)=>{
+    var page=found["a"+j],items=page&&page.media||[],chosen=xaniPickByTitle(d,items);
+    if(!chosen&&d.n&&d.o&&xaniTitleKey(d.n)!==xaniTitleKey(d.o)){
+     // Russian title can be indexed separately; query it only when the primary title did not match.
+     // This secondary pass is handled in the next bounded batch below.
+    }
+    if(chosen)apply(d,chosen);
+   });
+  }
   var cards=Array.from(document.querySelectorAll("#cr .card[data-anime-id]"));
-  cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var p=c.querySelector(".poster");if(p){p.style.background=bg(d);var letter=p.querySelector("i");if(letter)letter.remove()}});
+  cards.forEach(c=>{var d=M[+c.dataset.animeId];if(!d||!d.img)return;var poster=c.querySelector(".poster");if(poster){poster.style.background=bg(d);var letter=poster.querySelector("i");if(letter)letter.remove()}});
   sv();
  }catch(e){console.warn("[AniWatch] AniList poster lookup failed:",e)}
 }
