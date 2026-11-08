@@ -2100,3 +2100,55 @@ header{display:block;min-height:64px}
  .title-actions .btn{flex:1 1 auto;width:100%}
  .title-section-head{flex-direction:column;gap:7px}
 }
+
+
+/* Mobile-first discovery shelves: visible horizontal cards instead of compressed desktop grids. */
+@media(max-width:700px){
+ main{padding:16px 12px calc(112px + env(safe-area-inset-bottom,0px))!important}
+ #hw{margin:0 -1px 4px}
+ .hero{
+  min-height:252px!important;padding:20px 17px 22px!important;border-radius:18px!important;
+  gap:9px!important;justify-content:flex-end!important;
+ }
+ .hero h1{font-size:clamp(23px,6.5vw,31px)!important;line-height:1.08!important;max-width:92%!important}
+ .hero p{font-size:11px!important;line-height:1.5!important;max-width:92%!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+ .hero .btn{min-height:39px;padding:9px 13px;font-size:12px}
+ .shelf{margin-top:3px!important}
+ .shelf-head{align-items:center!important;gap:8px!important}
+ .shelf-head h2{font-size:17px!important;margin:23px 0 3px!important;gap:8px!important}
+ .shelf-head h2::before{height:17px!important;width:3px!important}
+ .shelf-sub{font-size:10px!important;margin:0 0 11px 11px!important}
+ .shelf>.row{
+  display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;
+  gap:11px!important;margin:0 -12px!important;padding:2px 12px 13px!important;
+  scroll-snap-type:x mandatory;scroll-padding-left:12px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+ }
+ .shelf>.row::-webkit-scrollbar{display:none}
+ .shelf>.row>.card{flex:0 0 126px!important;width:126px!important;min-width:126px!important;scroll-snap-align:start}
+ .shelf>.row>.card>.poster{width:100%;aspect-ratio:2/3;border-radius:11px}
+ .shelf>.row>.card>b{font-size:11px!important;line-height:1.35!important;margin-top:7px!important}
+ .shelf>.row>.card>small{font-size:9px!important}
+ .shelf>.row>.card .poster .rating{font-size:8px!important;top:5px!important;left:5px!important;padding:3px 5px!important}
+ .shelf>.row>.card .poster-status{font-size:7px!important;right:5px!important;top:5px!important;padding:3px 5px!important}
+ .genre-section{margin-top:25px!important}
+ .genre-section h2{font-size:18px!important}
+ .genre-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ .genre-tile{min-height:78px!important;padding:12px!important;border-radius:11px!important}
+ .genre-tile span{font-size:13px!important}
+ .genre-tile b{font-size:9px!important}
+ .catalog-heading{align-items:flex-start!important;flex-direction:column!important;gap:8px!important;margin:5px 0 16px!important}
+ .catalog-heading h1{font-size:28px!important}
+ .catalog-heading p{font-size:11px!important}
+ .catalog-count{display:flex!important;align-items:baseline!important;gap:7px!important;text-align:left!important}
+ .catalog-count b{font-size:20px!important}
+ .catalog-tools{padding:12px!important;border-radius:13px!important}
+ .catalog-selects{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+ .catalog-selects label{min-width:0!important;font-size:10px!important}
+ .catalog-selects select{width:100%!important;min-width:0!important;max-width:100%!important;font-size:12px!important}
+}
+@media(max-width:390px){
+ .shelf>.row>.card{flex-basis:116px!important;width:116px!important;min-width:116px!important}
+ .hero{min-height:230px!important;padding:17px 14px 19px!important}
+ .catalog-selects{grid-template-columns:1fr!important}
+}
