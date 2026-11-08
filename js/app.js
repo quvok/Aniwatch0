@@ -758,6 +758,20 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="g"){location.href=pageUrl("catalog",{g:v})}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
+ else if(a==="add-to-collection"){
+  if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
+  listCollections(AUTH_USER.id).then(rows=>{
+   var own=rows.filter(row=>row.owner_id===AUTH_USER.id),host=$("#collection-picker");
+   if(!host){host=document.createElement("div");host.id="collection-picker";host.className="collection-picker";var actions=$(".title-actions");if(actions)actions.insertAdjacentElement("afterend",host)}
+   if(!host)return;
+   host.innerHTML=own.length?'<label>Добавить в мою коллекцию<select id="collection-picker-select">'+own.map(row=>'<option value="'+row.id+'">'+esc(row.title)+'</option>').join("")+'</select></label><button class="btn" type="button" data-a="collection-add-current">Добавить</button>':'<span>Сначала создай коллекцию.</span> <a href="collections.html">Открыть коллекции</a>';
+  }).catch(error=>toast(error.message||"Не удалось загрузить коллекции"));
+ }
+ else if(a==="collection-add-current"){
+  var targetId=$("#collection-picker-select")?.value,animeId=routeArgs()[0],anime=M[animeId];
+  if(!targetId||!anime){toast("Не удалось определить коллекцию или аниме");return}
+  addCollectionAnime(targetId,anime).then(()=>toast("Аниме добавлено в коллекцию")).catch(error=>toast(error.message||"Не удалось добавить аниме"));
+ }
  else if(a==="collection-rate"){if(!AUTH_USER){toast("Войди в аккаунт, чтобы оценить коллекцию");return}var collectionId=new URLSearchParams(location.search).get("id");rateCollection(collectionId,AUTH_USER.id,+v).then(()=>loadCollectionsView([collectionId])).then(()=>toast("Оценка сохранена")).catch(error=>toast(error.message||"Не удалось сохранить оценку"))}
  else if(a==="collection-remove-item"){removeCollectionAnime(t.dataset.id).then(()=>loadCollectionsView(routeArgs())).then(()=>toast("Аниме удалено из коллекции")).catch(error=>toast(error.message||"Не удалось удалить"))}
  else if(a==="collection-delete"){if(!confirm("Удалить коллекцию вместе со всеми её аниме и оценками?"))return;var collectionId=new URLSearchParams(location.search).get("id");deleteCollection(collectionId).then(()=>{toast("Коллекция удалена");location.href="collections.html"}).catch(error=>toast(error.message||"Не удалось удалить коллекцию"))}
