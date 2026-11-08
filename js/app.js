@@ -246,29 +246,10 @@ function mp(m){
 }
 
 // AniList is the source of truth for catalog metadata and navigation IDs.
-async function enrichShikimori(list){
- var items=(list||[]).filter(d=>d&&Number(d.mal)>0),cache={};
- try{cache=JSON.parse(localStorage.getItem("aw-shiki-meta-v2")||"{}")}catch(e){}
- var now=Date.now(),need=[...new Set(items.filter(d=>!cache[d.mal]||!cache[d.mal].image||now-cache[d.mal].at>7*864e5).map(d=>Number(d.mal)))];
- for(var i=0;i<need.length;i+=50){
-  try{
-   var batch=await fetchAnimeByIds(need.slice(i,i+50));
-   batch.forEach(a=>{var image=a.image||{};cache[a.id]={russian:a.russian||"",name:a.name||"",description:a.description||"",image:shikiImageUrl(image.original||image.preview||image.x96),shikiId:Number(a.id)||0,at:now}});
-   need.slice(i,i+50).forEach(id=>{if(!cache[id])cache[id]={russian:"",name:"",description:"",image:"",at:now}});
-  }catch(e){console.warn("[AniWatch] Shikimori metadata lookup failed:",e);break}
- }
- var keys=Object.keys(cache);if(keys.length>500){keys.sort((a,b)=>(cache[b].at||0)-(cache[a].at||0)).slice(500).forEach(id=>delete cache[id])}
- try{localStorage.setItem("aw-shiki-meta-v2",JSON.stringify(cache))}catch(e){}
- items.forEach(d=>{
-  var a=cache[d.mal];if(!a)return;
-  var russian=a.russian||a.name;
-  if(russian){if(d.n&&d.n!==russian)d.o=esc(a.name||un(d.n));d.n=esc(russian)}
-  if(a.description)d.d=esc(cleanDesc(a.description));
-  if(a.shikiId)d.shikiId=Number(a.shikiId);
-  var cachedImage=shikiImageUrl(a.image);if(cachedImage)d.img=cachedImage;
- });
- return list;
-}
+// Do not treat AniList MAL IDs as Shikimori IDs. They are different ID namespaces.
+// AniList remains the source of truth; episode counts are enriched through MAL-aware services.
+async function enrichShikimori(list){return list||[];}
+
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,8);if(H.length<8){var featuredIds=new Set(H.map(d=>d.id));H=H.concat(D.filter(d=>!featuredIds.has(d.id)).slice(0,8-H.length))}}
 var aniCountPending={};
 async function anilibriaCount(d){
@@ -468,21 +449,14 @@ function refreshEpCount(d){
 }
 async function ru(d){
  anilibriaCount(d);if(!d.mal)return;
- var c=S.ru=S.ru||{},r=c[d.id];
- if(!r||Date.now()-(r.at||0)>7*864e5){
-  try{var j=await fetchAnimeById(d.mal);r=c[d.id]={n:j.russian||j.name||"",o:j.name||"",d:j.description||"",e:Number(j.episodes)||0,at:Date.now()};sv()}
-  catch(e){if(!r)return}
- }
- if(r.n){d.o=esc(r.o||un(d.n));d.n=esc(r.n)}
- if(r.d)d.d=esc(cleanDesc(r.d));
- if(!d.e&&r.e>0)d.e=r.e;
+ // Never request /animes/{MAL_ID} from Shikimori: that endpoint expects a Shikimori ID.
+ // Keep AniList's title/description intact and enrich only episode counts using MAL-aware APIs.
  if(!d.e)await jikanCount(d,false);
  if(!d.e||!d.ae)await aniZipCount(d);
  if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d,false);
  refreshEpCount(d);
- if(isRoute("title",d.id)){var h=$("#tn"),p=$("#td");if(h&&r.n)h.textContent=r.n;if(p&&r.d)p.textContent=cleanDesc(r.d)}
- var fp=$("#featured-desc");if(fp&&fp.dataset.id==d.id&&r.d)fp.textContent=shortDesc(r.d,190);
 }
+
 // Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
 async function rn(){await enrichShikimori(D)}
 async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}app.innerHTML='<p class="empty">Загрузка…</p>';var c;
