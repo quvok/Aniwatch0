@@ -8,7 +8,7 @@ let supabaseClientPromise = null;
 export function getSupabaseClient() {
   if (supabaseClient) return Promise.resolve(supabaseClient);
   if (!supabaseClientPromise) {
-    supabaseClientPromise = import("https://esm.sh/@supabase/supabase-js@2")
+    supabaseClientPromise = import("https://esm.sh/@client/client-js@2")
       .then(({ createClient }) => {
         supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
           auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -143,7 +143,7 @@ function mergeCloudState(local, rows, username) {
 export async function restoreCloudState(localState, userId) {
   const client = await getSupabaseClient();
   activeUserId = userId;
-  const { data: rows, error } = await supabase
+  const { data: rows, error } = await client
     .from("user_library")
     .select("anime_id,is_favorite,status,rating,history")
     .eq("user_id", userId);
@@ -151,14 +151,14 @@ export async function restoreCloudState(localState, userId) {
 
   const { data: authData, error: authError } = await client.auth.getUser();
   if (authError) throw authError;
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await client
     .from("profiles").select("id,username,avatar_url").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
 
   const metadataName = authData.user?.user_metadata?.username;
   await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним", client);
 
-  const { data: savedProfile, error: savedProfileError } = await supabase
+  const { data: savedProfile, error: savedProfileError } = await client
     .from("profiles").select("username,avatar_url").eq("id", userId).maybeSingle();
   if (savedProfileError) throw savedProfileError;
 
