@@ -11,7 +11,15 @@ export async function fetchRandomAnime(){
  return result;
 }
 
-export async function fetchCatalogPage({query="",page=1,order="popularity",format="",season="",status="",signal}={}){
+export async function fetchAnimeGenres({signal}={}){
+ const response=await fetch(API_ROOT+"/genres",{signal,headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Ошибка загрузки жанров (HTTP "+response.status);
+ const result=await response.json();
+ if(!Array.isArray(result))throw new Error("Некорректный список жанров");
+ return result;
+}
+
+export async function fetchCatalogPage({query="",page=1,order="popularity",format="",season="",status="",genre="",signal}={}){
  const url=new URL(API_ROOT+"/animes");
  url.searchParams.set("limit","50");
  url.searchParams.set("page",String(page));
@@ -20,6 +28,7 @@ export async function fetchCatalogPage({query="",page=1,order="popularity",forma
  if(format)url.searchParams.set("kind",({TV:"tv",MOVIE:"movie",OVA:"ova",ONA:"ona",SPECIAL:"special"})[format]||format);
  if(season)url.searchParams.set("season",String(season));
  if(status)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[status]||status);
+ if(genre)url.searchParams.set("genre",String(genre));
  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
  if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);
  const result=await response.json();
