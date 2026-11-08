@@ -68,10 +68,11 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
   const startCandidate=async()=>{
    const current=candidates[attempt];if(!current)return;
    destroyHls();v.pause();v.removeAttribute("src");v.load();
-   if(v.canPlayType("application/vnd.apple.mpegurl")){v.src=current.url;setStatus("AniLiberty · проверяем "+current.label+"…");return}
+   const nativeHls=/^(?!.*(?:Chrome|Chromium|CriOS|Edg|OPR)).*Safari/i.test(navigator.userAgent)&&v.canPlayType("application/vnd.apple.mpegurl")!=="";
+   if(nativeHls){v.src=current.url;setStatus("AniLiberty · Safari HLS · проверяем "+current.label+"…");return}
    try{
     const Hls=await loadHls();
-    if(!Hls.isSupported()){v.src=current.url;setStatus("Проверяем прямой поток "+current.label+"…");return}
+    if(!Hls.isSupported()){fail("браузер не поддерживает Media Source Extensions (MSE), а нативный HLS недоступен");return}
     const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
     hlsInstance=instance;instance.loadSource(current.url);instance.attachMedia(v);
     instance.on(Hls.Events.MANIFEST_PARSED,()=>{
