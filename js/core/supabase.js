@@ -94,11 +94,20 @@ function mergeCloudState(local, rows, username) {
   state.hist = { ...(local.hist || {}) };
   state.rate = { ...(local.rate || {}) };
   state.watchlist = { ...(local.watchlist || {}) };
+  state.watchedEpisodes = { ...(local.watchedEpisodes || {}) };
   for (const row of rows) {
     const id = String(row.anime_id);
     if (row.history && typeof row.history === "object" && Object.keys(row.history).length) {
-      const old = state.hist[id];
-      if (!old || Number(row.history.at || 0) > Number(old.at || 0)) state.hist[id] = row.history;
+      if (Array.isArray(row.history.watchedEpisodes)) {
+        const mergedEpisodes = new Set([...(state.watchedEpisodes[id] || []).map(Number), ...row.history.watchedEpisodes.map(Number)]);
+        state.watchedEpisodes[id] = [...mergedEpisodes].filter(n => Number.isInteger(n) && n > 0).sort((a,b) => a-b);
+      }
+      const history = { ...row.history };
+      delete history.watchedEpisodes;
+      if (Object.keys(history).length) {
+        const old = state.hist[id];
+        if (!old || Number(history.at || 0) > Number(old.at || 0)) state.hist[id] = history;
+      }
     }
     if (row.rating !== null && row.rating !== undefined && !(Number(id) in (local.rate || {}))) {
       state.rate[id] = Number(row.rating);
@@ -143,7 +152,8 @@ export async function syncCloudState(state, userId = activeUserId) {
     ...(state.fav || []).map(Number),
     ...Object.keys(state.hist || {}).map(Number),
     ...Object.keys(state.rate || {}).map(Number),
-    ...Object.keys(state.watchlist || {}).map(Number)
+    ...Object.keys(state.watchlist || {}).map(Number),
+    ...Object.keys(state.watchedEpisodes || {}).map(Number)
   ].filter(id => Number.isFinite(id) && id > 0));
 
   const rows = [...ids].map(id => ({
@@ -152,7 +162,7 @@ export async function syncCloudState(state, userId = activeUserId) {
     is_favorite: (state.fav || []).map(Number).includes(id),
     status: (state.watchlist || {})[id] || null,
     rating: (state.rate || {})[id] == null ? null : Number((state.rate || {})[id]),
-    history: (state.hist || {})[id] || {},
+    history: { ...((state.hist || {})[id] || {}), ...((state.watchedEpisodes || {})[id] ? { watchedEpisodes: (state.watchedEpisodes || {})[id] } : {}) },
     updated_at: new Date().toISOString()
   })).filter(row => row.is_favorite || row.status || row.rating !== null || Object.keys(row.history).length);
 
