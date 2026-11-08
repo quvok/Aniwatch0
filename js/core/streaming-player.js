@@ -6,7 +6,7 @@ const clean=s=>String(s||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace
 const esc=s=>String(s??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function requestJson(url,timeout=9000){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);try{const response=await fetch(url,{headers:{Accept:"application/json"},signal:controller.signal});if(!response.ok)throw new Error("HTTP "+response.status);return await response.json()}finally{clearTimeout(timer)}}
 async function libertyRequest(path){const tasks=LIBERTY_BASES.map(base=>requestJson(base+path,6500));let last;for(const task of tasks){try{return await task}catch(error){last=error}}throw last||new Error("AniLiberty недоступен")}
-function loadHls(){if(window.Hls)return Promise.resolve(window.Hls);if(hlsLoader)return hlsLoader;hlsLoader=new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js";script.async=true;script.onload=()=>window.Hls?resolve(window.Hls):reject(new Error("HLS.js не загрузился"));script.onerror=()=>reject(new Error("Не удалось загрузить HLS-плеер"));document.head.appendChild(script)});return hlsLoader}
+function loadHls(){if(window.Hls)return Promise.resolve(window.Hls);if(hlsLoader)return hlsLoader;hlsLoader=new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js";script.async=true;script.onload=()=>window.Hls?resolve(window.Hls):reject(new Error("HLS.js не загрузился"));script.onerror=()=>{script.remove();reject(new Error("Не удалось загрузить HLS-плеер"))};document.head.appendChild(script)});return hlsLoader.catch(error=>{hlsLoader=null;throw error})}
 const releaseNames=r=>{const n=r?.name||{};return [...new Set([n.main,n.english,n.alternative,n.russian,r?.title,r?.name_english,r?.name_ru,r?.alias,...(Array.isArray(r?.names)?r.names:[])].map(textOf).map(x=>String(x||"").trim()).filter(Boolean))]};
 const animeNames=anime=>[anime?.n,anime?.o,anime?.title,anime?.originalTitle].map(x=>String(x||"").trim()).filter(Boolean);
 const scoreRelease=(r,anime)=>{const candidates=releaseNames(r).map(clean).filter(Boolean),wanted=animeNames(anime).map(clean).filter(Boolean);if(!candidates.length||!wanted.length)return 99;let best=99;for(const a of candidates)for(const b of wanted){if(a===b)best=0}return best};
@@ -36,7 +36,29 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  const video=()=>stage.querySelector("video");
  const getPlaybackState=()=>{const v=video();return v?{time:Number(v.currentTime)||0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1}:null};
  const emit=force=>{const state=getPlaybackState();if(!state||remoteApplying)return;const now=Date.now();if(!force&&now-lastEmit<2500)return;if(force){clearTimeout(emitTimer);emitTimer=setTimeout(()=>{if(remoteApplying)return;const latest=getPlaybackState();if(!latest)return;const key=[latest.time.toFixed(1),latest.playing,latest.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=Date.now();onPlayback(latest)},100);return}const key=[state.time.toFixed(1),state.playing,state.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=now;onPlayback(state)};
- const bindVideo=el=>{["play","pause","seeked","ratechange"].forEach(event=>el.addEventListener(event,()=>emit(true)));el.addEventListener("timeupdate",()=>emit(false));el.addEventListener("error",()=>setStatus("Ошибка видеопотока. Попробуй другой источник или релиз."))};
+ const bindVideo=el=>{
+  ["play","pause","seeked","ratechange"].forEach(event=>el.addEventListener(event,()=>emit(true)));
+  el.addEventListener("timeupdate",()=>emit(false));
+  el.addEventListener("waiting",()=>setStatus("Буферизация видео…"));
+  el.addEventListener("stalled",()=>setStatus("Поток задерживается. Ждём данные…"));
+  el.addEventListener("playing",()=>setStatus("Воспроизведение"));
+  el.addEventListener("error",()=>setStatus("Ошибка видеопотока. Попробуй другой источник или релиз."));
+ };
+ const handlePlayerKeys=event=>{
+  const v=video();if(!v||event.altKey||event.ctrlKey||event.metaKey)return;
+  if(/^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(event.target?.tagName||""))return;
+  const key=event.key.toLowerCase();let handled=true;
+  if(key===" "||key==="k"){if(v.paused)v.play().catch(()=>{});else v.pause()}
+  else if(key==="arrowleft"||key==="j")v.currentTime=Math.max(0,v.currentTime-10);
+  else if(key==="arrowright"||key==="l")v.currentTime=Math.min(Number.isFinite(v.duration)?v.duration:Infinity,v.currentTime+10);
+  else if(key==="arrowup")v.volume=Math.min(1,v.volume+0.05);
+  else if(key==="arrowdown")v.volume=Math.max(0,v.volume-0.05);
+  else if(key==="m")v.muted=!v.muted;
+  else if(key==="f"){if(!document.fullscreenElement)stage.requestFullscreen?.().catch?.(()=>{});else document.exitFullscreen?.()}
+  else handled=false;
+  if(handled){event.preventDefault();emit(true)}
+ };
+ root.addEventListener("keydown",handlePlayerKeys);
  const syncPlayback=async state=>{const v=video();if(!v||!state)return false;remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},900);const target=Math.max(0,Number(state.time)||0),baseSpeed=Number(state.speed)>0?Number(state.speed):1,drift=target-(Number(v.currentTime)||0),absDrift=Math.abs(drift);try{if(!state.playing){if(absDrift>0.25&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}if(Math.abs(v.playbackRate-baseSpeed)>0.01)v.playbackRate=baseSpeed;if(!v.paused)v.pause()}else{if(absDrift>0.65&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}const correctedSpeed=absDrift>0.12&&absDrift<=0.65?baseSpeed*(drift>0?1.06:0.94):baseSpeed;if(Math.abs(v.playbackRate-correctedSpeed)>0.01)v.playbackRate=correctedSpeed;if(v.paused&&!v.ended)await v.play().catch(()=>{})}}catch(error){console.warn("[AniWatch] Playback sync failed:",error)}return true};
  const addHlsControls=v=>{const quality=options.querySelector("#liberty-quality"),speed=options.querySelector("#liberty-speed");if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});if(quality)quality.addEventListener("change",()=>{if(hlsInstance)hlsInstance.currentLevel=quality.value==="auto"?-1:Number(quality.value)})};
  const playLiberty=async()=>{
@@ -105,25 +127,32 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  const playAnimeVostStream=async streams=>{
   if(!Array.isArray(streams)||!streams.length)throw new Error("AnimeVost не вернул видеопоток для этой серии");
   const preferred=[...streams].sort((a,b)=>Number((b.quality||"").match(/\d+/)?.[0]||0)-Number((a.quality||"").match(/\d+/)?.[0]||0));
-  options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><span class="stream-note">AnimeVost · русская озвучка</span>';
+  options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><label>Скорость<select id="animevost-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label><span class="stream-note">AnimeVost · русская озвучка</span>';
+  let resume={time:0,playing:false,speed:1};
   const start=async index=>{
+   const previous=video();
+   if(previous)resume={time:Number(previous.currentTime)||0,playing:!previous.paused&&!previous.ended,speed:Number(previous.playbackRate)||1};
    const source=preferred[index];if(!source?.url)throw new Error("Ссылка на видео отсутствует");
    destroyHls();stage.innerHTML='<video class="stream-video" controls playsinline preload="metadata"></video>';
-   const v=video();bindVideo(v);
+   const v=video();bindVideo(v);v.playbackRate=resume.speed;
+   let restored=false;
+   const restore=()=>{if(restored)return;restored=true;if(resume.time>0&&Number.isFinite(resume.time))try{v.currentTime=resume.time}catch{}if(resume.playing)v.play().catch(()=>{})};
    const nativeHls=v.canPlayType("application/vnd.apple.mpegurl")!=="";
    if(/\.m3u8(?:$|\?)/i.test(source.url)&&!nativeHls){
     const Hls=await loadHls();
     if(!Hls.isSupported())throw new Error("Браузер не поддерживает HLS");
     const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
     hlsInstance=instance;instance.loadSource(source.url);instance.attachMedia(v);
+    v.addEventListener("loadedmetadata",restore,{once:true});
     instance.on(Hls.Events.MANIFEST_PARSED,()=>{if(hlsInstance===instance)setStatus("AnimeVost · "+(source.quality||"HLS")+" · поток готов")});
     instance.on(Hls.Events.ERROR,(_,data)=>{if(hlsInstance===instance&&data?.fatal)setStatus("Ошибка потока AnimeVost: "+(data.details||data.type))});
    }else{
     v.src=source.url;setStatus("AnimeVost · "+(source.quality||"видео")+" · загружаем поток…");
-    v.addEventListener("loadedmetadata",()=>setStatus("AnimeVost · "+(source.quality||"видео")+" · поток готов"),{once:true});
+    v.addEventListener("loadedmetadata",()=>{restore();setStatus("AnimeVost · "+(source.quality||"видео")+" · поток готов")},{once:true});
    }
   };
   options.querySelector("#animevost-quality").addEventListener("change",()=>start(Number(options.querySelector("#animevost-quality").value)).catch(e=>setStatus(e.message)));
+  options.querySelector("#animevost-speed").addEventListener("change",()=>{const v=video();if(v)v.playbackRate=Number(options.querySelector("#animevost-speed").value)||1;emit(true)});
   await start(0);
  };
  const loadAnimeVost=async animeUrl=>{
@@ -183,5 +212,5 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{}}){
  }));
  reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animedia"]')?.classList.contains("on"))showAniMedia();else{releaseData=null;showLiberty()}});
  showLiberty()
- return {getPlaybackState,syncPlayback,destroy(){destroyHls();root.innerHTML=""}};
+ return {getPlaybackState,syncPlayback,destroy(){destroyHls();clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
