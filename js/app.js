@@ -617,6 +617,7 @@ var xXP={};
 function applyBanner(d){
  var tb=$(".title-backdrop");if(tb&&isRoute("title",d.id))tb.style.background=bn(d);
  var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
+ var hero=$("#hw .hero-editorial");if(hero&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id)hero.style.background=bn(d);
 }
 function aniMedia(d){
  var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
