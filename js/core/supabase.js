@@ -106,15 +106,20 @@ export async function restoreCloudState(localState, userId) {
     .eq("user_id", userId);
   if (error) throw error;
 
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
   const { data: profile, error: profileError } = await supabase
     .from("profiles").select("id,username").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
-  if (!profile) {
-    const { data: authData } = await supabase.auth.getUser();
-    await ensureProfile(authData.user, localState.name || "Аноним");
-  }
 
-  const merged = mergeCloudState(localState, rows || [], profile?.username || "");
+  const metadataName = authData.user?.user_metadata?.username;
+  await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним");
+
+  const { data: savedProfile, error: savedProfileError } = await supabase
+    .from("profiles").select("username").eq("id", userId).maybeSingle();
+  if (savedProfileError) throw savedProfileError;
+
+  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
   await syncCloudState(merged, userId);
   return merged;
 }
