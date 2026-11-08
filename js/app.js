@@ -511,11 +511,10 @@ async function xshikiPosters(L){
 function dHasImage(list,id){
  return (list||[]).some(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))===id&&!!shikiImageUrl(d.img));
 }
-var xSG=["Экшен","Приключения","Комедия","Драма","Фэнтези","Ужасы","Махо-сёдзё","Меха","Музыка","Детектив","Психология","Романтика","Фантастика","Повседневность","Спорт","Сверхъестественное","Триллер"];
 V.catalog=()=>{
  clearTimeout(xCF.h);xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
  renderCatalogPage({
-  app,filters:xCF,escapeHtml:esc,genreOptions:xGenreOptions||xSG.map((name,i)=>[String(i+1),name]),genreLabels:{},
+  app,filters:xCF,escapeHtml:esc,genreOptions:xGenreOptions||[],genreLabels:{},
   yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
   seasonOptions:[["winter","Зима"],["spring","Весна"],["summer","Лето"],["fall","Осень"]],
   statusOptions:[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -526,7 +525,7 @@ V.catalog=()=>{
  xCF.q=F.q||xCF.q||"";xCF.g=F.g||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
  var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;
  var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
- if(!xGenrePromise)xGenrePromise=fetchAnimeGenres().then(list=>{xGenreOptions=list.filter(g=>g&&g.kind!=="theme").map(g=>[String(g.id),g.russian||g.name]).filter(g=>g[0]&&g[1]);return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
+ if(!xGenrePromise)xGenrePromise=fetchAnimeGenres().then(list=>{var seen=new Set();xGenreOptions=list.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime").map(g=>[String(g.id),String(g.russian||g.name||"").trim()]).filter(g=>{var key=g[1].normalize("NFKC").toLocaleLowerCase("ru");if(!g[0]||!key||seen.has(key))return false;seen.add(key);return true});return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
  var routeKey=xCF.k;
  xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
