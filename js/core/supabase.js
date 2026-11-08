@@ -128,14 +128,7 @@ export async function syncCloudState(state, userId = activeUserId) {
     const { data: existing, error: readError } = await supabase
       .from("user_library").select("anime_id").eq("user_id", userId);
     if (readError) throw readError;
-    const keep = new Set(rows.map(row => Number(row.anime_id)));
-    const stale = (existing || []).map(row => Number(row.anime_id)).filter(id => !keep.has(id));
-    if (stale.length) {
-      const { error: deleteError } = await supabase.from("user_library")
-        .delete().eq("user_id", userId).in("anime_id", stale);
-      if (deleteError) throw deleteError;
-    }
-    if (rows.length) {
+    // Never delete cloud rows just because this browser has an incomplete local snapshot.\n    if (rows.length) {
       const { error: upsertError } = await supabase.from("user_library")
         .upsert(rows, { onConflict: "user_id,anime_id" });
       if (upsertError) throw upsertError;
