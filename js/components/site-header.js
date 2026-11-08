@@ -18,7 +18,7 @@ export function renderSiteHeader(){
  const host=document.getElementById("site-header");
  if(!host)return;
  const links=navLinks();
- const profile='<a class="av profile-link" href="'+PAGES.profile+'" data-a="profile-entry" aria-label="Профиль" title="Профиль"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"></path></svg></a>';
+ const profile='<a class="av profile-link" href="'+PAGES.profile+'" aria-label="Профиль" title="Профиль"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"></path></svg></a>';
  host.innerHTML='<div class="header-top"><a class="logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><nav class="desktop-nav" aria-label="Основная навигация">'+links+'</nav><div class="header-tools">'+profile+'</div></div>';
  const old=document.getElementById("mobile-bottom-nav");
  if(old)old.remove();
