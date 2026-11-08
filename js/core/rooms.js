@@ -21,7 +21,7 @@ export async function connectRoom(code,handlers={}) {
   let settled=false;
   channel.subscribe(async status=>{
    if(status==="SUBSCRIBED"){
-    try{await channel.track({name:String(handlers.name||"Гость").slice(0,24),joinedAt:Date.now()});if(typeof handlers.onStatus==="function")handlers.onStatus("connected");settled=true;resolve(channel)}
+    try{await channel.track({name:String(handlers.name||"Гость").slice(0,24),host:!!handlers.host,joinedAt:Date.now()});if(typeof handlers.onStatus==="function")handlers.onStatus("connected");settled=true;resolve(channel)}
     catch(error){if(typeof handlers.onStatus==="function")handlers.onStatus("error",error);if(!settled){settled=true;reject(error)}}
    }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){
     if(typeof handlers.onStatus==="function")handlers.onStatus("error",new Error("Не удалось подключиться к комнате."));
