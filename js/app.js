@@ -106,7 +106,7 @@ V.watch=p=>{
  var inRoom=!!S.room;
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:AP,sp:1};AP=false;
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal,durationLabel:fm});
- tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000))
+ tick(0);T.push(setInterval(()=>{if(P&&P.on)tick(P.sp)},1000));loadBanner(d)
 };
 
 V.together=()=>renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,card,row});
@@ -324,7 +324,7 @@ async function loadHomeCollections(){
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
-xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){nextAiringEpisode{airingAt episode}trailer{id site}}}",
+xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
 xCF={g:"",y:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
@@ -492,8 +492,26 @@ function xsch(){if(!xSC||!$("#slist"))return;var st=new Date();st.setHours(0,0,0
 V.schedule=()=>{xSD=0;renderSchedulePage(app);
  xloadSch().then(()=>{if(location.hash=="#schedule"){xsch();T.push(setInterval(xsch,6e4))}}).catch(()=>{var s=$("#slist");if(s)s.innerHTML='<p class="empty">Не удалось загрузить расписание. Попробуйте позже.</p>'})};
 // страница тайтла: таймер следующей серии и трейлер
+// Баннер из AniList: один общий запрос на тайтл (баннер, следующая серия, трейлер), без дублей
+var xXP={};
+function applyBanner(d){
+ var tb=$(".title-backdrop");if(tb&&location.hash==="#title-"+d.id)tb.style.background=bn(d);
+ var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
+}
+function aniMedia(d){
+ var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
+ if(d.source&&!(Number(d.mal)>0))return Promise.resolve(null);
+ if(xXP[id])return xXP[id];
+ xXP[id]=xgq(xXQ,{id:d.source?null:id,mal:d.source?Number(d.mal)||null:null}).then(function(r){
+  var m=r&&r.Media||null;xXC[id]=m;
+  var t=M[id]||d;if(m&&m.bannerImage&&!t.ban){t.ban=m.bannerImage;if(t.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=t}applyBanner(t);sv()}
+  return m;
+ }).finally(function(){delete xXP[id]});
+ return xXP[id];
+}
+function loadBanner(d){if(d&&!d.ban)aniMedia(d).catch(function(){})}
 var xvt=V.title;V.title=p=>{xvt(p);xex(+p[0])};
-async function xex(id){var d=M[id];if(!d)return;var x=xXC[id];if(!x){try{x=xXC[id]=(await xgq(xXQ,{id:d.source?null:id,mal:d.source?Number(d.mal)||null:null})).Media}catch(e){return}}
+async function xex(id){var d=M[id];if(!d)return;var x=xXC[id];if(!x){try{x=await aniMedia(d)}catch(e){return}}
  if(!x||location.hash!="#title-"+id||!$(".title-info"))return;var n=x.nextAiringEpisode,tr=x.trailer;
  if(n&&!$("#nx")){var ds=$(".title-description"),el=document.createElement("div");el.id="nx";el.className="next-ep";if(ds)ds.parentNode.insertBefore(el,ds);
   var up=()=>{var s=n.airingAt-Date.now()/1000;el.textContent="Серия "+n.episode+(s>0?" выйдет через "+xcd(s):" уже вышла")+" · "+new Date(n.airingAt*1000).toLocaleString("ru-RU",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})};up();T.push(setInterval(up,3e4))}
