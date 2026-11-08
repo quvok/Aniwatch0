@@ -128,10 +128,12 @@ async function handleAuthSubmit(form){
  AUTH_BUSY=true;if(button){button.disabled=true;button.textContent="Подождите…"}if(status)status.textContent="";
  try{
   var result=mode==="signup"?await signUpWithEmail(email,password,username||"Аноним"):await signInWithEmail(email,password);
-  AUTH_USER=result.user||result.data?.user||null;
+  // A user object may exist before email confirmation, but without a session
+  // there is no authenticated JWT and RLS must reject library writes.
+  AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
    S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");V.profile();
-  }else if(status){status.textContent="Письмо для подтверждения отправлено на почту. Подтверди адрес, затем войди."}
+  }else if(status){status.textContent=mode==="signup"?"Аккаунт создан. Проверь почту и подтверди адрес, затем войди.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
 }
