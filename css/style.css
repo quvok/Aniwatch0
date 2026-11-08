@@ -1462,3 +1462,6 @@ input,select,textarea{border-radius:11px}
 .stream-note{max-width:230px;color:#9993a8;font-size:10px}
 .stream-status{margin:0;padding:9px 12px;background:#0b0a10;color:#9d97ad;font-size:10px;line-height:1.5}
 @media(max-width:620px){.stream-tools{align-items:stretch}.stream-provider-tabs{width:100%}.stream-provider-tabs button{flex:1}.stream-options{width:100%}.stream-options label{flex:1;min-width:100px}.stream-options select{width:100%;max-width:none}.stream-stage,.stream-frame,.stream-video{min-height:190px}.stream-placeholder{min-height:190px}}
+
+.stream-player{aspect-ratio:auto!important;width:100%;border:0;box-shadow:none;background:#050508!important}
+.stream-player .stream-stage{flex:none}
