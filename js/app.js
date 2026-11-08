@@ -433,6 +433,7 @@ function renderRelated(d,data){
  var recHtml=rec.length?'<div class="row">'+relatedCards(rec)+'</div>':'<p class="related-state">Рекомендации пока не найдены.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
  root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные аниме</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Подборка похожих тайтлов</p></div></div>'+recHtml+'</section>';
+ xshikiPosters(rel.map(x=>x.anime).concat(rec,creatorWorks));
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
