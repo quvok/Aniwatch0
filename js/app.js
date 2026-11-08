@@ -113,7 +113,7 @@ V.title=p=>{
  ru(d);loadRelated(d)
 };
 
-var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null;
+var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
 function broadcastPlayback(type){
  if(!ROOM_CONNECTED||!P)return;
  var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
@@ -128,8 +128,8 @@ function connectWatchParty(){
   onStatus:(state,error)=>{if(status)status.textContent=state==="connected"?"На связи":"Нет связи";if(state==="error")console.warn("[AniWatch] Room status:",error)},
   onPresence:presence=>{var users=Object.values(presence||{}).flat(),count=users.length,hostOnline=users.some(user=>user&&user.host);if(online)online.textContent=count+" "+(count===1?"участник":count<5?"участника":"участников");if(status)status.textContent=S.roomHost?"Вы ведущий":hostOnline?"Ведущий на связи":"Ожидание ведущего"},
   onEvent:payload=>{
-   if(payload.type==="clock-ping"&&S.roomHost){sendRoomEvent("clock-pong",{echo:Number(payload.clientTime)||0,hostTime:Date.now(),host:true}).catch(()=>{});return}
-   if(payload.type==="clock-pong"&&!S.roomHost){var receivedAt=Date.now(),sentAt=Number(payload.echo)||receivedAt,hostAt=Number(payload.hostTime)||receivedAt;if(receivedAt>=sentAt&&receivedAt-sentAt<5000){ROOM_CLOCK_OFFSET=hostAt-((sentAt+receivedAt)/2);ROOM_CLOCK_READY=true}return}
+   if(payload.type==="clock-ping"&&S.roomHost){sendRoomEvent("clock-pong",{echo:Number(payload.clientTime)||0,hostTime:Date.now(),pingId:payload.pingId,host:true}).catch(()=>{});return}
+   if(payload.type==="clock-pong"&&!S.roomHost&&payload.pingId===ROOM_CLOCK_ID){var receivedAt=Date.now(),sentAt=Number(payload.echo)||receivedAt,hostAt=Number(payload.hostTime)||receivedAt;if(receivedAt>=sentAt&&receivedAt-sentAt<5000){ROOM_CLOCK_OFFSET=hostAt-((sentAt+receivedAt)/2);ROOM_CLOCK_READY=true}return}
    if(payload.type==="request-state"&&S.roomHost){broadcastPlayback("state");return}
    if(payload.type==="chat"){var empty=$("#ms .chat-empty");if(empty)empty.remove();msg(payload.name||"Гость",String(payload.text||"").slice(0,500));return}
    if(payload.type==="state"||payload.type==="playback"){
@@ -149,7 +149,7 @@ function connectWatchParty(){
  }).then(()=>{
   ROOM_CONNECTED=true;ROOM_LAST_SYNC=Date.now();
   if(ROOM_CLOCK_TIMER)clearInterval(ROOM_CLOCK_TIMER);
-  if(!S.roomHost){var pingClock=()=>{if(ROOM_CONNECTED)sendRoomEvent("clock-ping",{clientTime:Date.now()}).catch(()=>{})};pingClock();ROOM_CLOCK_TIMER=setInterval(pingClock,5000)}else{ROOM_CLOCK_OFFSET=0;ROOM_CLOCK_READY=true}
+  if(!S.roomHost){var pingClock=()=>{if(ROOM_CONNECTED)sendRoomEvent("clock-ping",{clientTime:Date.now(),pingId:ROOM_CLOCK_ID}).catch(()=>{})};pingClock();ROOM_CLOCK_TIMER=setInterval(pingClock,5000)}else{ROOM_CLOCK_OFFSET=0;ROOM_CLOCK_READY=true}
   var empty=$("#ms .chat-empty");if(empty)empty.remove();
   msg("AniWatch","Вы подключились к комнате.");
   if(S.roomHost)broadcastPlayback("state");
