@@ -444,7 +444,7 @@ async function xcq(reset){
    var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
    var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
    // Постеры каталога берём только из AniList; Shikimori используется для метаданных и MAL ID.
-   return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
+   return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||Number(a.id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
   }).filter(d=>(!xCF.st||d.s===({RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро"})[xCF.st])&&(!xCF.g||d.g.includes(GR[xCF.g]||xCF.g))&&(!xCF.minScore||d.r>=Number(xCF.minScore)));
   L.forEach(d=>M[d.id]=d);S.shikiAnime=S.shikiAnime||{};L.forEach(d=>S.shikiAnime[d.id]=d);sv();
   var cr=$("#cr");if(!cr)return;
@@ -468,7 +468,7 @@ async function xrandom(){
   var a=await fetchRandomAnime();
   var id=1000000000+Number(a.id),kind=String(a.kind||"").toLowerCase(),status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
   var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
-  var d={id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
+  var d={id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||Number(a.id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:kind};
   M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;sv();
   xaniPosters([d]);
   if(location.hash==="#random")location.hash="title-"+id;
