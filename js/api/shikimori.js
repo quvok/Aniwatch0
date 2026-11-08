@@ -26,3 +26,30 @@ export async function fetchCatalogPage({query="",page=1,order="popularity",forma
  if(!Array.isArray(result))throw new Error("Некорректный ответ Shikimori");
  return result;
 }
+
+
+export async function fetchAnimeByIds(ids,{signal}={}){
+ const unique=[...new Set((ids||[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))];
+ const result=[];
+ for(let i=0;i<unique.length;i+=50){
+  const url=new URL(API_ROOT+"/animes");
+  url.searchParams.set("limit",String(Math.min(50,unique.length-i)));
+  url.searchParams.set("ids",unique.slice(i,i+50).join(","));
+  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("Shikimori API: HTTP "+response.status);
+  const batch=await response.json();
+  if(!Array.isArray(batch))throw new Error("Некорректный ответ Shikimori");
+  result.push(...batch);
+ }
+ return result;
+}
+
+export async function fetchAnimeById(id,{signal}={}){
+ const numeric=Number(id);
+ if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный Shikimori ID");
+ const response=await fetch(API_ROOT+"/animes/"+numeric,{signal,headers:{Accept:"application/json"}});
+ if(!response.ok)throw new Error("Shikimori API: HTTP "+response.status);
+ const result=await response.json();
+ if(!result||!Number(result.id))throw new Error("Shikimori вернул пустой результат");
+ return result;
+}
