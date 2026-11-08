@@ -540,7 +540,7 @@ async function boot(){S=await initializeLocalState(S,value=>{S=value});try{var a
   clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}}
  if(c&&c.a&&c.a.length)D=c.a;else D=[];await rn();idx();hydrateStash();initRouteFilters();await xhyd();await ensureRouteItem();if(activePage()==="home"){try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}}draw()}
 
-// ---- v2: каталог по всей базе AniList, расписание серий, трейлеры ----
+// ---- v2: каталог по всей базе AniList и трейлеры ----
 var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
 HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
 homeCollections=null;
