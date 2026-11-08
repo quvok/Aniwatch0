@@ -1444,3 +1444,21 @@ input,select,textarea{border-radius:11px}
 .collection-search-info small{font-size:11px;color:var(--muted)}
 .collection-search-add{flex:0 0 auto;padding:8px 12px;white-space:nowrap}
 @media(max-width:560px){.collection-search-result{gap:8px}.collection-search-add{font-size:11px;padding:7px 9px}}
+
+/* Real streaming providers */
+.stream-player{position:relative;display:flex;flex-direction:column;min-height:0;background:#050508!important;overflow:hidden}
+.stream-stage{width:100%;aspect-ratio:16/9;min-height:230px;max-height:72vh;display:grid;place-items:center;background:#030305;overflow:hidden}
+.stream-frame,.stream-video{display:block;width:100%;height:100%;min-height:230px;aspect-ratio:16/9;border:0;background:#000;object-fit:contain}
+.stream-placeholder{width:100%;height:100%;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;background:radial-gradient(ellipse at 50% 45%,rgba(112,75,180,.2),transparent 62%),#07070c;color:#aaa5bd}
+.stream-placeholder b{font-size:18px;letter-spacing:3px;color:#d8c9ff}
+.stream-placeholder span{max-width:440px;font-size:12px;line-height:1.6}
+.stream-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 13px;border-top:1px solid rgba(255,255,255,.08);background:#0c0b12}
+.stream-provider-tabs{display:flex;gap:6px}
+.stream-provider-tabs button,.stream-load{padding:9px 13px;border:1px solid rgba(190,170,240,.18);border-radius:9px;background:#171421;color:#c9c1da;font-size:11px;font-weight:700;cursor:pointer}
+.stream-provider-tabs button.on,.stream-load{background:rgba(139,92,246,.2);border-color:rgba(168,130,255,.48);color:#e7dcff}
+.stream-options{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.stream-options label{display:grid;gap:4px;color:#aaa4bb;font-size:10px}
+.stream-options select{max-width:220px;padding:8px 10px;border:1px solid rgba(190,170,240,.18);border-radius:8px;background:#171421;color:#eeeafa;font:inherit}
+.stream-note{max-width:230px;color:#9993a8;font-size:10px}
+.stream-status{margin:0;padding:9px 12px;background:#0b0a10;color:#9d97ad;font-size:10px;line-height:1.5}
+@media(max-width:620px){.stream-tools{align-items:stretch}.stream-provider-tabs{width:100%}.stream-provider-tabs button{flex:1}.stream-options{width:100%}.stream-options label{flex:1;min-width:100px}.stream-options select{width:100%;max-width:none}.stream-stage,.stream-frame,.stream-video{min-height:190px}.stream-placeholder{min-height:190px}}
