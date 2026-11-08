@@ -2036,3 +2036,6 @@ header{display:block;min-height:64px}
 
 /* Hint for inline episode playback */
 .episode-inline-hint{display:flex;align-items:center;gap:7px;margin:6px 0 0;color:var(--muted,#9b9bad);font-size:12px;line-height:1.45}.episode-inline-hint span{display:inline-grid;place-items:center;flex:0 0 19px;width:19px;height:19px;border:1px solid rgba(167,139,250,.35);border-radius:6px;background:rgba(167,139,250,.12);color:#c9b8ff;font-size:9px}@media(max-width:700px){.episode-inline-hint{max-width:260px;font-size:11px}}
+
+/* Unreleased episodes are visible but cannot be opened or marked watched */
+.episode-item.is-upcoming{opacity:.48;cursor:not-allowed}.episode-number{display:inline-grid;place-items:center;min-width:30px;min-height:30px;color:var(--muted,#999)}.episode-upcoming-label{font-size:9px;line-height:1;color:var(--muted,#999);align-self:center}.episode-item.is-upcoming button:disabled{cursor:not-allowed;opacity:.55}
