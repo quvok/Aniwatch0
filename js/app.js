@@ -100,8 +100,8 @@ function featured(){
  var d=H[featuredIndex%H.length]||D[0],url=heroArtwork(d),trailer=xXC[d.id]&&xXC[d.id].trailer;
  loadBanner(d);ru(d);
  var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,210);
- var previews=H.length>1?H.map(function(item,k){return{item:item,index:k}}).filter(function(x){return x.index!==featuredIndex%H.length}).slice(0,3).map(function(x){var image=heroArtwork(x.item);return '<button class="hero-thumb" type="button" data-a="slide-to" data-v="'+x.index+'" data-slide-id="'+x.item.id+'" style="background-image:url('+JSON.stringify(image)+')" aria-label="Открыть '+esc(un(x.item.n))+'"><span>'+esc(un(x.item.n))+'</span></button>'}).join(""):"";
- return '<section class="hero hero-editorial hero-cinematic" aria-label="Аниме в центре внимания"><div class="hero-slide-art" style="background-image:url('+JSON.stringify(url)+')"></div><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В тренде · '+String(featuredIndex+1).padStart(2,"0")+'</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+(d.y||"")+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a>'+(trailer&&trailer.site==="youtube"&&trailer.id?'<a class="btn ghost hero-trailer" href="https://www.youtube-nocookie.com/embed/'+encodeURIComponent(trailer.id)+'" target="_blank" rel="noopener">Трейлер</a>':"")+'</div></div>'+(previews?'<div class="hero-thumbs" aria-label="Следующие аниме">'+previews+'</div>':"")+(H.length>1?'<div class="hero-controls"><button class="hero-arrow hero-prev" data-a="slide" data-v="-1" type="button" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" type="button" aria-label="Следующий баннер">›</button><div class="hero-progress"><i style="width:'+((featuredIndex+1)/H.length*100)+'%"></i></div><span class="hero-counter">'+String(featuredIndex+1).padStart(2,"0")+' <small>/ '+String(H.length).padStart(2,"0")+'</small></span></div>':"")+'</section>';
+ var previews=H.length>1?H.map(function(item,k){return{item:item,index:k}}).filter(function(x){return x.index!==featuredIndex%H.length}).slice(0,3).map(function(x){var image=heroArtwork(x.item);return '<button class="hero-thumb" type="button" data-a="slide-to" data-v="'+x.index+'" data-slide-id="'+x.item.id+'" style="background-image:url('+esc(image)+')" aria-label="Открыть '+esc(un(x.item.n))+'"><span>'+esc(un(x.item.n))+'</span></button>'}).join(""):"";
+ return '<section class="hero hero-editorial hero-cinematic" aria-label="Аниме в центре внимания"><div class="hero-slide-art" style="background-image:url('+esc(url)+')"></div><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В тренде · '+String(featuredIndex+1).padStart(2,"0")+'</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+(d.y||"")+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a>'+(trailer&&trailer.site==="youtube"&&trailer.id?'<a class="btn ghost hero-trailer" href="https://www.youtube-nocookie.com/embed/'+encodeURIComponent(trailer.id)+'" target="_blank" rel="noopener">Трейлер</a>':"")+'</div></div>'+(previews?'<div class="hero-thumbs" aria-label="Следующие аниме">'+previews+'</div>':"")+(H.length>1?'<div class="hero-controls"><button class="hero-arrow hero-prev" data-a="slide" data-v="-1" type="button" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" type="button" aria-label="Следующий баннер">›</button><div class="hero-progress"><i style="width:'+((featuredIndex+1)/H.length*100)+'%"></i></div><span class="hero-counter">'+String(featuredIndex+1).padStart(2,"0")+' <small>/ '+String(H.length).padStart(2,"0")+'</small></span></div>':"")+'</section>';
 }
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 function animeProgress(d){
@@ -648,7 +648,7 @@ async function loadHomeCollections(){
  // Не задерживаем рендер главной сетевым обогащением постеров.
  xshikiPosters(allHome).catch(error=>console.warn("[AniWatch] Poster enrichment failed:",error));
  allHome.forEach(d=>M[d.id]=d);
- if(homeCollections.trending.length)H=homeCollections.trending;
+ if(homeCollections.trending.length)H=homeCollections.trending.slice(0,8);
  return homeCollections;
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
@@ -811,7 +811,7 @@ var xXP={};
 function applyBanner(d){
  var tb=$(".title-backdrop");if(tb&&isRoute("title",d.id))tb.style.background=bn(d);
  var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
- if(H.some(function(item){return item.id===d.id}))refreshHeroArtwork(d);
+ if(H.some(function(item){return item.id===d.id})){refreshHeroArtwork(d);if(activePage()==="home"&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id)showFeatured();}
 }
 function aniMedia(d){
  var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
