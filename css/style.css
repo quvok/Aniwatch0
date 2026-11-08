@@ -1971,3 +1971,46 @@ header{display:block;min-height:64px}
 @media(prefers-reduced-motion:reduce){
  .card,.card-preview{transition:none!important}
 }
+
+
+/* Related anime: cinematic horizontal relationship shelves */
+#related-anime{margin-top:30px}
+#related-anime>.related-shelf:first-child{
+ padding:22px 22px 8px;border:1px solid rgba(190,197,230,.12);
+ border-radius:18px;background:linear-gradient(145deg,rgba(24,25,41,.76),rgba(12,14,23,.62));
+ box-shadow:0 16px 40px rgba(0,0,0,.14)
+}
+#related-anime .related-shelf:first-child .shelf-head{margin-bottom:18px}
+#related-anime .related-shelf:first-child .shelf-head h2{margin:0;font-size:22px}
+#related-anime .related-shelf:first-child .shelf-sub{margin:5px 0 0;color:#969bad;font-size:11px}
+#related-anime .relation-group{margin:0 0 23px}
+#related-anime .relation-group-head{display:flex;align-items:center;gap:10px;margin:0 0 11px}
+#related-anime .relation-group-head h3{margin:0;color:#e6e0f6;font-size:13px;font-weight:800}
+#related-anime .relation-group-head>span{
+ padding:3px 8px;border:1px solid rgba(167,139,250,.2);border-radius:99px;
+ background:rgba(167,139,250,.09);color:#bfb0ed;font-size:9px;font-weight:750
+}
+#related-anime .relation-track{
+ display:flex;flex-wrap:nowrap;gap:14px;overflow-x:auto;overflow-y:hidden;
+ padding:2px 3px 13px;scroll-snap-type:x mandatory;scrollbar-width:thin;
+ scrollbar-color:rgba(167,139,250,.35) transparent
+}
+#related-anime .relation-track>.card{flex:0 0 142px;width:142px;scroll-snap-align:start}
+#related-anime .relation-track>.card .poster{border-radius:11px}
+#related-anime .relation-track>.card>b{font-size:12px;line-height:1.35;margin-top:8px}
+#related-anime .relation-track>.card>small{font-size:10px;margin-top:3px}
+#related-anime .related-state{margin:14px 0 18px}
+@media(max-width:700px){
+ #related-anime{margin-top:20px}
+ #related-anime>.related-shelf:first-child{padding:15px 12px 4px;border-radius:15px}
+ #related-anime .related-shelf:first-child .shelf-head h2{font-size:18px}
+ #related-anime .related-shelf:first-child .shelf-sub{font-size:9px}
+ #related-anime .relation-group{margin-bottom:17px}
+ #related-anime .relation-group-head{margin-bottom:8px}
+ #related-anime .relation-group-head h3{font-size:11px}
+ #related-anime .relation-group-head>span{font-size:8px;padding:2px 7px}
+ #related-anime .relation-track{gap:10px;padding-bottom:10px}
+ #related-anime .relation-track>.card{flex-basis:108px;width:108px}
+ #related-anime .relation-track>.card>b{font-size:10px;margin-top:6px}
+ #related-anime .relation-track>.card>small{font-size:8px}
+}
