@@ -182,7 +182,7 @@ async function enrichShikimori(list){
 }
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,8);if(H.length<8){var featuredIds=new Set(H.map(d=>d.id));H=H.concat(D.filter(d=>!featuredIds.has(d.id)).slice(0,8-H.length))}}
 var aniCountPending={};
-function normTitle(v){return String(v||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/ё/g,"е").replace(/[^a-zа-я0-9]/gi,"")}
+ return String(value||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim().replace(/\s+/g," ");
 async function anilibriaCount(d){
  var cache=S.aniEpisodes=S.aniEpisodes||{},saved=cache[d.id];
  if(saved&&Date.now()-saved.at<30*864e5){d.e=Number(saved.total)||d.e;d.ae=Number(saved.available)||0;refreshEpCount(d);return}
