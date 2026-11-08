@@ -113,12 +113,12 @@ V.title=p=>{
  ru(d);loadRelated(d)
 };
 
-var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null;
+var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null;
 function broadcastPlayback(type){
  if(!ROOM_CONNECTED||!P)return;
  var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
  var state=media||{time:P.t,playing:P.on,speed:P.sp||1};
- sendRoomEvent(type||"playback",{animeId:P.d.id,episode:P.n,time:state.time,playing:state.playing,speed:state.speed}).catch(e=>console.warn("[AniWatch] Playback broadcast failed:",e))
+ sendRoomEvent(type||"playback",{animeId:P.d.id,episode:P.n,time:state.time,playing:state.playing,speed:state.speed,host:true}).catch(e=>console.warn("[AniWatch] Playback broadcast failed:",e))
 }
 function connectWatchParty(){
  ROOM_CONNECTED=false;
@@ -128,16 +128,18 @@ function connectWatchParty(){
   onStatus:(state,error)=>{if(status)status.textContent=state==="connected"?"На связи":"Нет связи";if(state==="error")console.warn("[AniWatch] Room status:",error)},
   onPresence:presence=>{var users=Object.values(presence||{}).flat(),count=users.length,hostOnline=users.some(user=>user&&user.host);if(online)online.textContent=count+" "+(count===1?"участник":count<5?"участника":"участников");if(status)status.textContent=S.roomHost?"Вы ведущий":hostOnline?"Ведущий на связи":"Ожидание ведущего"},
   onEvent:payload=>{
+   if(payload.type==="clock-ping"&&S.roomHost){sendRoomEvent("clock-pong",{echo:Number(payload.clientTime)||0,hostTime:Date.now(),host:true}).catch(()=>{});return}
+   if(payload.type==="clock-pong"&&!S.roomHost){var receivedAt=Date.now(),sentAt=Number(payload.echo)||receivedAt,hostAt=Number(payload.hostTime)||receivedAt;if(receivedAt>=sentAt&&receivedAt-sentAt<5000){ROOM_CLOCK_OFFSET=hostAt-((sentAt+receivedAt)/2);ROOM_CLOCK_READY=true}return}
    if(payload.type==="request-state"&&S.roomHost){broadcastPlayback("state");return}
    if(payload.type==="chat"){var empty=$("#ms .chat-empty");if(empty)empty.remove();msg(payload.name||"Гость",String(payload.text||"").slice(0,500));return}
    if(payload.type==="state"||payload.type==="playback"){
-    if(!P||!payload.animeId)return;
+    if(S.roomHost||!payload.host||!P||!payload.animeId)return;
     if(Number(payload.animeId)!==Number(P.d.id)||Number(payload.episode)!==Number(P.n)){
      var target=watchUrl(Number(payload.animeId),Number(payload.episode)||1)+"&room="+encodeURIComponent(S.room);
      if(location.href.indexOf(target.split("#")[0])<0)location.href=target;
      return;
     }
-    var drift=Math.max(0,(Date.now()-Number(payload.sentAt||Date.now()))/1000);
+    var hostNow=Date.now()+(ROOM_CLOCK_READY?ROOM_CLOCK_OFFSET:0),drift=Math.max(0,(hostNow-Number(payload.sentAt||hostNow))/1000);
     P.t=Math.max(0,Number(payload.time)||0)+(payload.playing?drift*(Number(payload.speed)||1):0);
     P.on=!!payload.playing;P.sp=Number(payload.speed)||1;
     if(STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback({time:P.t,playing:P.on,speed:P.sp});
@@ -146,6 +148,8 @@ function connectWatchParty(){
   }
  }).then(()=>{
   ROOM_CONNECTED=true;ROOM_LAST_SYNC=Date.now();
+  if(ROOM_CLOCK_TIMER)clearInterval(ROOM_CLOCK_TIMER);
+  if(!S.roomHost){var pingClock=()=>{if(ROOM_CONNECTED)sendRoomEvent("clock-ping",{clientTime:Date.now()}).catch(()=>{})};pingClock();ROOM_CLOCK_TIMER=setInterval(pingClock,5000)}else{ROOM_CLOCK_OFFSET=0;ROOM_CLOCK_READY=true}
   var empty=$("#ms .chat-empty");if(empty)empty.remove();
   msg("AniWatch","Вы подключились к комнате.");
   if(S.roomHost)broadcastPlayback("state");
@@ -166,9 +170,9 @@ V.watch=p=>{
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,onPlayback:media=>{
-  if(!ROOM_CONNECTED)return;
-  var now=Date.now();if(now-ROOM_LAST_SYNC<900&&media.playing)return;ROOM_LAST_SYNC=now;
-  sendRoomEvent("playback",{animeId:d.id,episode:n,time:media.time,playing:media.playing,speed:media.speed}).catch(e=>console.warn("[AniWatch] Player sync failed:",e));
+  if(!ROOM_CONNECTED||!S.roomHost)return;
+  var now=Date.now();if(now-ROOM_LAST_SYNC<650&&media.playing)return;ROOM_LAST_SYNC=now;
+  sendRoomEvent("playback",{animeId:d.id,episode:n,time:media.time,playing:media.playing,speed:media.speed,host:true}).catch(e=>console.warn("[AniWatch] Player sync failed:",e));
  }});
  loadBanner(d);
  if(inRoom)connectWatchParty();
