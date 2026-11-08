@@ -115,7 +115,7 @@ function startInlineWatch(anime,episode){
  var host=$("#inline-stream-player"),section=$("#inline-watch-section");if(!host||!section)return;
  if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}
  section.hidden=false;
- var title=$("#inline-watch-title");if(title)title.textContent=anime.n+" · серия "+episode;
+ var title=$("#inline-watch-title");if(title)title.textContent=anime.n+" · серия "+episode;var full=$("#inline-open-full");if(full)full.href=watchUrl(anime.id,episode);
  document.querySelectorAll(".episode-inline-play").forEach(b=>{b.classList.toggle("on",Number(b.dataset.v)===Number(episode));b.textContent=Number(b.dataset.v)===Number(episode)?"Ⅱ":"▶"});
  INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,onEpisodeEnded:()=>{
   setEpisodeWatched(anime.id,episode,true);
