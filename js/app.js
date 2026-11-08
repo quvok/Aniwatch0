@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchAnimeByIds, fetchAnimeById, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync } from "./core/supabase.js";
@@ -520,15 +520,21 @@ async function xaniPosters(L){
   sv();
  }catch(e){console.warn("[AniWatch] AniList poster lookup failed:",e)}
 }
+var xSG=["Экшен","Приключения","Комедия","Драма","Фэнтези","Ужасы","Махо-сёдзё","Меха","Музыка","Детектив","Психология","Романтика","Фантастика","Повседневность","Спорт","Сверхъестественное","Триллер"];
 V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
  renderCatalogPage({
-  app,filters:xCF,escapeHtml:esc,genreOptions:xGL,genreLabels:GR,
+  app,filters:xCF,escapeHtml:esc,genreOptions:xSG,genreLabels:{},
   yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
   seasonOptions:[["winter","Зима"],["spring","Весна"],["summer","Лето"],["fall","Осень"]],
-  statusOptions:xST,formatOptions:xFM,sortOptions:xSO,ratingOptions:[["6","6.0+"],["7","7.0+"],["8","8.0+"],["9","9.0+"]]
+  statusOptions:[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
+  formatOptions:[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]],
+  sortOptions:[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
+  ratingOptions:[["6","6.0+"],["7","7.0+"],["8","8.0+"],["9","9.0+"]]
  });
- xCF.q=F.q||xCF.q||"";xCF.g=(F.g?(Object.keys(GR).find(k=>GR[k]===F.g)||F.g):xCF.g)||"";F.q=xCF.q;F.g=xCF.g;var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
+ xCF.q=F.q||xCF.q||"";xCF.g=F.g||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
+ var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;
+ var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
  xcq(true);
 };
 rc=()=>{xCF.q=F.q||"";var s=$("#cs");if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
@@ -537,44 +543,36 @@ async function xcq(reset){
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
-  var q=xCF.q.trim(),sourcePage=xCF.p,key="aw-anilist-catalog-v1:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]),cached=null,payload=null;
+  var q=xCF.q.trim(),sourcePage=xCF.p;
+  var key="aw-shikimori-catalog-v1:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
+  var cached=null,raw=null;
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
-  if(cached&&Date.now()-cached.at<10*60*1000)payload=cached.data;
-  if(!payload){
-   var vars={
-    p:sourcePage,s:q||null,
-    g:xCF.g?[GR[xCF.g]||xCF.g]:null,
-    y:xCF.y?String(xCF.y)+"%":null,
-    season:xCF.season?String(xCF.season).toUpperCase():null,
-    st:xCF.st||null,
-    f:xCF.f?[xCF.f]:null,
-    o:[xCF.o||"POPULARITY_DESC"]
-   };
-   try{payload=await xgq(xCQ,vars)}catch(primaryError){
-    if(!/^AniList вернул HTTP 5|^Получен некорректный ответ \(HTTP 5/.test(String(primaryError&&primaryError.message||"")))throw primaryError;
-    console.warn("[AniWatch] AniList full catalog query failed; retrying with a smaller field set",primaryError);
-    payload=await xgq(xCQ_SAFE,vars);
-   }
-   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:payload}))}catch(e){}
+  if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
+  if(!raw){
+   var order=xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity";
+   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st});
+   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
   }
   if(k!==xCF.k)return;
-  var page=payload&&payload.Page,media=page&&Array.isArray(page.media)?page.media:[];
-  var L=media.map(mp);
+  var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
+  if(xCF.g)L=L.filter(d=>d.g.includes(xCF.g));
+  if(xCF.y)L=L.filter(d=>String(d.y)===String(xCF.y));
+  if(xCF.season){
+   var months={winter:[12,1,2],spring:[3,4,5],summer:[6,7,8],fall:[9,10,11]}[xCF.season]||[];
+   L=L.filter(d=>months.includes(d.mth));
+  }
   if(xCF.minScore)L=L.filter(d=>Number(d.r||0)>=Number(xCF.minScore));
-  L.forEach(d=>{M[d.id]=d});
+  L.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xCF.p=sourcePage+1;
-  xCF.more=!!(page&&page.pageInfo&&page.pageInfo.hasNextPage);
-  xCF.busy=false;
-  var total=page&&page.pageInfo&&Number(page.pageInfo.total);
+  xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
-  if(total>0)$("#cc").textContent+=" · "+total.toLocaleString("ru-RU")+" тайтлов";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
-  if(!L.length)$("#cc").textContent=q?"Ничего не найдено":"В каталоге пока нет результатов";
+  if(!cr.children.length)$("#cc").textContent=q?"Ничего не найдено":"В каталоге пока нет результатов";
+  sv();
  }catch(e){
-  console.error("[AniWatch] AniList catalog:",e);
-  if(k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог AniList. Попробуй позже.")}
+  console.error("[AniWatch] Shikimori catalog:",e);
+  if(k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
  }
 }
 async function xrandom(){
@@ -673,7 +671,8 @@ function hydrateStash(){
 function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||Number(a.id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"").toLowerCase()}
+ var image=a.image||{},path=image.original||image.preview||image.x96||"";
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:path?(path.startsWith("http")?path:"https://shikimori.one"+path):"",ban:"",kind:String(a.kind||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){
