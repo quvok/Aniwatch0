@@ -29,7 +29,7 @@ export async function query(q,v){
     return json.data;
    }catch(error){
     last=error;if(attempt>=3)break;
-    if(error&&/^Ошибка загрузки (HTTP 4/.test(error.message))throw error;
+    if(error&&/^Ошибка загрузки \(HTTP 4/.test(error.message))throw error;
     if(error&&/^AniList GraphQL:/.test(error.message))throw error;
     if(error&&/превышен лимит запросов|временно недоступен/.test(error.message))throw error;
     await wait(Math.min(8000,1000*Math.pow(2,attempt)));
