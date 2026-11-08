@@ -560,6 +560,7 @@ async function xcq(reset){
   if(k!==xCF.k)return;
   var page=payload&&payload.Page,media=page&&Array.isArray(page.media)?page.media:[];
   var L=media.map(mp);
+  if(xCF.minScore)L=L.filter(d=>Number(d.r||0)>=Number(xCF.minScore));
   L.forEach(d=>{M[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
