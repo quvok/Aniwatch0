@@ -623,7 +623,7 @@ async function boot(){
   }
   await localTask;
   await rn();idx();hydrateStash();initRouteFilters();
-  await Promise.allSettled([xhyd(),ensureRouteItem()]);
+  await xhyd();await ensureRouteItem();
   if(location.href===initialUrl)draw();
   if(homeTask){await homeTask;if(location.href===initialUrl)draw()}
  })().catch(e=>console.warn("[AniWatch] Startup hydration failed:",e));
