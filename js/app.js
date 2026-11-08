@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync } from "./core/supabase.js";
@@ -436,7 +436,7 @@ var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:Me
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
 xSQ="query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{"+xMF+" isAdult}}}}",
 xXQ="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){id bannerImage nextAiringEpisode{airingAt episode}trailer{id site}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null;
+xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xXC={},xSD=0,xSC=null,xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -489,7 +489,7 @@ var xSG=["Экшен","Приключения","Комедия","Драма","Ф
 V.catalog=()=>{
  xCF.p=1;xCF.more=true;xCF.busy=false;xCF.k++;
  renderCatalogPage({
-  app,filters:xCF,escapeHtml:esc,genreOptions:xSG,genreLabels:{},
+  app,filters:xCF,escapeHtml:esc,genreOptions:xGenreOptions||xSG.map((name,i)=>[String(i+1),name]),genreLabels:{},
   yearOptions:Array.from({length:new Date().getFullYear()-1970+1},(_,i)=>[String(new Date().getFullYear()-i),String(new Date().getFullYear()-i)]),
   seasonOptions:[["winter","Зима"],["spring","Весна"],["summer","Лето"],["fall","Осень"]],
   statusOptions:[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -509,13 +509,13 @@ async function xcq(reset){
  xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
   var q=xCF.q.trim(),sourcePage=xCF.p;
-  var key="aw-shikimori-catalog-v1:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
+  var key="aw-shikimori-catalog-v2:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
   var cached=null,raw=null;
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
   if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
   if(!raw){
    var order=xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity";
-   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st});
+   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g});
    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
   }
   if(k!==xCF.k)return;
