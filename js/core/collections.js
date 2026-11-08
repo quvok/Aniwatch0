@@ -58,9 +58,10 @@ export async function deleteCollection(id){
  if(error)throw error;
 }
 export async function addCollectionAnime(collectionId,anime){
- const {error}=await supabase.from("anime_collection_items").upsert({
-  collection_id:collectionId,anime_id:Number(anime.id),anime_data:anime,position:Date.now()
- },{onConflict:"collection_id,anime_id"});
+ const {data:last,error:readError}=await supabase.from("anime_collection_items").select("position").eq("collection_id",collectionId).order("position",{ascending:false}).limit(1).maybeSingle();
+ if(readError)throw readError;
+ const nextPosition=Math.max(0,Number(last?.position)||0)+1;
+ const {error}=await supabase.from("anime_collection_items").upsert({collection_id:collectionId,anime_id:Number(anime.id),anime_data:anime,position:nextPosition},{onConflict:"collection_id,anime_id"});
  if(error)throw error;
 }
 export async function removeCollectionAnime(itemId){
