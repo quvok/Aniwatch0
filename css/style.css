@@ -1516,3 +1516,36 @@ input,select,textarea{border-radius:11px}
  .stream-options .stream-load{flex:1;justify-content:center}
  .stream-stage,.stream-frame,.stream-video,.stream-placeholder{min-height:190px}
 }
+
+
+/* AniWatch player redesign */
+.aw-player-shell{width:100%;overflow:hidden;border:1px solid rgba(167,139,250,.16);border-radius:16px;background:#08080e;box-shadow:0 18px 55px rgba(0,0,0,.28)}
+.aw-player-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;background:#111019;border-bottom:1px solid rgba(255,255,255,.055)}
+.aw-player-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.aw-player-logo{display:grid;place-items:center;width:31px;height:31px;flex:0 0 31px;border-radius:9px;background:linear-gradient(145deg,#9b7bea,#5930ad);color:#fff;font-size:17px;font-weight:900}
+.aw-player-brand>div{display:grid;gap:3px;min-width:0}
+.aw-player-brand b{font-size:11px;letter-spacing:.8px;color:#f0ebfa}
+.aw-player-brand b i{font-style:normal;color:#a78bfa;font-size:9px}
+.aw-player-brand small{overflow:hidden;color:#8e899c;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.aw-player-chip{display:flex;align-items:center;gap:7px;color:#797487;font-size:8px;font-weight:800;letter-spacing:1.2px}
+.aw-player-chip i{width:6px;height:6px;border-radius:50%;background:#65d6a1;box-shadow:0 0 8px #65d6a1}
+.aw-player-shell .stream-stage{aspect-ratio:16/9;min-height:220px;max-height:72vh;background:#030306}
+.aw-player-shell .stream-frame,.aw-player-shell .stream-video{width:100%;height:100%;min-height:220px;aspect-ratio:16/9;border:0;background:#000;object-fit:contain}
+.aw-player-shell .stream-placeholder{display:flex;min-height:220px;align-items:center;justify-content:center;gap:8px;background:radial-gradient(ellipse at center,rgba(105,72,170,.16),transparent 65%),#05050a}
+.stream-placeholder-mark{display:grid;place-items:center;width:42px;height:42px;margin-bottom:4px;border:1px solid rgba(167,139,250,.25);border-radius:13px;color:#bba5f7;font-size:13px;font-weight:900;letter-spacing:1px}
+.aw-player-shell .stream-placeholder b{font-size:13px;letter-spacing:.3px}
+.aw-player-shell .stream-placeholder small{max-width:380px;color:#777286;font-size:10px;line-height:1.5}
+.aw-player-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;background:#100e17;border-top:1px solid rgba(255,255,255,.055)}
+.aw-player-controls .stream-provider-tabs{gap:5px}
+.aw-player-controls .stream-provider-tabs button{padding:8px 10px;border-radius:8px;background:#191622;color:#9e97ad;font-size:10px}
+.aw-player-controls .stream-provider-tabs button.on{border-color:rgba(167,139,250,.5);background:rgba(124,58,237,.19);color:#eee7ff}
+.aw-player-controls .stream-provider-tabs em{padding:2px 4px;border-radius:4px;background:rgba(74,222,128,.13);color:#7ee0a8;font-size:7px;font-style:normal}
+.aw-player-controls .stream-provider-tabs small{color:#777185;font-size:8px;font-weight:500}
+.aw-player-controls .stream-options{display:flex;align-items:end;justify-content:flex-end;gap:8px;flex:1;min-width:0}
+.aw-player-controls .stream-options label{display:grid;gap:4px;min-width:100px;color:#888296;font-size:9px}
+.aw-player-controls .stream-options select{max-width:180px;padding:8px 26px 8px 9px;border:1px solid rgba(190,170,240,.13);border-radius:8px;background:#1a1722;color:#e9e2f5;font-size:10px}
+.aw-player-controls .stream-load{padding:9px 12px;border:1px solid rgba(167,139,250,.38);border-radius:8px;background:#6d3bc2;color:#fff;font-size:10px}
+.aw-player-footer{display:flex;align-items:center;gap:10px;min-height:35px;padding:6px 11px;background:#0b0a10;border-top:1px solid rgba(255,255,255,.045)}
+.aw-player-footer .stream-status{flex:1;margin:0;color:#898397;font-size:9px;line-height:1.4}
+.aw-player-footer .aw-player-reload{width:25px;height:25px;flex:0 0 25px;border:1px solid rgba(255,255,255,.08);border-radius:7px;background:#191622;color:#b8a7e7;font-size:15px}
+@media(max-width:620px){.aw-player-heading{padding:9px 10px}.aw-player-chip{font-size:7px}.aw-player-controls{align-items:stretch;padding:9px;gap:9px}.aw-player-controls .stream-provider-tabs{width:100%}.aw-player-controls .stream-provider-tabs button{flex:1;justify-content:center}.aw-player-controls .stream-options{width:100%;justify-content:stretch}.aw-player-controls .stream-options label{flex:1;min-width:calc(50% - 5px)}.aw-player-controls .stream-options select{width:100%;max-width:none}.aw-player-controls .stream-load{flex:1;justify-content:center}.aw-player-shell .stream-stage,.aw-player-shell .stream-frame,.aw-player-shell .stream-video,.aw-player-shell .stream-placeholder{min-height:185px}}
