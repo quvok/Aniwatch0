@@ -2262,9 +2262,13 @@ header{display:block;min-height:64px}
  border:1px solid rgba(167,139,250,.14);border-radius:13px;background:rgba(167,139,250,.055)
 }
 #site-header .sidebar-footer-mark{
- display:grid;place-items:center;width:31px;height:31px;border-radius:10px;
- background:linear-gradient(135deg,#a78bfa,#7651d5);color:#fff;font-size:15px;font-weight:950
+ display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:11px;
+ background:linear-gradient(145deg,#b49aff 0%,#865de8 52%,#6039bd 100%);
+ border:1px solid rgba(220,208,255,.28);color:#fff;
+ box-shadow:0 4px 14px rgba(112,66,216,.28),inset 0 1px rgba(255,255,255,.2)
 }
+#site-header .sidebar-footer-mark svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+#site-header .sidebar-footer-mark .brand-spark{fill:#fff;stroke:#fff;stroke-width:.7}
 #site-header .sidebar-footer span:last-child{display:grid;gap:2px}
 #site-header .sidebar-footer b{font-size:10px;color:#e8e2f7}
 #site-header .sidebar-footer small{font-size:9px;color:#9691a8}
