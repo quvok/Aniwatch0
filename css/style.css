@@ -2154,7 +2154,7 @@ header{display:block;min-height:64px}
 }
 
 /* AniWatch product improvements: metadata, profile insights, and catalog autocomplete */
-.catalog-search-label{position:relative}
+.catalog-search-wrap{position:relative}.catalog-search-label{position:relative}
 .catalog-search-suggestions{
  position:absolute;z-index:30;top:calc(100% + 7px);left:0;right:0;
  max-height:min(440px,65vh);overflow:auto;padding:7px;
