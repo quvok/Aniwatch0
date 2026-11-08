@@ -244,7 +244,7 @@ async function loadRelated(d){
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
-   var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";
+   var query="query($id:Int,$mal:Int){Media(id:$id,idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} recommendations(perPage:12,sort:RATING_DESC){nodes{mediaRecommendation{"+relatedFields+"}}} staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:30){nodes{"+relatedFields+"}}}}}}}";
    var payload=await xgq(query,{id:d.source?null:Number(d.id),mal:d.source?Number(d.mal)||null:null}),media=payload&&payload.Media;
    if(!media)throw new Error("No related data");
    var relSeen={},relations=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==d.id).map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true;});
@@ -259,7 +259,8 @@ async function loadRelated(d){
    var data={v:4,relations:relations,recommendations:recommendations,creatorName:creatorName,creatorWorks:creatorWorks,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
-   var el=$("#related-anime");if(el&&location.hash==="#title-"+d.id)el.innerHTML='<section class="shelf"><h2>Связанные аниме</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p></section>';
+   console.warn("[AniWatch] Related anime:",e);
+   var el=$("#related-anime");if(el&&location.hash==="#title-"+d.id)el.innerHTML='<section class="shelf"><h2>Связанные аниме</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p><p class="related-state"><small>Причина: '+esc(String(e&&e.message||e).slice(0,160))+'</small></p></section>';
   }finally{delete relatedPending[d.id]}
  })();
  return relatedPending[d.id];
