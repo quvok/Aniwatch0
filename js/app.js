@@ -166,8 +166,8 @@ async function loadCollectionsView(params){
  app.innerHTML='<p class="empty">Загружаем коллекции…</p>';
  try{
   var id=params&&params[0],currentUserId=AUTH_USER?.id||null;
-  if(id){var detail=await getCollection(id);renderCollectionsPage({app,detail,user:AUTH_USER,animeList:D,currentUserId});}
-  else{var collections=await listCollections(currentUserId);renderCollectionsPage({app,collections,user:AUTH_USER,currentUserId});}
+  if(id){var detail=await getCollection(id);detail.items.forEach(item=>{if(item.anime_data&&!M[item.anime_id])M[item.anime_id]=item.anime_data});renderCollectionsPage({app,detail,user:AUTH_USER,animeList:Object.values(M),currentUserId});}
+  else{var collections=await listCollections(currentUserId);renderCollectionsPage({app,collections,user:AUTH_USER,animeList:Object.values(M),currentUserId});}
  }catch(error){console.error("[AniWatch] Collections load failed:",error);app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить коллекции</h1><p>Проверь подключение и попробуй ещё раз.</p><button class="btn" data-a="collections-reload">Повторить</button></section>'}
 }
 V.collections=loadCollectionsView;
