@@ -22,7 +22,7 @@ function openLocalDB(){
   if(!window.indexedDB){resolve(null);return}
   const req=indexedDB.open("AniWatchLocal",1);
   req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("state"))db.createObjectStore("state")};
-  req.onsuccess=()=>{localDB=req.result;resolve(db)};
+  req.onsuccess=()=>{localDB=req.result;resolve(localDB)};
   req.onerror=()=>resolve(null);
  });
  return localDBReady;
