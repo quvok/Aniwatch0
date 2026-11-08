@@ -1600,3 +1600,66 @@ input,select,textarea{border-radius:11px}
  .aw-player-controls .stream-provider-tabs button{font-size:9px}
  .watch-episodes .eps{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+/* Mobile header: compact brand row + horizontally scrollable navigation */
+@media(max-width:700px){
+  header{
+    position:sticky;
+    top:env(safe-area-inset-top,0px);
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"brand profile" "navigation navigation";
+    align-items:center;
+    gap:8px 12px;
+    padding:9px 12px 8px;
+    flex-wrap:nowrap;
+    overflow:hidden;
+  }
+  header>.logo{grid-area:brand;font-size:22px;line-height:1.2}
+  header>.av{grid-area:profile;margin:0;width:36px;height:36px}
+  header>nav{
+    grid-area:navigation;
+    position:static;
+    left:auto;right:auto;bottom:auto;
+    display:flex;
+    width:100%;
+    min-width:0;
+    justify-content:flex-start;
+    gap:5px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    padding:2px 0 4px;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+  }
+  header>nav::-webkit-scrollbar{display:none}
+  header>nav a{
+    flex:0 0 auto;
+    min-height:34px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:7px 11px;
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:999px;
+    background:rgba(255,255,255,.035);
+    font-size:11px;
+    line-height:1;
+    white-space:nowrap;
+  }
+  header>nav a.on{
+    color:#fff;
+    background:rgba(155,107,255,.2);
+    border-color:rgba(155,107,255,.34);
+  }
+  main{padding-top:16px}
+}
+@media(max-width:360px){
+  header{padding-left:10px;padding-right:10px;gap:7px 9px}
+  header>.logo{font-size:20px}
+  header>nav a{padding:7px 9px;font-size:10px}
+}
