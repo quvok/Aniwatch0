@@ -135,7 +135,7 @@ V.home=()=>{
  renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
- loadHomeAiring();
+
 };
 
 var rc;
