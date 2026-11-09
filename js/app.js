@@ -324,7 +324,7 @@ function loadAnimeExtras(d){
    score:Number(raw.score)||Number(d.r)||0
   };
   animeExtraMemory[cacheId]=data;
-  try{localStorage.setItem("aw-anime-detail-v1-"+id,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+  try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
   renderAnimeExtras(d,data);
  })().catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[cacheId]});
 }
