@@ -5,7 +5,7 @@ function releaseCard(item){
  const id=item.shikimoriId?1000000000+item.shikimoriId:0;
  const title=id?'<a class="calendar-title" href="'+titleUrl(id)+'">'+esc(item.title)+'</a>':'<b class="calendar-title">'+esc(item.title)+'</b>';
  const episode=item.publishedEpisode!==null?'<span class="calendar-new-episode">Новая серия · '+esc(item.publishedEpisode)+'</span>':item.fullSeason?'<span class="calendar-season-done">Весь сезон вышел</span>':'<span class="calendar-next">Ожидается серия '+esc(item.nextEpisode??"—")+'</span>';
- const poster=item.poster?'<img src="'+esc(item.poster)+'" alt="" loading="lazy">':'<span class="calendar-poster-placeholder">AW</span>';
+ const poster=item.poster?'<img src="'+esc(item.poster)+'" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement("span"),{className:"calendar-poster-placeholder",textContent:"AW"}))">':'<span class="calendar-poster-placeholder">AW</span>';
  return '<article class="calendar-release">'+(id?'<a class="calendar-poster" href="'+titleUrl(id)+'">'+poster+'</a>':'<div class="calendar-poster">'+poster+'</div>')+'<div class="calendar-release-info">'+title+'<div class="calendar-release-meta">'+(item.year?item.year+" · ":"")+esc(item.type||"Аниме")+'</div><div class="calendar-episode-state">'+episode+'</div>'+(item.notification?'<p>'+esc(item.notification)+'</p>':"")+'</div></article>';
 }
 export function renderCalendarPage({app,items=[],loading=false,error=""}){
