@@ -2567,8 +2567,6 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .kodik-voice.on{border-color:rgba(167,139,250,.58);background:rgba(124,58,237,.2);color:#f3edff;box-shadow:inset 0 0 0 1px rgba(167,139,250,.08)}
 .kodik-voice.on small{color:#c5b2ff}
 .kodik-picker-bottom{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.kodik-season-label{display:flex;align-items:center;gap:7px;color:#918a9e;font-size:9px}
-.kodik-season-label select{padding:7px 25px 7px 9px;border:1px solid rgba(190,170,240,.14);border-radius:7px;background:#1a1722;color:#e9e2f5;font-size:10px}
 .kodik-current{flex:1;min-width:120px;color:#8e879d;font-size:9px}
 .kodik-picker-bottom .stream-load{min-height:32px;padding:7px 11px}
 .aw-player-shell .stream-stage{min-height:0;aspect-ratio:16/9;max-height:none}
