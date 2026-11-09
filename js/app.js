@@ -498,20 +498,25 @@ function mp(m){
 // AniList is the source of truth for catalog metadata and navigation IDs.
 // Do not treat AniList MAL IDs as Shikimori IDs. They are different ID namespaces.
 // AniList remains the source of truth; episode counts are enriched through MAL-aware services.
-async function enrichShikimori(list){
+async function enrichShikimori(list,{description=true}={}){
  var items=(list||[]).filter(Boolean);
  await Promise.all(items.map(async d=>{
-  if(!d||(!Number(d.mal)&&!Number(d.shikiId))||d.descriptionSource==="shikimori")return;
+  if(!d||(!Number(d.mal)&&!Number(d.shikiId))||(description&&d.descriptionSource==="shikimori"))return;
   try{
    var cached=S.ru&&S.ru[d.id];
-   if(cached&&cached.d){d.d=cached.d;d.descriptionSource="shikimori";return}
+   if(description&&cached&&cached.d){d.d=cached.d;d.descriptionSource="shikimori";return}
    var record=Number(d.shikiId)>0?await fetchAnimeById(Number(d.shikiId)):await fetchAnimeByMalId(Number(d.mal),[un(d.n),un(d.o)]);
-   var description=cleanDesc(record&&record.description||"");
-   if(!description)return;
-   d.d=description;d.descriptionSource="shikimori";
-   S.ru=S.ru||{};S.ru[d.id]={d:description,at:Date.now()};
-  }catch(error){console.warn("[AniWatch] Russian Shikimori description unavailable for",d.id,error)}
+   if(!record)return;
+   d.shikiId=Number(record.id)||d.shikiId||0;
+   var image=record.image||{},poster=shikimoriImageUrl(image.original||image.preview||image.x96||"");
+   if(poster&&!shikimoriImageUrl(d.img))d.img=poster;
+   if(description){
+    var text=cleanDesc(record.description||"");
+    if(text){d.d=text;d.descriptionSource="shikimori";S.ru=S.ru||{};S.ru[d.id]={d:text,at:Date.now()}}
+   }
+  }catch(error){console.warn("[AniWatch] Shikimori enrichment unavailable for",d.id,error)}
  }));
+ saveLocalState(S,M);
  return items;
 }
 
@@ -913,7 +918,7 @@ async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}
 async function xshikiPosters(L){
  L=(L||[]).filter(Boolean);
  var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
- if(needsLookup.length)await enrichShikimori(needsLookup);
+ if(needsLookup.length)await enrichShikimori(needsLookup,{description:false});
  var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
  try{
