@@ -268,8 +268,8 @@ async function loadNextEpisode(d){
 }
 
 var animeExtraPending={},animeExtraMemory={};
-function safeAnimeMediaUrl(value){
- try{var u=new URL(String(value||""),location.href);return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
+function safeAnimeMediaUrl(value,base){
+ try{var u=new URL(String(value||""),base||location.href);return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
 }
 function renderAnimeDescription(d,description){
  var node=$("#td");if(!node||!isRoute("title",d.id))return;
@@ -305,8 +305,8 @@ function renderAnimeExtras(d,data){
  var shots=screenshots.map(x=>{
   if(typeof x==="string"){var url=safeAnimeMediaUrl(x);return{full:url,preview:url}}
   x=x||{};
-  var full=safeAnimeMediaUrl(x.original||x.original_url||x.url||x.src||x.image_url);
-  var preview=safeAnimeMediaUrl(x.preview||x.x332||x.x166||x.preview_url||x.previewUrl||x.original||x.original_url||x.url||x.src||x.image_url);
+  var full=safeAnimeMediaUrl(x.original||x.original_url||x.originalUrl||x.url||x.src||x.image_url||x.imageUrl,"https://shikimori.io/");
+  var preview=safeAnimeMediaUrl(x.preview||x.x332||x.x166||x.preview_url||x.previewUrl||x.original||x.original_url||x.originalUrl||x.url||x.src||x.image_url||x.imageUrl,"https://shikimori.io/");
   return{full:full,preview:preview};
  }).filter(x=>x.full&&x.preview).slice(0,12);
  var shotHtml=shots.length?'<section class="anime-media-section"><div class="anime-media-heading"><h2>Кадры</h2><span>'+shots.length+'</span></div><div class="anime-screenshot-grid">'+shots.map(x=>'<a href="'+esc(x.full)+'" target="_blank" rel="noopener noreferrer"><img src="'+esc(x.preview)+'" alt="Кадр из аниме" loading="lazy"></a>').join("")+'</div></section>':"";
