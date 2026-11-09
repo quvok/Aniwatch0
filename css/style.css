@@ -2714,3 +2714,133 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .social-outgoing small{order:3;width:100%}
  .social-heading{align-items:flex-start}
 }
+
+
+/* Anime detail redesign — poster-led hierarchy, richer metadata and a mobile-first cover. */
+.title-page{
+ margin:0 0 28px;
+ border:1px solid rgba(190,180,230,.14);
+ border-radius:26px;
+ background:#10101a;
+ box-shadow:0 26px 78px rgba(0,0,0,.34);
+}
+.title-page:before{
+ background:
+  linear-gradient(90deg,rgba(8,8,14,.96) 0%,rgba(8,8,14,.88) 48%,rgba(8,8,14,.58) 100%),
+  linear-gradient(0deg,#09090f 0%,rgba(9,9,15,.08) 75%);
+}
+.title-backdrop{filter:blur(3px) saturate(.78);transform:scale(1.04);opacity:.82}
+.title-layout{
+ grid-template-columns:minmax(190px,230px) minmax(0,1fr);
+ gap:clamp(28px,4vw,48px);
+ align-items:start;
+ padding:clamp(26px,4vw,42px);
+}
+.title-cover{position:relative;gap:10px;align-content:start}
+.title-cover .poster.big{
+ width:100%;max-width:230px;aspect-ratio:2/3;
+ border-radius:17px;border:1px solid rgba(255,255,255,.18);
+ box-shadow:0 25px 60px rgba(0,0,0,.52);
+}
+.title-cover .cover-caption{font-size:9px;letter-spacing:.18em;color:rgba(230,222,255,.58);font-weight:800}
+.title-info{gap:13px;align-items:flex-start}
+.title-kicker{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.title-status-pill{
+ display:inline-flex;align-items:center;min-height:22px;padding:3px 9px;
+ border:1px solid rgba(167,139,250,.28);border-radius:999px;
+ background:rgba(139,92,246,.13);color:#d8c8ff;
+ font-size:9px;font-weight:850;letter-spacing:.04em;
+}
+.title-info h1{max-width:850px;font-size:clamp(32px,4.1vw,51px);line-height:1.05}
+.title-original{color:#aaa3bc;font-size:14px;line-height:1.4}
+.title-tags{display:flex;flex-wrap:wrap;gap:7px}
+.title-tags span{
+ padding:6px 10px;border:1px solid rgba(205,190,255,.15);border-radius:999px;
+ background:rgba(16,14,25,.52);color:#d4cde3;font-size:10px;font-weight:700;
+}
+.title-metrics{
+ gap:0;padding:14px 0;width:100%;
+ border-block:1px solid rgba(255,255,255,.1);
+}
+.title-metrics div{flex:1 1 110px;padding:0 14px;min-width:0}
+.title-metrics b{font-size:15px}
+.title-description{
+ width:100%;max-width:900px;padding:14px 16px;
+ border:1px solid rgba(190,180,230,.11);border-radius:14px;
+ background:rgba(9,9,15,.42);
+}
+.title-description-heading{
+ margin-bottom:8px;color:#b8a5ed;font-size:9px;font-weight:900;letter-spacing:.16em;
+}
+.title-description .desc-text{font-size:12px;line-height:1.72;color:#d4d0df}
+.title-description .desc-toggle{color:#c8b6ff;font-weight:800}
+.title-list-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.title-list-status label{font-size:11px;color:#a9a2b8;font-weight:750}
+.title-list-status select{min-width:180px;min-height:38px;padding:8px 12px;font-size:11px}
+.title-actions{width:100%;gap:8px}
+.title-actions .btn{min-height:42px;padding:10px 14px;font-size:11px}
+.title-actions .title-watch-primary{
+ min-width:210px;background:linear-gradient(110deg,#a985ff,#7045d4);
+ box-shadow:0 10px 28px rgba(112,66,216,.3);
+}
+.title-rating{display:flex;align-items:center;gap:5px}
+.title-rating>span{margin-right:7px;color:#a9a2b8;font-size:10px;font-weight:750}
+.title-rating .st{font-size:21px}
+.title-episodes{
+ margin:0 0 24px;padding:20px 22px;
+ border:1px solid rgba(190,180,230,.12);border-radius:18px;
+ background:linear-gradient(145deg,rgba(20,19,31,.92),rgba(12,12,19,.94));
+}
+.title-episodes .title-section-head{margin-bottom:13px}
+.title-episodes .title-section-head h2{margin:4px 0;font-size:23px}
+.title-episodes .episode-count{color:#aaa2b9;font-size:10px}
+.title-episodes .eps{padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:13px;background:rgba(5,5,10,.28)}
+.anime-extra-meta{width:100%;margin:0;padding:14px 16px;border-color:rgba(190,180,230,.12);background:rgba(9,9,15,.36)}
+.related-shelf{margin-top:24px}
+.related-shelf .shelf-head h2{margin-top:0}
+@media(max-width:700px){
+ .title-page{margin:0 0 18px;border-radius:18px}
+ .title-page:before{
+  background:linear-gradient(180deg,rgba(8,8,14,.15) 0%,rgba(8,8,14,.8) 28%,#09090f 66%);
+ }
+ .title-backdrop{background-position:center top!important;filter:blur(2px) saturate(.75);opacity:.62}
+ .title-layout{
+  display:flex;flex-direction:column;align-items:stretch;gap:16px;
+  padding:20px 15px 18px;
+ }
+ .title-cover{display:grid;justify-items:center;gap:8px;width:100%}
+ .title-cover .poster.big{
+  width:min(64vw,260px);max-width:260px;aspect-ratio:2/3;
+  border-radius:15px;box-shadow:0 20px 46px rgba(0,0,0,.55);
+ }
+ .title-cover .cover-caption{font-size:8px}
+ .title-info{display:flex;align-items:stretch;gap:10px;width:100%;text-align:left}
+ .title-kicker{font-size:8px;letter-spacing:.08em}
+ .title-info h1{font-size:clamp(24px,7vw,31px);line-height:1.08}
+ .title-original{font-size:11px}
+ .title-tags{gap:6px}
+ .title-tags span{padding:5px 8px;font-size:9px}
+ .title-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 7px;padding:11px 0}
+ .title-metrics div{padding:0 0 0 9px;border-left:1px solid rgba(255,255,255,.1)}
+ .title-metrics div:nth-child(odd){padding-left:0;border-left:0}
+ .title-metrics b{font-size:12px}
+ .title-metrics small{font-size:7px}
+ .title-description{padding:12px 13px}
+ .title-description .desc-text{font-size:11px;line-height:1.62}
+ .title-list-status{justify-content:space-between}
+ .title-list-status select{flex:1;min-width:0}
+ .title-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .title-actions .btn{min-width:0;min-height:39px;padding:9px 7px;font-size:10px;white-space:normal}
+ .title-actions .title-watch-primary{grid-column:1/-1;min-width:0}
+ .title-rating{padding:2px 0}
+ .title-episodes{padding:14px 12px;border-radius:14px}
+ .title-episodes .title-section-head h2{font-size:19px}
+ .title-episodes .eps{padding:9px}
+}
+@media(max-width:390px){
+ .title-layout{padding:16px 11px}
+ .title-cover .poster.big{width:min(68vw,235px)}
+ .title-actions{grid-template-columns:1fr}
+ .title-actions .title-watch-primary{grid-column:auto}
+ .title-list-status{align-items:stretch;flex-direction:column}
+}
