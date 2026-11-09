@@ -6,7 +6,7 @@ const releaseName=r=>textOf(r?.name)||r?.title||r?.name_english||r?.alias||"Бе
 const clean=s=>String(s||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim();
 const esc=s=>String(s??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 async function requestJson(url,timeout=9000){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);try{const response=await fetch(url,{headers:{Accept:"application/json"},signal:controller.signal});if(!response.ok)throw new Error("HTTP "+response.status);return await response.json()}finally{clearTimeout(timer)}}
-async function libertyRequest(path){const tasks=LIBERTY_BASES.map(base=>requestJson(base+path,6500));let last;for(const task of tasks){try{return await task}catch(error){last=error}}throw last||new Error("AniLiberty недоступен")}
+async function libertyRequest(path){const tasks=LIBERTY_BASES.map(base=>requestJson(base+path,6500));let last;for(const task of tasks){try{return await task}catch(error){last=error}}throw last||new Error("Резервный плеер недоступен")}
 function loadHls(){if(window.Hls)return Promise.resolve(window.Hls);if(hlsLoader)return hlsLoader;hlsLoader=new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js";script.async=true;script.onload=()=>window.Hls?resolve(window.Hls):reject(new Error("HLS.js не загрузился"));script.onerror=()=>{script.remove();reject(new Error("Не удалось загрузить HLS-плеер"))};document.head.appendChild(script)});return hlsLoader.catch(error=>{hlsLoader=null;throw error})}
 const releaseNames=r=>{const n=r?.name||{};return [...new Set([n.main,n.english,n.alternative,n.russian,r?.title,r?.name_english,r?.name_ru,r?.alias,...(Array.isArray(r?.names)?r.names:[])].map(textOf).map(x=>String(x||"").trim()).filter(Boolean))]};
 const animeNames=anime=>[anime?.n,anime?.o,anime?.title,anime?.originalTitle].map(x=>String(x||"").trim()).filter(Boolean);
@@ -115,7 +115,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   setStatus("Получаем видеопоток…");
   let detail=wanted,streams=getLibertyStreams(detail);
   if(!streams.length&&wanted.id){detail=await getLibertyEpisode(wanted.id);streams=getLibertyStreams(detail)}
-  if(!streams.length)throw new Error("AniLiberty не вернул HLS-ссылки для этой серии");
+  if(!streams.length)throw new Error("Не удалось получить видеопоток для этой серии");
   options.querySelector(".liberty-extra")?.remove();
   const extra=document.createElement("div");
   extra.className="liberty-extra";
@@ -314,7 +314,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">'+esc(error.message||"Источник недоступен")+'</span>';
     options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
     stage.innerHTML='<div class="stream-placeholder"><b>Дополнительный плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
-    setStatus("AnimeLib: "+(error.message||"ошибка загрузки"));
+    setStatus("Дополнительный плеер: "+(error.message||"ошибка загрузки"));
    }
    return;
   }
@@ -328,14 +328,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const watchUrl="https://v5.animelib.org/ru/anime/"+animeId+"/watch?episode="+encodeURIComponent(selected.id);
    options.innerHTML='<span class="stream-note">Дополнительный плеер · серия '+episode+' · '+esc(selected.name||"")+'</span><a class="stream-load" href="'+watchUrl+'" target="_blank" rel="noopener noreferrer">Открыть страницу <span>↗</span></a>';
    stage.innerHTML='<iframe class="stream-video" src="'+esc(watchUrl)+'" title="Видеоплеер" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
-   setStatus("AnimeLib · внешний плеер · синхронизация недоступна");
+   setStatus("Дополнительный плеер · синхронизация недоступна");
   }catch(error){
    try{await openAnimeLibPage(error.message||"API списка серий недоступен")}
    catch(fallbackError){
     options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">Список серий и поиск сейчас недоступны: '+esc(fallbackError.message||error.message||"ошибка сервера")+'</span>';
     options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
     stage.innerHTML='<div class="stream-placeholder"><b>Дополнительный плеер</b><small>'+esc(fallbackError.message||error.message||"Источник недоступен")+'</small></div>';
-    setStatus("AnimeLib: "+(fallbackError.message||error.message||"ошибка загрузки"));
+    setStatus("Дополнительный плеер: "+(fallbackError.message||error.message||"ошибка загрузки"));
    }
   }
  };
