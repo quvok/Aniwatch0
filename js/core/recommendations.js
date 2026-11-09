@@ -35,8 +35,13 @@ export function buildTasteProfile(library) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([name, weight]) => ({ name, weight }));
+  const avoidedGenres = [...weights.entries()]
+    .filter(([, weight]) => weight < -0.5)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 5)
+    .map(([name, weight]) => ({ name, weight }));
 
-  return { topGenres, usefulSignals, hasTaste: topGenres.length > 0 };
+  return { topGenres, avoidedGenres, usefulSignals, hasTaste: topGenres.length > 0 || avoidedGenres.length > 0 };
 }
 
 export function rankRecommendations(candidates, profile, excludedIds, limit = 12) {
@@ -57,16 +62,20 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
     const matches = (profile?.topGenres || [])
       .filter(item => normalizedGenres.includes(item.name))
       .sort((a, b) => b.weight - a.weight);
+    const avoidedMatches = (profile?.avoidedGenres || []).filter(item => normalizedGenres.includes(item.name));
     const genreScore = matches.reduce((sum, item) => sum + Math.min(4, item.weight) * 18, 0);
+    const avoidedPenalty = avoidedMatches.reduce((sum, item) => sum + Math.min(3, Math.abs(item.weight)) * 20, 0);
     const catalogScore = Math.max(0, Math.min(10, Number(anime.score ?? anime.r) || 0)) * 1.5;
     const recencyScore = Number(anime.aired_on || anime.y) >= new Date().getFullYear() - 1 ? 2 : 0;
-    const score = genreScore + catalogScore + recencyScore;
+    const score = genreScore - avoidedPenalty + catalogScore + recencyScore;
 
     const reason = matches.length
-      ? "Похоже на твой вкус: " + matches.slice(0, 2).map(item => item.name).join(", ")
-      : profile?.hasTaste
-        ? "Популярный тайтл с высоким рейтингом"
-        : "Популярный выбор зрителей — пока собираем твои предпочтения";
+      ? "Похоже на твой вкус: " + matches.slice(0, 2).map(item => item.name).join(", ") + (avoidedMatches.length ? " · учтены низкие оценки жанров" : "")
+      : avoidedMatches.length
+        ? "Учтены жанры, которые ты раньше низко оценивал"
+        : profile?.hasTaste
+          ? "Популярный тайтл с высоким рейтингом"
+          : "Популярный выбор зрителей — пока собираем твои предпочтения";
 
     ranked.push({ anime, score, reason });
   }
