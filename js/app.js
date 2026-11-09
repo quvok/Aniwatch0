@@ -238,8 +238,8 @@ async function loadNextEpisode(d){
  var host=$("#next-episode-info");
  if(!host||!d||!(/Онгоинг|RELEASING/i.test(String(d.s||""))))return;
  var request=++nextAiringRequest;
- var id=d.source==="shikimori"?0:Number(d.aniId||d.id)||0;
- var mal=d.source==="shikimori"?Number(d.mal)||0:0;
+ var id=d.source==="shikimori"||d.source==="anilibria"?0:Number(d.aniId||d.id)||0;
+ var mal=d.source==="shikimori"||d.source==="anilibria"?Number(d.mal)||0:0;
  if(!id&&!mal)return;
  var key="aw-next-airing-"+(id||("mal-"+mal)),cached=null;
  try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
@@ -559,6 +559,9 @@ async function loadRelated(d){
      if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
      query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
      vars={mal:Number(d.mal)};
+    }else if(d.source==="anilibria"&&Number(d.mal)>0){
+     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
+     vars={mal:Number(d.mal)};
     }else{
      query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+"}}} studios(isMain:true){nodes{name}}}}";
      vars={id:Number(d.aniId||d.id)};
@@ -571,6 +574,7 @@ async function loadRelated(d){
     try{
      var staffQuery,staffVars;
      if(d.source==="shikimori"){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
+     else if(d.source==="anilibria"&&Number(d.mal)>0){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
      else{staffQuery="query($id:Int){Media(id:$id,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={id:Number(d.aniId||d.id)}}
      var staffPayload=await xgq(staffQuery,staffVars),staffMedia=staffPayload&&staffPayload.Media;
      var staffEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&e.node.name&&e.node.name.full);
@@ -585,7 +589,8 @@ async function loadRelated(d){
     console.warn("[AniWatch] AniList relations unavailable; using Shikimori:",anilistError);
     // Relations fallback must work for AniList-origin titles too.
     // MAL IDs and Shikimori IDs are different namespaces: resolve MAL -> Shikimori first.
-    var shikiId=Number(d.shikiId)||Number(d.id)-1000000000;
+    var shikiId=Number(d.shikiId)||0;
+    if(!(shikiId>0)&&d.source!=="anilibria")shikiId=Number(d.id)-1000000000;
     if(!(shikiId>0)&&Number(d.mal)>0){
      var shikiMatches=await fetchAnimeByIds([Number(d.mal)]);
      shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0;
