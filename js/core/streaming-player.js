@@ -1,4 +1,4 @@
-import {getKodikToken,setKodikToken,searchKodikAnime,getKodikEpisodeLink} from "../api/kodik.js";
+import {searchKodikAnime,getKodikEpisodeLink} from "../api/kodik.js";
 const LIBERTY_BASES=["https://api.anilibria.app/api/v1","https://aniliberty.top/api/v1"];
 let hlsLoader=null,hlsInstance=null;
 const textOf=v=>typeof v==="string"?v:v&&typeof v==="object"?(v.main||v.english||v.russian||""):"";
@@ -164,29 +164,16 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
 
  const showKodik=async()=>{
   destroyHls();
-  options.innerHTML="";
+  options.innerHTML='<span class="stream-note">Ищем релизы в Kodik через защищённое подключение…</span>';
   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Подключаем каталог и плеер…</small></div>';
-  const token=getKodikToken();
-  if(!token){
-   options.innerHTML='<label class="stream-note" for="kodik-token">API-токен Kodik</label><input id="kodik-token" type="password" autocomplete="off" placeholder="Вставь токен Kodik" style="width:min(100%,420px);padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit"><button type="button" class="stream-load" id="kodik-connect">Подключить Kodik <span>→</span></button><small class="stream-note">Токен хранится только в текущей вкладке браузера и не записывается в GitHub.</small>';
-   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Для доступа к API нужен токен.</small></div>';
-   options.querySelector("#kodik-connect").addEventListener("click",()=>{
-    const value=String(options.querySelector("#kodik-token")?.value||"").trim();
-    if(!value){setStatus("Введи токен Kodik");return}
-    setKodikToken(value);showKodik();
-   });
-   setStatus("Kodik · ожидает API-токен");
-   return;
-  }
-  options.innerHTML='<span class="stream-note">Ищем аниме в Kodik…</span>';
   setStatus("Kodik · поиск релизов…");
   try{
-   const releases=await searchKodikAnime(anime,token);
+   const releases=await searchKodikAnime(anime);
    if(!releases.length)throw new Error("Kodik не нашёл подходящих релизов для этого аниме");
    let selected=releases[0];
    const render=()=>{
     const optionsHtml=releases.map((item,index)=>'<option value="'+index+'" '+(item===selected?'selected':'')+'>'+esc(item.translation?.title||"Неизвестная озвучка")+' · '+esc(item.quality||"качество неизвестно")+' · '+esc(item.id||"")+'</option>').join("");
-    options.innerHTML=(releases.length>1?'<label>Озвучка / релиз<select id="kodik-release">'+optionsHtml+'</select></label>':'<span class="stream-note">'+esc(selected.translation?.title||"Kodik")+' · '+esc(selected.quality||"")+'</span>')+'<button type="button" class="stream-load" id="kodik-play">Смотреть серию '+episode+' <span>→</span></button><button type="button" class="stream-load" id="kodik-change-token" style="opacity:.75">Сменить токен</button>';
+    options.innerHTML=(releases.length>1?'<label>Озвучка / релиз<select id="kodik-release">'+optionsHtml+'</select></label>':'<span class="stream-note">'+esc(selected.translation?.title||"Kodik")+' · '+esc(selected.quality||"")+'</span>')+'<button type="button" class="stream-load" id="kodik-play">Смотреть серию '+episode+' <span>→</span></button>';
     const select=options.querySelector("#kodik-release");
     if(select)select.addEventListener("change",()=>{selected=releases[Number(select.value)]||releases[0];render()});
     options.querySelector("#kodik-play").addEventListener("click",()=>{
@@ -197,15 +184,13 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
      const hasEpisode=Object.values(selected.seasons||{}).some(season=>Object.keys(season?.episodes||{}).some(key=>Number(key)===Number(episode)));
      setStatus("Kodik · "+esc(selected.translation?.title||"озвучка")+" · "+(hasEpisode?"серия "+episode:"плеер релиза"));
     });
-    options.querySelector("#kodik-change-token").addEventListener("click",()=>{setKodikToken("");showKodik()});
    };
    render();
    stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Найдено релизов: '+releases.length+'. Выбери озвучку и запусти серию.</small></div>';
    setStatus("Kodik · найдено релизов: "+releases.length);
   }catch(error){
-   options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button><button type="button" class="stream-load" id="kodik-change-token">Сменить токен</button>';
+   options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#kodik-retry").addEventListener("click",showKodik);
-   options.querySelector("#kodik-change-token").addEventListener("click",()=>{setKodikToken("");showKodik()});
    stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
    setStatus("Kodik: "+(error.message||"ошибка поиска"));
   }
