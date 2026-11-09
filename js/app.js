@@ -670,7 +670,7 @@ var xMF="id idMal format title{romaji english}genres seasonYear startDate{year m
 HOME_QUERY="query{trending:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:TRENDING_DESC){"+xMF+"}}popular:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,sort:POPULARITY_DESC){"+xMF+"}}ongoing:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status:RELEASING,sort:POPULARITY_DESC){"+xMF+"}}recent:Page(page:1,perPage:8){pageInfo{total}media(type:ANIME,isAdult:false,status_in:[RELEASING,FINISHED],sort:START_DATE_DESC){"+xMF+"}}}",
 homeCollections=null;
 async function loadHomeCollections(){
- var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v3")||"null")}catch(e){}
+ var cache=null;try{cache=JSON.parse(localStorage.getItem("aw-home-v4")||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
   async function collect(options){
@@ -688,11 +688,11 @@ async function loadHomeCollections(){
    return result;
   }
   var [trending,popular,ongoing,recent]=await Promise.all([
-   collect({order:"popularity"}),collect({order:"ranked"}),
+   collect({order:"ranked"}),collect({order:"popularity"}),
    collect({order:"popularity",status:"ongoing"}),collect({order:"aired_on",status:"released"})
   ]);
   data={trending:trending,popular:popular,ongoing:ongoing,recent:recent};
-  try{localStorage.setItem("aw-home-v3",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+  try{localStorage.setItem("aw-home-v4",JSON.stringify({at:Date.now(),data:data}))}catch(e){}
  }
  var seenIds=new Set();
  var map=list=>(Array.isArray(list)?list:[]).filter(item=>{
