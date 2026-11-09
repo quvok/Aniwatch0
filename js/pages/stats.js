@@ -59,7 +59,7 @@ async function loadStats(){
   // Keep only anime detail/watch routes, merge both route types into one anime total.
   const animeViews=new Map();
   for(const item of popular){
-    const match=String(item.path||"").match(/^\\/(anime|watch)\\.html\\/(\\d+)$/i);
+    const match=String(item.path||"").match(/^\/(anime|watch)\.html\/(\d+)$/i);
     if(!match)continue;
     const internalId=Number(match[2]);
     const shikiId=internalId>=1000000000?internalId-1000000000:0;
