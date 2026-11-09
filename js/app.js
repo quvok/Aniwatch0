@@ -287,6 +287,7 @@ async function loadKodikEpisodes(d){
   }else if(isRoute("watch",d.id)){
    var list=$(".watch-episodes .eps");if(list)list.innerHTML=eps(d,Number(routeArgs()[1])||1);
    document.querySelectorAll('[data-episode-progress="'+d.id+'"]').forEach(el=>{el.textContent=watchedFor(d.id).length+" / "+(epTotal(d)||"—")+" просмотрено"});
+   var toolbarTotal=$(".watch-toolbar > div span");if(toolbarTotal)toolbarTotal.textContent="из "+(epTotal(d)||"?");
   }
  };
  if(kodikEpisodeMemory[cacheId]){apply(kodikEpisodeMemory[cacheId]);return}
