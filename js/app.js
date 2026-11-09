@@ -677,6 +677,15 @@ homeCollections=null;
 function normalizeMatchTitle(value){
  return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu,"").trim();
 }
+function aniLibriaPosterUrl(release){
+ var poster=release&&release.poster||{},optimized=poster.optimized||{};
+ var candidates=[optimized.src,poster.src,optimized.preview,poster.preview,optimized.thumbnail,poster.thumbnail];
+ for(var value of candidates){
+  if(typeof value!=="string"||!value.trim())continue;
+  try{return new URL(value.trim(),"https://anilibria.top").href}catch(e){}
+ }
+ return "";
+}
 function aniLibriaNames(release){
  var name=release&&release.name||{};
  return [name.main,name.english,...String(name.alternative||"").split(",")].map(value=>String(value||"").trim()).filter(Boolean);
@@ -744,8 +753,9 @@ async function loadHomeCollections(){
   if(!item)return null;
   var mapped=shikiToItem(item);
   if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId)))return null;
-  // AniLibria supplies the poster for its own release; Shikimori remains the fallback.
-  if(release&&release.poster)mapped.img=shikiImageUrl(release.poster)||mapped.img;
+  // AniLibria supplies the primary poster; retain Shikimori artwork as an on-error fallback.
+  var aniPoster=aniLibriaPosterUrl(release);
+  if(aniPoster){mapped.posterFallback=shikiImageUrl(mapped.img);mapped.img=aniPoster;}
   seenIds.add(Number(mapped.shikiId));
   return mapped;
  }
@@ -837,7 +847,7 @@ async function xshikiPosters(L){
   var poster=el.classList.contains("card")?el.querySelector(".poster"):el.classList.contains("collection-anime-poster")?el:el.classList.contains("poster")?el:null;
   if(!poster)return;
   if(el.classList.contains("collection-anime-poster")){var img=document.createElement("img");img.src=d.img;img.alt="";img.loading="eager";img.fetchPriority="low";poster.replaceChildren(img)}
-  else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="eager";img.fetchPriority="low";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;img.onerror=function(){this.removeAttribute("src");this.style.display="none"};var letter=poster.querySelector("i");if(letter)letter.remove()}
+  else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="eager";img.fetchPriority="low";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;img.onerror=function(){var fallback=d.posterFallback;if(fallback&&this.dataset.posterFallback!=="used"){this.dataset.posterFallback="used";this.src=fallback;return}this.removeAttribute("src");this.style.display="none"};var letter=poster.querySelector("i");if(letter)letter.remove()}
  });
  var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&shikiImageUrl(current.img))player.style.background=bn(current);
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
