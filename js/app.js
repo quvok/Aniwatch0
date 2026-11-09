@@ -333,7 +333,7 @@ function renderAnimeExtras(d,data){
  var videoHtml="";
  if(trailer){
   var trailerUrl=safeAnimeMediaUrl(trailer.player_url||trailer.playerUrl||trailer.url),trailerImage=safeAnimeMediaUrl(trailer.image_url||trailer.imageUrl);
-  videoHtml='<section class="anime-media-section"><div class="anime-media-heading"><h2>Трейлер</h2><span>Нажми, чтобы увеличить</span></div><div class="anime-video-grid"><button type="button" class="anime-video-card" data-a="anime-media-open" data-src="'+esc(trailerImage||trailerUrl)+'" data-title="'+esc(trailer.name||"Трейлер")+'">'+(trailerImage?'<img src="'+esc(trailerImage)+'" alt="" loading="lazy">':'<span class="anime-video-placeholder">▶</span>')+'<span class="anime-video-caption">'+esc(trailer.name||"Смотреть трейлер")+'</span><span class="anime-video-play">▶</span></button><a class="anime-trailer-open" href="'+esc(trailerUrl)+'" target="_blank" rel="noopener noreferrer">Открыть трейлер ↗</a></div></section>';
+  videoHtml='<section class="anime-media-section"><div class="anime-media-heading"><h2>Трейлер</h2><span>Нажми, чтобы увеличить</span></div><div class="anime-video-grid"><button type="button" class="anime-video-card" data-a="anime-media-open" data-src="'+esc(trailerUrl)+'" data-kind="video" data-title="'+esc(trailer.name||"Трейлер")+'">'+(trailerImage?'<img src="'+esc(trailerImage)+'" alt="" loading="lazy">':'<span class="anime-video-placeholder">▶</span>')+'<span class="anime-video-caption">'+esc(trailer.name||"Смотреть трейлер")+'</span><span class="anime-video-play">▶</span></button><a class="anime-trailer-open" href="'+esc(trailerUrl)+'" target="_blank" rel="noopener noreferrer">Открыть трейлер ↗</a></div></section>';
  }
  var ratingHtml="";
  if(scoreStats.length){
@@ -1202,7 +1202,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
   var src=safeAnimeMediaUrl(t.dataset.src),title=t.dataset.title||"Просмотр";
   if(src){
    var overlay=document.createElement("div");overlay.className="anime-media-lightbox";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-label",title);
-   overlay.innerHTML='<div class="anime-media-lightbox-panel"><button type="button" class="anime-media-lightbox-close" aria-label="Закрыть">×</button><img src="'+esc(src)+'" alt="'+esc(title)+'"><span>'+esc(title)+'</span></div>';
+   overlay.innerHTML='<div class="anime-media-lightbox-panel"><button type="button" class="anime-media-lightbox-close" aria-label="Закрыть">×</button>'+(t.dataset.kind==="video"?'<iframe src="'+esc(src)+'" title="'+esc(title)+'" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>':'<img src="'+esc(src)+'" alt="'+esc(title)+'">')+'<span>'+esc(title)+'</span></div>';
    overlay.addEventListener("click",event=>{if(event.target===overlay||event.target.closest(".anime-media-lightbox-close"))overlay.remove()});
    document.body.appendChild(overlay);
   }
