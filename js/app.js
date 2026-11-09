@@ -20,6 +20,7 @@ import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./co
 import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
 import { fetchAniLibriaWeek, fetchAniLibriaHomeCollections } from "./api/anilibria.js";
+import { searchKodikAnime } from "./api/kodik.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 (function(){
 if(legacyRedirect())return;
@@ -67,8 +68,8 @@ function newEpisodeBadge(d){var item=scheduleEntryForAnime(d);return item&&item.
 async function loadAniLibriaSchedule(force){if(anilibriaSchedule&&!force)return anilibriaSchedule;if(anilibriaSchedulePending)return anilibriaSchedulePending;anilibriaSchedulePending=fetchAniLibriaWeek(!!force).then(items=>{anilibriaSchedule=items;return items}).finally(()=>{anilibriaSchedulePending=null});return anilibriaSchedulePending}
 var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
-var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
-var availableEpCount=d=>{var id=Number(d&&d.id),mal=Number(d&&d.mal),records=[S.aniEpisodes&&S.aniEpisodes[id],S.aniZipEpisodes&&S.aniZipEpisodes[id],S.kitsuEpisodes&&S.kitsuEpisodes[mal]].filter(x=>x&&Number.isFinite(Number(x.available))),counts=records.map(x=>Math.max(0,Number(x.available)));if(Number(d&&d.ae)>0)counts.push(Number(d.ae));if(counts.length)return Math.max(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):null};
+var epTotal=d=>Math.max(Number(d&&d.e)||0,Number(d&&d.kodikEpisodeCount)||0,Number(d&&d.ae)||0);
+var availableEpCount=d=>{var id=Number(d&&d.id),mal=Number(d&&d.mal),records=[S.aniEpisodes&&S.aniEpisodes[id],S.aniZipEpisodes&&S.aniZipEpisodes[id],S.kitsuEpisodes&&S.kitsuEpisodes[mal]].filter(x=>x&&Number.isFinite(Number(x.available))),counts=records.map(x=>Math.max(0,Number(x.available)));if(Number(d&&d.kodikAvailableEpisodes)>0)counts.push(Number(d.kodikAvailableEpisodes));if(Number(d&&d.ae)>0)counts.push(Number(d.ae));if(counts.length)return Math.max(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):null};
 var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].map(Number):[];
 var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id),available=availableEpCount(d);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n),upcoming=available!==null&&n>available;return '<span class="episode-item'+(done?' is-watched':'')+(upcoming?' is-upcoming':'')+'">'+(upcoming?'<span class="episode-number" aria-label="Серия '+n+' ещё не вышла">'+n+'</span><small class="episode-upcoming-label">Скоро</small>':'<a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>')+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':'Смотреть серию '+n+' здесь')+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>'+(upcoming?'–':done?'✓':'○')+'</button></span>'}).join('')};
 function refreshEpisodeMarks(id){var watched=watchedFor(id),total=epTotal(M[id]||{}),count=watched.length;document.querySelectorAll('.episode-item').forEach(item=>{var b=item.querySelector('[data-a="episode-toggle"]');if(!b||Number(b.dataset.i)!==Number(id))return;var n=Number(b.dataset.v),done=watched.includes(n);item.classList.toggle('is-watched',done);b.classList.toggle('is-watched',done);b.setAttribute('aria-pressed',String(done));b.setAttribute('aria-label',(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n);b.textContent=done?'✓':'○'});document.querySelectorAll('[data-episode-progress="'+id+'"]').forEach(el=>{el.textContent=count+' / '+(total||'—')+' просмотрено'})}
@@ -267,9 +268,47 @@ async function loadNextEpisode(d){
  }catch(error){console.warn("[AniWatch] Next episode lookup failed:",error)}
 }
 
-var animeExtraPending={},animeExtraMemory={};
+var animeExtraPending={},animeExtraMemory={},kodikEpisodePending={},kodikEpisodeMemory={};
 function safeAnimeMediaUrl(value,base){
  try{var u=new URL(String(value||""),base||location.href);return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
+}
+async function loadKodikEpisodes(d){
+ if(!d)return;
+ var cacheId=Number(d.shikiId)||Number(d.id);
+ if(!cacheId)return;
+ var apply=data=>{
+  d.kodikEpisodeCount=Math.max(Number(d.e)||0,Number(data.total)||0);
+  d.kodikAvailableEpisodes=Number(data.available)||0;
+  d.kodikEpisodeNumbers=data.numbers||[];
+  if(isRoute("title",d.id)){
+   var count=$("#title-count");if(count)count.textContent=epTotal(d)>0?epTotal(d)+" эпизодов":"Количество серий уточняется";
+   var list=$(".title-episodes .eps");if(list)list.innerHTML=eps(d,0,true);
+   document.querySelectorAll('[data-episode-progress="'+d.id+'"]').forEach(el=>{el.textContent=watchedFor(d.id).length+" / "+(epTotal(d)||"—")+" просмотрено"});
+  }else if(isRoute("watch",d.id)){
+   var list=$(".watch-episodes .eps");if(list)list.innerHTML=eps(d,Number(routeArgs()[1])||1);
+   document.querySelectorAll('[data-episode-progress="'+d.id+'"]').forEach(el=>{el.textContent=watchedFor(d.id).length+" / "+(epTotal(d)||"—")+" просмотрено"});
+  }
+ };
+ if(kodikEpisodeMemory[cacheId]){apply(kodikEpisodeMemory[cacheId]);return}
+ if(kodikEpisodePending[cacheId])return kodikEpisodePending[cacheId];
+ kodikEpisodePending[cacheId]=(async()=>{
+  var releases=await searchKodikAnime(d);
+  var candidates=releases.map(item=>{
+   var numbers=[];
+   Object.entries(item&&item.seasons||{}).forEach(([seasonKey,season])=>{
+    Object.entries(season&&season.episodes||{}).forEach(([key,value])=>{
+     var n=Number(value&&(value.episode??value.number)||key);
+     if(Number.isFinite(n)&&n>0)numbers.push(n);
+    });
+   });
+   numbers=[...new Set(numbers)].sort((a,b)=>a-b);
+   return {numbers,total:numbers.length?Math.max(...numbers):0};
+  }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+  if(!candidates.length)return;
+  var best=candidates[0],data={total:best.total,available:best.total,numbers:best.numbers};
+  kodikEpisodeMemory[cacheId]=data;apply(data);
+ })().catch(error=>console.warn("[AniWatch] Kodik episode metadata unavailable:",error)).finally(()=>{delete kodikEpisodePending[cacheId]});
+ return kodikEpisodePending[cacheId];
 }
 function renderAnimeDescription(d,description){
  var node=$("#td");if(!node||!isRoute("title",d.id))return;
@@ -349,7 +388,7 @@ V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
- loadNextEpisode(d);loadAnimeExtras(d);ru(d);loadRelated(d)
+ loadNextEpisode(d);loadAnimeExtras(d);loadKodikEpisodes(d);ru(d);loadRelated(d)
 };
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
@@ -402,6 +441,7 @@ function pauseSave(){if(P&&!P.on&&P.t>0){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.no
 function nextEp(){var d=P.d,n=P.n,tot=epTotal(d);setEpisodeWatched(d.id,n,true);if(n<tot){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}location.href=watchUrl(d.id,n+1)}else if(!tot){S.hist[d.id]={ep:n,t:0,at:Date.now()};sv();toast("Серия закончилась");$(".play").textContent="▶"}else{delete S.hist[d.id];sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
 V.watch=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
+ loadKodikEpisodes(d);
  var queryRoom=new URLSearchParams(location.search).get("room");
  if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1",roomChanged=S.room!==normalized;if(roomChanged||guestInvite){S.room=normalized;if(roomChanged||guestInvite)S.roomHost=false;S.roomAnime=d.id;sv()}}
  var n=Math.max(p[1]||1,1),h=S.hist[d.id],available=availableEpCount(d);if(epTotal(d)>0)n=Math.min(n,epTotal(d));if(available!==null&&n>available){document.title=htmlText(d.n)+" · серия ещё не вышла — AniWatch";app.innerHTML='<section class="offline-state"><div class="eyebrow">СКОРО</div><h1>Эта серия ещё не вышла</h1><p>Сейчас доступно '+available+' серий. Вернись позже, когда выйдет серия '+n+'.</p><a class="btn" href="'+titleUrl(d.id)+'">Вернуться к аниме</a></section>';return}document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
