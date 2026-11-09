@@ -266,11 +266,67 @@ async function loadNextEpisode(d){
   host.hidden=false;
  }catch(error){console.warn("[AniWatch] Next episode lookup failed:",error)}
 }
+
+var animeExtraPending={},animeExtraMemory={};
+function safeAnimeMediaUrl(value){
+ try{var u=new URL(String(value||""),location.href);return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
+}
+function renderAnimeExtras(d,data){
+ var host=$("#anime-extra-sections");if(!host||!isRoute("title",d.id))return;
+ var videos=Array.isArray(data.videos)?data.videos:[];
+ var screenshots=Array.isArray(data.screenshots)?data.screenshots:[];
+ var scoreStats=Array.isArray(data.rates_scores_stats)?data.rates_scores_stats:[];
+ var groups=[
+  {title:"Трейлеры",kinds:["pv","character_trailer","cm","clip","episode_preview"]},
+  {title:"Опенинги",kinds:["op","op_ed_clip"]},
+  {title:"Эндинги",kinds:["ed"]}
+ ];
+ var videoHtml=groups.map(group=>{
+  var items=videos.filter(v=>group.kinds.includes(String(v.kind||"").toLowerCase())).slice(0,8);
+  if(!items.length)return "";
+  return '<section class="anime-media-section"><div class="anime-media-heading"><h2>'+group.title+'</h2><span>'+items.length+'</span></div><div class="anime-video-grid">'+items.map(v=>{
+   var url=safeAnimeMediaUrl(v.player_url||v.playerUrl||v.url),image=safeAnimeMediaUrl(v.image_url||v.imageUrl);
+   if(!url)return "";
+   return '<a class="anime-video-card" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+(image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'<span class="anime-video-placeholder">▶</span>')+'<span class="anime-video-caption">'+esc(v.name||group.title)+'</span><span class="anime-video-play">▶</span></a>';
+  }).join("")+'</div></section>';
+ }).join("");
+ var ratingHtml="";
+ if(scoreStats.length){
+  var rows=scoreStats.map(x=>({score:Number(x.score)||0,count:Math.max(0,Number(x.count)||0)})).filter(x=>x.score>0&&x.count>0).sort((a,b)=>b.score-a.score).slice(0,10);
+  var total=rows.reduce((sum,x)=>sum+x.count,0),max=Math.max(1,...rows.map(x=>x.count));
+  if(rows.length)ratingHtml='<section class="anime-rating-section"><div class="anime-media-heading"><h2>Оценки зрителей</h2><span>'+total.toLocaleString("ru-RU")+' голосов</span></div><div class="anime-rating-layout"><div class="anime-rating-score"><b>'+(Number(data.score)||Number(d.r)||0).toFixed(1)+'</b><span>средняя оценка</span></div><div class="anime-rating-bars">'+rows.map(x=>'<div class="anime-rating-row"><span>'+x.score+'</span><i><b style="width:'+Math.round(x.count/max*100)+'%"></b></i><small>'+x.count.toLocaleString("ru-RU")+'</small></div>').join("")+'</div></div></section>';
+ }
+ var shots=screenshots.map(x=>({full:safeAnimeMediaUrl(x.original||x.original_url),preview:safeAnimeMediaUrl(x.preview||x.x332||x.x166||x.original||x.original_url)})).filter(x=>x.full&&x.preview).slice(0,12);
+ var shotHtml=shots.length?'<section class="anime-media-section"><div class="anime-media-heading"><h2>Кадры</h2><span>'+shots.length+'</span></div><div class="anime-screenshot-grid">'+shots.map(x=>'<a href="'+esc(x.full)+'" target="_blank" rel="noopener noreferrer"><img src="'+esc(x.preview)+'" alt="Кадр из аниме" loading="lazy"></a>').join("")+'</div></section>':"";
+ host.innerHTML=videoHtml+ratingHtml+shotHtml;
+ host.hidden=!host.innerHTML;
+}
+function loadAnimeExtras(d){
+ var id=Number(d.shikiId)||0,host=$("#anime-extra-sections");if(!id||!host)return;
+ var key="aw-anime-detail-v1-"+id,now=Date.now();
+ if(animeExtraMemory[id]){renderAnimeExtras(d,animeExtraMemory[id]);return}
+ try{
+  var saved=JSON.parse(localStorage.getItem(key)||"null");
+  if(saved&&now-Number(saved.at)<86400000&&saved.data){animeExtraMemory[id]=saved.data;renderAnimeExtras(d,saved.data);return}
+ }catch(e){}
+ if(animeExtraPending[id])return;
+ animeExtraPending[id]=fetchAnimeById(id).then(raw=>{
+  var data={
+   videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
+   screenshots:Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[],
+   rates_scores_stats:Array.isArray(raw.rates_scores_stats)?raw.rates_scores_stats:[],
+   score:Number(raw.score)||Number(d.r)||0
+  };
+  animeExtraMemory[id]=data;
+  try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+  renderAnimeExtras(d,data);
+ }).catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[id]});
+}
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
- loadNextEpisode(d);ru(d);loadRelated(d)
+ loadNextEpisode(d);loadAnimeExtras(d);ru(d);loadRelated(d)
 };
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
