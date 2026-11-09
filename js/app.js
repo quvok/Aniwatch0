@@ -811,7 +811,7 @@ async function fillShikimoriHomeShelf(initial,options,used){
  return result;
 }
 async function loadHomeCollections(){
- var cacheKey="aw-hybrid-home-v2",cache=null;try{cache=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
+ var cacheKey="aw-hybrid-home-v3",cache=null;try{cache=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
   var used=new Set();
