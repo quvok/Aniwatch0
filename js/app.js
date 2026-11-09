@@ -270,7 +270,7 @@ async function loadNextEpisode(d){
 
 var animeExtraPending={},animeExtraMemory={},kodikEpisodePending={},kodikEpisodeMemory={};
 function safeAnimeMediaUrl(value,base){
- try{var u=new URL(String(value||""),base||location.href);return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
+ try{var u=new URL(String(value||""),base||location.href);if(u.protocol==="http:"&&u.hostname==="img.youtube.com")u.protocol="https:";return u.protocol==="https:"||u.protocol==="http:"?u.href:""}catch(e){return ""}
 }
 async function loadKodikEpisodes(d){
  if(!d)return;
@@ -326,19 +326,19 @@ function renderAnimeDescription(d,description){
 async function fetchShikimoriAnimeScreenshots(shikiId){
  var id=Number(shikiId);if(!Number.isFinite(id)||id<=0)return[];
  var controller=typeof AbortController!=="undefined"?new AbortController():null;
- var timeout=controller?setTimeout(()=>controller.abort(),6500):null;
+ var timeout=controller?setTimeout(()=>controller.abort(),12000):null;
  try{
   var response=await fetch("https://shikimori.io/api/animes/"+encodeURIComponent(id)+"/screenshots",{signal:controller?controller.signal:undefined,headers:{Accept:"application/json"}});
   if(!response.ok)throw new Error("Shikimori screenshots HTTP "+response.status);
   var payload=await response.json();
   return Array.isArray(payload)?payload:[];
- }catch(error){console.warn("[AniWatch] Shikimori screenshots endpoint unavailable:",error);return[]}
+ }catch(error){if(error&&error.name!=="AbortError")console.warn("[AniWatch] Shikimori screenshots endpoint unavailable:",error);return[]}
  finally{if(timeout)clearTimeout(timeout)}
 }
 async function fetchJikanAnimePictures(malId){
  var id=Number(malId);if(!Number.isFinite(id)||id<=0)return[];
  var controller=typeof AbortController!=="undefined"?new AbortController():null;
- var timeout=controller?setTimeout(()=>controller.abort(),6500):null;
+ var timeout=controller?setTimeout(()=>controller.abort(),12000):null;
  try{
   var response=await fetch("https://api.jikan.moe/v4/anime/"+encodeURIComponent(id)+"/pictures",{signal:controller?controller.signal:undefined,headers:{Accept:"application/json"}});
   if(!response.ok)throw new Error("Jikan HTTP "+response.status);
@@ -349,7 +349,7 @@ async function fetchJikanAnimePictures(malId){
    var preview=jpg.small_image_url||webp.small_image_url||jpg.image_url||webp.image_url||full;
    return full?{original:full,preview:preview}:null;
   }).filter(Boolean).slice(0,20);
- }catch(error){console.warn("[AniWatch] Jikan screenshots unavailable:",error);return[]}
+ }catch(error){if(error&&error.name!=="AbortError")console.warn("[AniWatch] Jikan screenshots unavailable:",error);return[]}
  finally{if(timeout)clearTimeout(timeout)}
 }
 function mergeAnimeScreenshots(primary,secondary){
@@ -796,6 +796,7 @@ async function loadRelated(d){
  if(saved&&saved.v===10&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
+  var relatedFallbackLimited=false;
   try{
    var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[];
    try{
@@ -836,7 +837,22 @@ async function loadRelated(d){
      shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0;
     }
     if(!(shikiId>0))throw new Error("Не удалось найти связанные данные об этом аниме");
-    var rawRelated=await fetchAnimeRelated(shikiId);
+    var rawRelated=[];
+    var cooldownKey="aw-related-cooldown-"+shikiId,cooldownUntil=0;
+    try{cooldownUntil=Number(localStorage.getItem(cooldownKey))||0}catch(e){}
+    if(cooldownUntil>Date.now()){
+     relatedFallbackLimited=true;
+     console.info("[AniWatch] Shikimori related lookup paused after rate limit");
+    }else{
+     try{rawRelated=await fetchAnimeRelated(shikiId)}
+     catch(relatedError){
+      if(/HTTP 429/.test(String(relatedError&&relatedError.message||relatedError))){
+       relatedFallbackLimited=true;
+       try{localStorage.setItem(cooldownKey,String(Date.now()+10*60*1000))}catch(e){}
+       console.warn("[AniWatch] Shikimori rate limited related anime; retry will be delayed");
+      }else throw relatedError;
+     }
+    }
     var convert=function(a){
      if(!a||!Number(a.id))return null;
      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
@@ -852,7 +868,8 @@ async function loadRelated(d){
    var all=relations.map(x=>x.anime).concat(creatorWorks);
    await translateRelated(all);
    var data={v:10,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
-   cached[d.id]=data;sv();renderRelated(d,data);
+   if(!relatedFallbackLimited){cached[d.id]=data;sv()}
+   renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
    var el=$("#related-anime");if(el&&isRoute("title",d.id))el.innerHTML='<section class="shelf"><h2>Связанные релизы</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p><p class="related-state"><small>Причина: '+esc(String(e&&e.message||e).slice(0,160))+'</small></p></section>';
