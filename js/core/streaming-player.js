@@ -60,10 +60,10 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
  <div class="aw-player-shell">
-  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
+  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> KODIK · MAIN</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="animelib">AnimeLib</button><button type="button" data-provider="kodik">Kodik</button></div><div class="stream-options" id="stream-options"></div></div>
-  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Kodik <em>MAIN</em></button><button type="button" data-provider="liberty">AniLiberty</button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="animelib">AnimeLib</button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Kodik · основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
  let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="";
@@ -328,6 +328,6 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));
  reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
- showLiberty()
+ showKodik()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
