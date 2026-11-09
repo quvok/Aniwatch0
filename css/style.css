@@ -1499,7 +1499,7 @@ input,select,textarea{border-radius:11px}
 .aw-player-shell .stream-placeholder b{font-size:13px;letter-spacing:.3px}
 .aw-player-shell .stream-placeholder small{max-width:380px;color:#777286;font-size:10px;line-height:1.5}
 .aw-player-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;background:#100e17;border-top:1px solid rgba(255,255,255,.055)}
-.aw-player-controls .stream-provider-tabs{gap:5px}
+.aw-player-controls .stream-provider-tabs{gap:5px;flex-wrap:wrap}
 .aw-player-controls .stream-provider-tabs button{padding:8px 10px;border-radius:8px;background:#191622;color:#9e97ad;font-size:10px}
 .aw-player-controls .stream-provider-tabs button.on{border-color:rgba(167,139,250,.5);background:rgba(124,58,237,.19);color:#eee7ff}
 .aw-player-controls .stream-provider-tabs em{padding:2px 4px;border-radius:4px;background:rgba(74,222,128,.13);color:#7ee0a8;font-size:7px;font-style:normal}

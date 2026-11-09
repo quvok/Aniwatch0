@@ -19,6 +19,12 @@ function getLibertyStreams(ep){
  const urls=[ep?.hls_1080,h.hls_1080,ep?.hls_720,h.hls_720,ep?.hls_480,h.hls_480];
  return [...new Set(urls.filter(v=>typeof v==="string"&&v.indexOf("http")===0))];
 }
+
+const ANI_API_BASE="https://anivexa.vercel.app";
+const ANIMELIB_EPISODES="https://api.lib.social/api/episodes";
+function safeHttpUrl(value,base){
+ try{const url=new URL(String(value||""),base);return /^https?:$/.test(url.protocol)?url.toString():""}catch{return ""}
+}
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
@@ -26,7 +32,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="anixo">AniXo</button><button type="button" data-provider="animedia" title="Открыть поиск по этому аниме на Анимедии">Анимедия <em>RU ↗</em></button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="aniapi">Ani-API</button><button type="button" data-provider="animelib">AnimeLib</button><button type="button" data-provider="anixo">AniXo</button><button type="button" data-provider="animedia" title="Открыть поиск по этому аниме на Анимедии">Анимедия <em>RU ↗</em></button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -200,6 +206,122 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    setStatus("AnimeVost: "+(error.message||"ошибка поиска"));
   }
  };
+
+ const resolveAniListId=async()=>{
+  const direct=Number(anime?.aniId||(anime?.source!=="shikimori"?anime?.id:0));
+  if(Number.isInteger(direct)&&direct>0&&direct<1000000000)return direct;
+  const mal=Number(anime?.mal||anime?.malId);
+  if(!Number.isInteger(mal)||mal<=0)throw new Error("Для Ani-API не найден AniList ID или MAL ID");
+  const response=await fetch("https://graphql.anilist.co",{
+   method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},
+   body:JSON.stringify({query:"query($mal:Int){Media(idMal:$mal,type:ANIME){id}}",variables:{mal}})
+  });
+  if(!response.ok)throw new Error("AniList не смог сопоставить MAL ID (HTTP "+response.status+")");
+  const payload=await response.json(),id=Number(payload?.data?.Media?.id);
+  if(!id)throw new Error("AniList не нашёл соответствие для этого тайтла");
+  return id;
+ };
+ const aniApiEpisodeRows=(payload)=>{
+  const rows=[];
+  for(const [provider,value] of Object.entries(payload||{})){
+   if(!/^[a-z0-9]+$/i.test(provider)||!value||typeof value!=="object"||value.error)continue;
+   const lists=value.episodes&&typeof value.episodes==="object"?value.episodes:value;
+   for(const audio of ["sub","dub"]){
+    const list=Array.isArray(lists[audio])?lists[audio]:[];
+    const found=list.find(ep=>Number(ep?.number)===Number(episode));
+    if(found&&(found.id!==undefined||found.sourceNumber!==undefined))rows.push({provider,audio,ep:found});
+   }
+  }
+  return rows;
+ };
+ const playAniApi=async()=>{
+  destroyHls();
+  options.innerHTML='<span class="stream-note">Сопоставляем тайтл и источники…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>Ani-API</b><small>Ищем доступные варианты серии '+episode+'…</small></div>';
+  setStatus("Ani-API · загружаем список источников…");
+  try{
+   const aniId=await resolveAniListId();
+   const payload=await requestJson(ANI_API_BASE+"/episodes/"+aniId,18000);
+   const rows=aniApiEpisodeRows(payload);
+   if(!rows.length)throw new Error("Ani-API не нашёл эту серию у доступных провайдеров");
+   const providerLabel=name=>({mkissa:"MKissa",reanime:"ReAnime",anikoto:"AniKoto",animegg:"AnimeGG",animenosub:"AnimeNoSub",anizone:"AniZone",aniwaves:"AniWaves",senshi:"Senshi",kaa:"Kickassanime",animedunya:"AnimeDunya",animeonsen:"AnimeOnsen",anipm:"Ani.pm"}[name]||name);
+   const keys=rows.map((row,index)=>({key:String(index),label:providerLabel(row.provider)+" · "+(row.audio==="dub"?"Дубляж":"Субтитры")}));
+   options.innerHTML='<label>Источник<select id="aniapi-source">'+keys.map(x=>'<option value="'+x.key+'">'+esc(x.label)+'</option>').join("")+'</select></label><button type="button" class="stream-load" id="aniapi-load">Загрузить серию '+episode+' <span>→</span></button><span class="stream-note">Ani-API · агрегатор сторонних провайдеров</span>';
+   const load=async()=>{
+    const row=rows[Number(options.querySelector("#aniapi-source")?.value||0)];
+    if(!row)throw new Error("Не выбран источник");
+    setStatus("Ani-API · получаем поток "+providerLabel(row.provider)+"…");
+    stage.innerHTML='<div class="stream-placeholder"><b>'+esc(providerLabel(row.provider))+'</b><small>Получаем видеопоток…</small></div>';
+    const rawId=String(row.ep.id??row.ep.sourceNumber??row.ep.number);
+    const episodeKey=rawId.startsWith(row.provider+"-")?rawId.slice(row.provider.length+1):rawId;
+    const url=ANI_API_BASE+"/watch/"+encodeURIComponent(row.provider)+"/"+aniId+"/"+row.audio+"/"+encodeURIComponent(row.provider+"-"+episodeKey);
+    const result=await requestJson(url,22000);
+    const data=result?.data||result?.result||result;
+    const sources=Array.isArray(data?.sources)?data.sources:Array.isArray(data?.streams)?data.streams:[];
+    const candidates=sources.map(source=>({url:safeHttpUrl(source?.url||source?.file||source?.src,ANI_API_BASE),quality:String(source?.quality||source?.label||""),type:String(source?.type||"")})).filter(x=>x.url);
+    candidates.sort((a,b)=>Number((b.quality.match(/\d+/)||[])[0]||0)-Number((a.quality.match(/\d+/)||[])[0]||0));
+    const direct=safeHttpUrl(data?.url||data?.file||data?.stream?.url||data?.stream,ANI_API_BASE)||candidates[0]?.url;
+    const embed=safeHttpUrl(data?.embed||data?.embedUrl||data?.iframe||data?.stream?.embed,ANI_API_BASE);
+    if(embed){
+     destroyHls();
+     stage.innerHTML='<iframe class="stream-video" src="'+esc(embed)+'" title="Ani-API player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+     setStatus("Ani-API · внешний плеер "+providerLabel(row.provider)+" · синхронизация недоступна");
+     return;
+    }
+    if(!direct)throw new Error("Провайдер не вернул прямой поток или embed-плеер");
+    const label=providerLabel(row.provider)+(candidates[0]?.quality?" · "+candidates[0].quality:"");
+    stage.innerHTML='<video class="stream-video" controls playsinline preload="metadata"></video>';
+    const v=video();bindVideo(v);
+    const isHls=/\.m3u8(?:$|[?#])/i.test(direct);
+    if(isHls&&v.canPlayType("application/vnd.apple.mpegurl")){v.src=direct;setStatus("Ani-API · "+label+" · нативный HLS")}
+    else if(isHls){
+     const Hls=await loadHls();
+     if(!Hls.isSupported())throw new Error("Браузер не поддерживает HLS");
+     const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
+     hlsInstance=instance;instance.loadSource(direct);instance.attachMedia(v);
+     instance.on(Hls.Events.MANIFEST_PARSED,()=>{if(hlsInstance===instance)setStatus("Ani-API · "+label+" · поток готов")});
+     instance.on(Hls.Events.ERROR,(_,event)=>{if(hlsInstance===instance&&event?.fatal)setStatus("Ошибка HLS Ani-API: "+(event.details||event.type))});
+    }else{v.src=direct;setStatus("Ani-API · "+label+" · загружаем видео…");v.addEventListener("loadedmetadata",()=>setStatus("Ani-API · "+label+" · поток готов"),{once:true})}
+   };
+   options.querySelector("#aniapi-load").addEventListener("click",()=>load().catch(error=>{setStatus("Ani-API: "+(error.message||"ошибка"));stage.innerHTML='<div class="stream-placeholder"><b>Ani-API</b><small>'+esc(error.message||"Не удалось получить поток")+'</small></div>'}));
+   await load();
+  }catch(error){
+   options.innerHTML='<button type="button" class="stream-load" id="aniapi-retry">Повторить <span>↻</span></button><span class="stream-note">Публичный сервер может быть недоступен или заблокирован видеопровайдерами</span>';
+   options.querySelector("#aniapi-retry").addEventListener("click",playAniApi);
+   stage.innerHTML='<div class="stream-placeholder"><b>Ani-API</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("Ani-API: "+(error.message||"ошибка загрузки"));
+  }
+ };
+ const showAnimeLib=async()=>{
+  destroyHls();
+  const shikiId=Number(anime?.shikiId||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
+  if(!Number.isInteger(shikiId)||shikiId<=0){
+   options.innerHTML='<span class="stream-note">AnimeLib требует Shikimori ID. Для этого тайтла соответствие пока не найдено.</span>';
+   stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>Не удалось сопоставить этот тайтл с Shikimori ID. Попробуй Ani-API или AniLiberty.</small></div>';
+   setStatus("AnimeLib · нет Shikimori ID");
+   return;
+  }
+  options.innerHTML='<span class="stream-note">Загружаем список серий AnimeLib…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>Ищем серию '+episode+'…</small></div>';
+  setStatus("AnimeLib · получаем список серий…");
+  try{
+   const payload=await requestJson(ANIMELIB_EPISODES+"?shiki_id="+encodeURIComponent(shikiId),14000);
+   const list=Array.isArray(payload?.data)?payload.data:Array.isArray(payload)?payload:[];
+   const matches=list.filter(item=>Number(item?.number)===Number(episode)&&item?.id);
+   if(!matches.length)throw new Error("AnimeLib не вернул эпизод "+episode);
+   const selected=matches[0],animeId=Number(selected.anime_id||selected.animeId);
+   if(!animeId)throw new Error("AnimeLib не вернул ID тайтла для серии");
+   const watchUrl="https://anilib.me/ru/anime/"+animeId+"/watch?episode="+encodeURIComponent(selected.id);
+   options.innerHTML='<span class="stream-note">AnimeLib · серия '+episode+' · '+esc(selected.name||"")+'</span><a class="stream-load" href="'+watchUrl+'" target="_blank" rel="noopener noreferrer">Открыть на AnimeLib <span>↗</span></a>';
+   stage.innerHTML='<iframe class="stream-video" src="'+esc(watchUrl)+'" title="AnimeLib player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+   setStatus("AnimeLib · внешний плеер · синхронизация недоступна");
+  }catch(error){
+   options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">AnimeLib предоставляет список серий; доступность iframe зависит от политики сайта</span>';
+   options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
+   stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("AnimeLib: "+(error.message||"ошибка загрузки"));
+  }
+ };
  const showAniMedia=()=>{
   destroyHls();
   const title=String(anime?.n||anime?.o||"").trim();
@@ -219,9 +341,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
-  if(button.dataset.provider==="anixo")showAnixo();else if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animedia")showAniMedia();else showLiberty();
+  if(button.dataset.provider==="anixo")showAnixo();else if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="aniapi")playAniApi();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="animedia")showAniMedia();else showLiberty();
  }));
- reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animedia"]')?.classList.contains("on"))showAniMedia();else{releaseData=null;showLiberty()}});
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="anixo"]')?.classList.contains("on"))showAnixo();else if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="aniapi"]')?.classList.contains("on"))playAniApi();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="animedia"]')?.classList.contains("on"))showAniMedia();else{releaseData=null;showLiberty()}});
  showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
