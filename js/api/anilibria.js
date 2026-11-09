@@ -65,8 +65,14 @@ async function requestApi(path,params){
 }
 export async function fetchAniLibriaCatalogPage(options={}){
  const params={page:Math.max(1,Number(options.page)||1),limit:Math.min(50,Math.max(1,Number(options.limit)||50))};
- if(options.sorting)params["f[sorting]"]=options.sorting;if(options.publishStatus)params["f[publish_statuses]"]=options.publishStatus;if(options.genreId)params["f[genres]"]=options.genreId;if(options.search)params["f[search]"]=String(options.search);
- const payload=await requestApi("/anime/catalog/releases",params),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:[]);
+ if(options.sorting)params["f[sorting]"]=options.sorting;
+ if(options.publishStatus)params["f[publish_statuses]"]=options.publishStatus;
+ if(options.genreId)params["f[genres]"]=options.genreId;
+ if(options.search)params["f[search]"]=String(options.search);
+ if(options.year){params["f[years][from_year]"]=options.year;params["f[years][to_year]"]=options.year}
+ if(options.season)params["f[seasons]"]=options.season;
+ if(options.type)params["f[types]"]=options.type;
+ const payload=await requestApi("/anime/catalog/releases",params),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:Array.isArray(payload?.data?.items)?payload.data.items:[]);
  return{items,meta:payload?.meta||null};
 }
 export async function fetchAniLibriaGenres(){

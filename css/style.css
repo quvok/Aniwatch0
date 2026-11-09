@@ -2652,3 +2652,8 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .calendar-toolbar{font-size:9px}
  .poster .poster-new-episode{left:5px;bottom:5px;max-width:calc(100% - 10px);font-size:7px;padding:4px 5px}
 }
+
+/* Homepage collections now share one full-width shelf flow on every screen. */
+.home-layout{display:block!important;width:100%;max-width:none}
+.home-primary{width:100%;min-width:0}
+.home-rail{display:none!important}
