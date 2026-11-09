@@ -3,7 +3,7 @@ import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, 
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
-import { buildTasteProfile, rankRecommendations } from "./core/recommendations.js";
+import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
@@ -161,9 +161,6 @@ function recommendationExcludedIds(){
  ["recent","ongoing","popular","recommended"].forEach(key=>(homeCollections&&homeCollections[key]||[]).forEach(item=>{if(Number(item.id)>0)excluded.add(Number(item.id));if(Number(item.mal)>0)excluded.add("mal:"+Number(item.mal));if(Number(item.shikiId)>0)excluded.add(1000000000+Number(item.shikiId))}));
  return excluded;
 }
-function normalizeRecommendationGenre(value){
- return String(value||"").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu," ").trim();
-}
 async function loadHomeRecommendations(){
  var host=$("#recommendation-cards");
  if(!host)return;
@@ -173,7 +170,7 @@ async function loadHomeRecommendations(){
   var profile=buildTasteProfile(recommendationLibrary()),raw=[];
   var shelf=host.closest(".shelf");
   if(shelf)shelf.hidden=false;
-  if(profile.usefulSignals<3||profile.topGenres.length<2){if(shelf)shelf.hidden=true;return;}
+  if(profile.usefulSignals<1||profile.topGenres.length<1){if(shelf)shelf.hidden=true;return;}
   if(profile.hasTaste){
    try{
     var genreRows=await fetchAnimeGenres(),wanted=new Set(profile.topGenres.map(item=>item.name));
@@ -671,7 +668,7 @@ async function boot(){
  if(activePage()==="home"){
   try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}
   draw();
-  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home")refreshContinueShelf()});
+  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}});
  }else{await Promise.allSettled([enrichment,hydration]);draw()}
 }
 
