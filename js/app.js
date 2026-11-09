@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimeByMalId, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimeByMalId, fetchAnimeByTitle, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
@@ -499,14 +499,29 @@ function mp(m){
 // Do not treat AniList MAL IDs as Shikimori IDs. They are different ID namespaces.
 // AniList remains the source of truth; episode counts are enriched through MAL-aware services.
 async function enrichShikimori(list,{description=true}={}){
- var items=(list||[]).filter(Boolean);
- await Promise.all(items.map(async d=>{
-  if(!d||(description&&d.descriptionSource==="shikimori"))return;var shikiId=Number(d.shikiId)||(d.source==="shikimori"?Number(d.id):0);if(!shikiId&&!Number(d.mal))return;
+ var items=(list||[]).filter(Boolean),cursor=0;
+ async function enrichOne(d){
+  if(!d||(description&&d.descriptionSource==="shikimori"))return;
+  var shikiId=Number(d.shikiId)||(d.source==="shikimori"?Number(d.id)-1000000000:0);
+  if(d.source==="shikimori"&&!shikiId)shikiId=Number(d.id)||0;
+  if(!shikiId&&!Number(d.mal)&&!un(d.n)&&!un(d.o))return;
   try{
    var cached=S.ru&&S.ru[d.id];
    if(description&&cached&&cached.d){d.d=cached.d;d.descriptionSource="shikimori";return}
-   var record=shikiId>0?await fetchAnimeById(shikiId):await fetchAnimeByMalId(Number(d.mal),[un(d.n),un(d.o)]);
-   if(!record)return;
+   var titles=[un(d.n),un(d.o)].filter(Boolean),record=null,lastError=null;
+   for(var attempt=0;attempt<3&&!record;attempt++){
+    try{
+     if(shikiId>0)record=await fetchAnimeById(shikiId);
+     else if(Number(d.mal)>0)record=await fetchAnimeByMalId(Number(d.mal),titles);
+     else record=await fetchAnimeByTitle(titles);
+    }catch(error){
+     lastError=error;
+     if(attempt<2&&/HTTP (429|500|502|503|504)/i.test(String(error&&error.message||error))){
+      await new Promise(resolve=>setTimeout(resolve,700*(attempt+1)));
+     }else break;
+    }
+   }
+   if(!record){if(lastError)throw lastError;return}
    d.shikiId=Number(record.id)||d.shikiId||0;
    var image=record.image||{},poster=shikimoriImageUrl(image.original||image.preview||image.x96||"");
    if(poster&&!shikimoriImageUrl(d.img))d.img=poster;
@@ -515,7 +530,15 @@ async function enrichShikimori(list,{description=true}={}){
     if(text){d.d=text;d.descriptionSource="shikimori";S.ru=S.ru||{};S.ru[d.id]={d:text,at:Date.now()}}
    }
   }catch(error){console.warn("[AniWatch] Shikimori enrichment unavailable for",d.id,error)}
- }));
+ }
+ async function worker(){
+  while(cursor<items.length){
+   var d=items[cursor++];
+   await enrichOne(d);
+   await new Promise(resolve=>setTimeout(resolve,250));
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(3,items.length)},()=>worker()));
  saveLocalState(S,M);
  return items;
 }
@@ -680,7 +703,7 @@ async function loadRelated(d){
      if(!a||!Number(a.id))return null;
      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
      var status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-     return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
+     return {id:id,shikiId:Number(a.id),source:"shikimori",descriptionSource:a.description?"shikimori":"",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
     };
     var seen={};
     relations=rawRelated.map(x=>{var anime=convert(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!seen[x.anime.id]&&(seen[x.anime.id]=true));
@@ -769,7 +792,7 @@ async function boot(){
 var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
 homeCollections=null;
 function normalizeMatchTitle(value){
- return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu,"").trim();
+ return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,"").trim();
 }
 function aniLibriaPosterUrl(release){
  var poster=release&&release.poster||{},optimized=poster.optimized||{};
@@ -803,12 +826,12 @@ function matchAniLibriaRelease(release,candidates){
 }
 async function loadHomeCollections(){
  var source=null,cache=null;
- try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v3")||"null")}catch(e){}
+ try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v4")||"null")}catch(e){}
  if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
  if(!source){
   try{
    source=await fetchAniLibriaHomeCollections();
-   try{localStorage.setItem("aw-home-anilibria-shiki-v3",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+   try{localStorage.setItem("aw-home-anilibria-shiki-v4",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
   }catch(error){
    console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
    source={popular:[],recommended:[],ongoing:[],recent:[]};
@@ -839,8 +862,12 @@ async function loadHomeCollections(){
   var shikiId=Number(release&&release.shikimori&&release.shikimori.id);
   var item=shikiId?shikiById.get(shikiId):null;
   if(!item){
-   var names=aniLibriaNames(release);
+   var names=aniLibriaNames(release),malId=Number(release&&release.mal&&release.mal.id)||Number(release&&release.malId)||0;
+   if(malId>0){
+    try{item=await fetchAnimeByMalId(malId,names)}catch(error){console.warn("[AniWatch] AniLibria MAL mapping failed:",error)}
+   }
    for(var name of names){
+    if(item)break;
     if(searchBudget<=0)break;
     if(normalizeMatchTitle(name).length<3)continue;
     searchBudget--;
