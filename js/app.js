@@ -68,7 +68,7 @@ async function loadAniLibriaSchedule(force){if(anilibriaSchedule&&!force)return 
 var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
-var availableEpCount=d=>{var id=Number(d&&d.id),mal=Number(d&&d.mal),records=[S.aniEpisodes&&S.aniEpisodes[id],S.aniZipEpisodes&&S.aniZipEpisodes[id],S.kitsuEpisodes&&S.kitsuEpisodes[mal]].filter(x=>x&&Number.isFinite(Number(x.available))),counts=records.map(x=>Math.max(0,Number(x.available)));if(Number(d&&d.ae)>0)counts.push(Number(d.ae));if(counts.length)return Math.max(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):null};
+var availableEpCount=d=>{var id=Number(d&&d.id),mal=Number(d&&d.mal),records=[S.aniEpisodes&&S.aniEpisodes[id],S.kitsuEpisodes&&S.kitsuEpisodes[mal]].filter(x=>x&&Number.isFinite(Number(x.available))&&Number(x.available)>=0),counts=records.map(x=>Math.max(0,Number(x.available)));if(counts.length)return Math.min(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):0};
 var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].map(Number):[];
 var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id),available=availableEpCount(d);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n),upcoming=available!==null&&n>available;return '<span class="episode-item'+(done?' is-watched':'')+(upcoming?' is-upcoming':'')+'">'+(upcoming?'<span class="episode-number" aria-label="Серия '+n+' ещё не вышла">'+n+'</span><small class="episode-upcoming-label">Скоро</small>':'<a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>')+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':'Смотреть серию '+n+' здесь')+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>'+(upcoming?'–':done?'✓':'○')+'</button></span>'}).join('')};
 function refreshEpisodeMarks(id){var watched=watchedFor(id),total=epTotal(M[id]||{}),count=watched.length;document.querySelectorAll('.episode-item').forEach(item=>{var b=item.querySelector('[data-a="episode-toggle"]');if(!b||Number(b.dataset.i)!==Number(id))return;var n=Number(b.dataset.v),done=watched.includes(n);item.classList.toggle('is-watched',done);b.classList.toggle('is-watched',done);b.setAttribute('aria-pressed',String(done));b.setAttribute('aria-label',(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n);b.textContent=done?'✓':'○'});document.querySelectorAll('[data-episode-progress="'+id+'"]').forEach(el=>{el.textContent=count+' / '+(total||'—')+' просмотрено'})}
@@ -320,7 +320,7 @@ function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;re
  var tc=$("#tc"),pg=$("#pg"),pl=$(".play");if(!tc||!pg||!pl)return;tc.textContent=fm(P.t);pg.style.width=P.t/DUR*100+"%";pl.textContent=P.on?"❚❚":"▶";if(s){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.now()};if(!tick.l||Date.now()-tick.l>5000){tick.l=Date.now();sv()}}
  if(P.on&&ROOM_CONNECTED&&Date.now()-ROOM_LAST_SYNC>8000){ROOM_LAST_SYNC=Date.now();broadcastPlayback("playback")}}
 function pauseSave(){if(P&&!P.on&&P.t>0){S.hist[P.d.id]={ep:P.n,t:P.t,at:Date.now()};sv()}}
-function nextEp(){var d=P.d,n=P.n,tot=epTotal(d);setEpisodeWatched(d.id,n,true);if(n<tot){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}location.href=watchUrl(d.id,n+1)}else if(!tot){S.hist[d.id]={ep:n,t:0,at:Date.now()};sv();toast("Серия закончилась");$(".play").textContent="▶"}else{delete S.hist[d.id];sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
+function nextEp(){var d=P.d,n=P.n,available=availableEpCount(d);setEpisodeWatched(d.id,n,true);if(n<available){S.hist[d.id]={ep:n+1,t:0,at:Date.now()};sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}location.href=watchUrl(d.id,n+1)}else if(!tot){S.hist[d.id]={ep:n,t:0,at:Date.now()};sv();toast("Серия закончилась");$(".play").textContent="▶"}else{delete S.hist[d.id];sv();toast("Тайтл досмотрен 🎉");$(".play").textContent="▶"}}
 V.watch=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  var queryRoom=new URLSearchParams(location.search).get("room");
@@ -501,17 +501,17 @@ function mp(m){
 async function enrichShikimori(list,{description=true}={}){
  var items=(list||[]).filter(Boolean);
  await Promise.all(items.map(async d=>{
-  if(!d||(!Number(d.mal)&&!Number(d.shikiId))||(description&&d.descriptionSource==="shikimori"))return;
+  if(!d||(description&&d.descriptionSource==="shikimori"))return;var shikiId=Number(d.shikiId)||(d.source==="shikimori"?Number(d.id):0);if(!shikiId&&!Number(d.mal))return;
   try{
    var cached=S.ru&&S.ru[d.id];
    if(description&&cached&&cached.d){d.d=cached.d;d.descriptionSource="shikimori";return}
-   var record=Number(d.shikiId)>0?await fetchAnimeById(Number(d.shikiId)):await fetchAnimeByMalId(Number(d.mal),[un(d.n),un(d.o)]);
+   var record=shikiId>0?await fetchAnimeById(shikiId):await fetchAnimeByMalId(Number(d.mal),[un(d.n),un(d.o)]);
    if(!record)return;
    d.shikiId=Number(record.id)||d.shikiId||0;
    var image=record.image||{},poster=shikimoriImageUrl(image.original||image.preview||image.x96||"");
    if(poster&&!shikimoriImageUrl(d.img))d.img=poster;
    if(description){
-    var text=cleanDesc(record.description||"");
+    var text=cleanDesc(record.description||record.description_html||"");
     if(text){d.d=text;d.descriptionSource="shikimori";S.ru=S.ru||{};S.ru[d.id]={d:text,at:Date.now()}}
    }
   }catch(error){console.warn("[AniWatch] Shikimori enrichment unavailable for",d.id,error)}
