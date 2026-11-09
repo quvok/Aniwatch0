@@ -13,7 +13,9 @@ async function checked(query) {
 }
 
 export async function searchProfiles(query, userId) {
-  const q = String(query || "").trim().replace(/[%,()]/g, " ").replace(/\s+/g, " ").slice(0, 32);
+  // Escape PostgREST ILIKE metacharacters so a nickname search cannot turn
+  // into an unrestricted wildcard query.
+  const q = String(query || "").trim().replace(/[%,_\\()]/g, " ").replace(/\s+/g, " ").slice(0, 32);
   if (!userId) throw new Error("Войди в аккаунт, чтобы искать друзей.");
   if (q.length < 2) throw new Error("Введи минимум 2 символа ника.");
   const client = await getSupabaseClient();
@@ -57,8 +59,9 @@ export async function loadSocialHub(userId) {
   const incomingRequests = rows.filter(row => row.status === "pending" && row.recipient_id === userId).map(row => ({ ...row, person: person(row.sender_id) }));
   const outgoingRequests = rows.filter(row => row.status === "pending" && row.sender_id === userId).map(row => ({ ...row, person: person(row.recipient_id) }));
   const now = Date.now();
-  const incomingInvites = invites.filter(row => row.invitee_id === userId && Date.parse(row.expires_at) > now).map(row => ({ ...row, person: person(row.inviter_id) }));
-  const outgoingInvites = invites.filter(row => row.inviter_id === userId && Date.parse(row.expires_at) > now).map(row => ({ ...row, person: person(row.invitee_id) }));
+  const activeInvites = invites.filter(row => Number.isFinite(Date.parse(row.expires_at)) && Date.parse(row.expires_at) > now);
+  const incomingInvites = activeInvites.filter(row => row.invitee_id === userId).map(row => ({ ...row, person: person(row.inviter_id) }));
+  const outgoingInvites = activeInvites.filter(row => row.inviter_id === userId).map(row => ({ ...row, person: person(row.invitee_id) }));
   return { friends, incomingRequests, outgoingRequests, incomingInvites, outgoingInvites };
 }
 
@@ -76,7 +79,7 @@ export async function sendFriendRequest(userId, recipientId) {
     await checked(client.from("friend_requests").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", row.id).select("id").single());
     return "accepted";
   }
-  if (row?.status === "declined") await checked(client.from("friend_requests").delete().eq("id", row.id));
+  if (row?.status === "declined") await checked(client.from("friend_requests").delete().eq("id", row.id).select("id").single());
   await checked(client.from("friend_requests").insert({ sender_id: userId, recipient_id: recipientId, status: "pending" }).select("id").single());
   return "sent";
 }
@@ -90,28 +93,36 @@ export async function respondFriendRequest(requestId, userId, accept) {
 }
 
 export async function removeFriend(requestId) {
+  if (!requestId) throw new Error("Не удалось определить связь.");
   const client = await getSupabaseClient();
-  return checked(client.from("friend_requests").delete().eq("id", requestId));
+  // DELETE without SELECT can report success with zero affected rows under RLS.
+  // Require the deleted row so the UI never shows a false success.
+  return checked(client.from("friend_requests").delete().eq("id", requestId).select("id").single());
 }
 
 export async function sendWatchInvite(userId, friendId, roomCode, animeId, episode) {
-  if (!userId || !friendId || !roomCode || !Number(animeId)) throw new Error("Сначала создай комнату и выбери друга.");
+  const normalizedCode = String(roomCode || "").toUpperCase();
+  const normalizedAnimeId = Number(animeId);
+  const normalizedEpisode = Math.max(1, Math.floor(Number(episode) || 1));
+  if (!userId || !friendId || userId === friendId || !/^[A-Z0-9]{6,12}$/.test(normalizedCode)
+    || !Number.isSafeInteger(normalizedAnimeId) || normalizedAnimeId <= 0) {
+    throw new Error("Сначала создай комнату и выбери друга.");
+  }
   const client = await getSupabaseClient();
-  const normalizedCode = String(roomCode).toUpperCase();
   const existing = await checked(client.from("watch_party_invites")
     .select("id,expires_at")
     .eq("inviter_id", userId).eq("invitee_id", friendId)
     .eq("room_code", normalizedCode).eq("status", "pending").limit(1));
   if (existing?.[0]) {
     if (Date.parse(existing[0].expires_at) > Date.now()) throw new Error("Ты уже приглашал этого друга в текущую комнату.");
-    await checked(client.from("watch_party_invites").delete().eq("id", existing[0].id));
+    await checked(client.from("watch_party_invites").delete().eq("id", existing[0].id).select("id").single());
   }
   return checked(client.from("watch_party_invites").insert({
     inviter_id: userId,
     invitee_id: friendId,
     room_code: normalizedCode,
-    anime_id: Number(animeId),
-    episode: Math.max(1, Number(episode) || 1),
+    anime_id: normalizedAnimeId,
+    episode: normalizedEpisode,
     status: "pending"
   }).select("id").single());
 }
