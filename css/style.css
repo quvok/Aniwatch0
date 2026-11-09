@@ -2544,3 +2544,43 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .watch-toolbar .nv .btn{justify-content:center}
  .watch-episodes{padding:12px}
 }
+
+
+/* AnimeGo-inspired player: choose a voice above the video, switch with one tap. */
+.aw-player-shell{display:flex;flex-direction:column}
+.aw-player-shell .aw-player-heading{order:0}
+.aw-player-shell .aw-player-controls{order:1;display:block;padding:13px 15px 12px;background:#111019;border-bottom:1px solid rgba(255,255,255,.06);border-top:0}
+.aw-player-shell .stream-stage{order:2}
+.aw-player-shell .aw-player-footer{order:3}
+.aw-player-controls .stream-provider-tabs{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:0 0 11px;margin:0 0 11px;border-bottom:1px solid rgba(255,255,255,.07);scrollbar-width:thin}
+.aw-player-controls .stream-provider-tabs button{flex:0 0 auto;min-height:34px;padding:7px 12px;border-radius:8px}
+.kodik-picker{display:grid;gap:10px;min-width:0}
+.kodik-picker-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.kodik-picker-head>div{display:grid;gap:3px}
+.kodik-picker-head b{color:#f0ebfa;font-size:12px}
+.kodik-picker-head small,.kodik-episode-info{color:#898397;font-size:9px}
+.kodik-voices{display:flex;gap:7px;flex-wrap:wrap;max-height:116px;overflow-y:auto;padding:1px 2px 3px 1px}
+.kodik-voice{display:flex;align-items:center;gap:7px;max-width:100%;min-height:34px;padding:7px 10px;border:1px solid rgba(190,170,240,.12);border-radius:8px;background:#1a1823;color:#b7b0c7;font:inherit;font-size:10px;cursor:pointer;transition:.16s}
+.kodik-voice span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kodik-voice small{flex:0 0 auto;color:#7e778c;font-size:8px}
+.kodik-voice:hover{border-color:rgba(167,139,250,.4);color:#fff}
+.kodik-voice.on{border-color:rgba(167,139,250,.58);background:rgba(124,58,237,.2);color:#f3edff;box-shadow:inset 0 0 0 1px rgba(167,139,250,.08)}
+.kodik-voice.on small{color:#c5b2ff}
+.kodik-picker-bottom{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kodik-season-label{display:flex;align-items:center;gap:7px;color:#918a9e;font-size:9px}
+.kodik-season-label select{padding:7px 25px 7px 9px;border:1px solid rgba(190,170,240,.14);border-radius:7px;background:#1a1722;color:#e9e2f5;font-size:10px}
+.kodik-current{flex:1;min-width:120px;color:#8e879d;font-size:9px}
+.kodik-picker-bottom .stream-load{min-height:32px;padding:7px 11px}
+.aw-player-shell .stream-stage{min-height:0;aspect-ratio:16/9;max-height:none}
+.aw-player-shell .stream-frame,.aw-player-shell .stream-video{min-height:0}
+@media(max-width:700px){
+ .aw-player-shell .aw-player-controls{padding:10px}
+ .aw-player-controls .stream-provider-tabs{display:flex;gap:6px}
+ .aw-player-controls .stream-provider-tabs button{flex:0 0 auto}
+ .kodik-voices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:190px;gap:6px}
+ .kodik-voice{justify-content:space-between;min-width:0;padding:8px}
+ .kodik-voice span{font-size:9px}
+ .kodik-picker-bottom{display:grid;grid-template-columns:auto minmax(0,1fr)}
+ .kodik-current{min-width:0}
+ .kodik-picker-bottom .stream-load{grid-column:1/-1;width:100%;justify-content:center}
+}
