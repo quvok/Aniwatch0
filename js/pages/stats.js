@@ -55,25 +55,33 @@ async function loadStats(){
   if(!data?.ok||!data.stats)throw new Error("Сервер не вернул статистику.");
   const stats=data.stats;
   const popular=Array.isArray(stats.top_pages)?stats.top_pages:[];
-  const animeRoutes=popular.map(item=>String(item.path||"").match(/^\/(anime|watch)\.html\/(\d+)$/i)).filter(Boolean);
-  const animeIds=[...new Set(animeRoutes.map(match=>Number(match[2])))];
+  // AniWatch Shikimori-backed IDs use a 1,000,000,000 offset.
+  // Keep only anime detail/watch routes, merge both route types into one anime total.
+  const animeViews=new Map();
+  for(const item of popular){
+    const match=String(item.path||"").match(/^\\/(anime|watch)\\.html\\/(\\d+)$/i);
+    if(!match)continue;
+    const internalId=Number(match[2]);
+    const shikiId=internalId>=1000000000?internalId-1000000000:0;
+    if(!shikiId)continue;
+    const current=animeViews.get(internalId)||{id:internalId,shikiId,views:0};
+    current.views+=Number(item.views)||0;
+    animeViews.set(internalId,current);
+  }
+  const animeItems=[...animeViews.values()];
+  const shikiIds=[...new Set(animeItems.map(item=>item.shikiId))];
   let animeNames=new Map();
-  if(animeIds.length){
+  if(shikiIds.length){
     try{
-      const animeItems=await fetchAnimeByIds(animeIds);
-      animeNames=new Map(animeItems.map(item=>[Number(item.id),item.russian||item.name||item.english||("Аниме #"+item.id)]));
+      const animeItemsFromShiki=await fetchAnimeByIds(shikiIds);
+      animeNames=new Map(animeItemsFromShiki.map(item=>[Number(item.id),item.russian||item.name||item.english||""]));
     }catch(error){console.warn("[AniWatch] Could not resolve popular anime titles:",error)}
   }
-  stats.top_pages=popular.map(item=>{
-    const match=String(item.path||"").match(/^\/(anime|watch)\.html\/(\d+)$/i);
-    if(match){
-      const id=Number(match[2]),title=animeNames.get(id)||("Аниме #"+id);
-      return {...item,label:match[1].toLowerCase()==="watch"?title+" · просмотр":title,href:"anime.html?id="+id};
-    }
-    const path=String(item.path||"");
-    const labels={"/":"Главная","/index.html":"Главная","/anime.html":"Страница аниме (старые данные)","/watch.html":"Страница просмотра (старые данные)","/catalog.html":"Каталог","/calendar.html":"Расписание","/lists.html":"Мои списки","/profile.html":"Профиль"};
-    return {...item,label:labels[path]||path||"Страница сайта"};
-  });
+  stats.top_pages=animeItems
+    .map(item=>({...item,label:animeNames.get(item.shikiId)||"",href:"anime.html?id="+item.id}))
+    .filter(item=>item.label)
+    .sort((a,b)=>b.views-a.views)
+    .slice(0,20);
   render(stats);
  }catch(error){console.error("[AniWatch] Stats dashboard failed:",error);shell("Не удалось загрузить статистику. Проверь соединение и попробуй обновить страницу.",'<button class="btn" type="button" id="stats-retry">Повторить</button>');document.getElementById("stats-retry")?.addEventListener("click",loadStats)}
 }
