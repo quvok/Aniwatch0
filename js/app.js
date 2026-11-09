@@ -132,7 +132,7 @@ V.home=()=>{
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]&&S.hist[k]).sort((x,y)=>Number(S.hist[y].at||0)-Number(S.hist[x].at||0)).slice(0,6).map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));
  var source=homeCollections,trending=source.trending.map(d=>card(d)),popular=source.popular.map(d=>card(d)),ongoing=source.ongoing.map(d=>card(d)),recent=source.recent.map(d=>card(d));
- var genres=(source.genres||[]).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+esc(g)+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
+ var genres=(source.genres||[]).map(g=>'<div class="genre-tile"><span>'+esc(g)+'</span><b>Каталог Shikimori</b></div>').join("");
  renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  loadHomeRecommendations();refreshContinueShelf();if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
 };
