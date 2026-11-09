@@ -2,7 +2,8 @@ import { query as xgq } from "./api/anilist.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
-import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar } from "./core/supabase.js";
+import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
+import { buildTasteProfile, rankRecommendations } from "./core/recommendations.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
@@ -133,10 +134,62 @@ V.home=()=>{
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
  renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
 
 };
+
+
+var recommendationRequest=0;
+function recommendationLibrary(){
+ var ids=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),S.fav||[]).map(Number));
+ return [...ids].map(id=>{
+  var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
+  if(!anime)return null;
+  return {id:id,genres:anime.g||[],rating:S.rate&&S.rate[id],favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
+ }).filter(Boolean);
+}
+function recommendationExcludedIds(){
+ return new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),Object.keys(S.recommendationDismissed||{}),S.fav||[]).map(Number).filter(id=>Number.isFinite(id)&&id>0));
+}
+function normalizeRecommendationGenre(value){
+ return String(value||"").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu," ").trim();
+}
+async function loadHomeRecommendations(){
+ var host=$("#recommendation-cards");
+ if(!host)return;
+ var request=++recommendationRequest;
+ host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
+ try{
+  var profile=buildTasteProfile(recommendationLibrary()),raw=[];
+  if(profile.hasTaste){
+   try{
+    var genreRows=await fetchAnimeGenres(),wanted=new Set(profile.topGenres.map(item=>item.name));
+    var genreIds=genreRows.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>wanted.has(normalizeRecommendationGenre(name)))).map(g=>String(g.id||"")).filter(Boolean).slice(0,3);
+    for(var genreId of genreIds){
+     try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"popularity",genre:genreId}))}catch(error){console.warn("[AniWatch] Recommendation genre request failed:",error)}
+    }
+   }catch(error){console.warn("[AniWatch] Recommendation genres unavailable:",error)}
+  }
+  if(raw.length<15){
+   try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}))}catch(error){if(!raw.length)throw error}
+  }
+  if(request!==recommendationRequest||activePage()!=="home")return;
+  var candidates=raw.map(shikiToItem),ranked=rankRecommendations(candidates,profile,recommendationExcludedIds(),12);
+  if(!ranked.length){
+   host.innerHTML='<p class="m">Пока не удалось найти новые тайтлы. Попробуй позже — каталог Shikimori может быть временно недоступен.</p>';
+   return;
+  }
+  ranked.forEach(item=>{M[item.anime.id]=item.anime;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[item.anime.id]=item.anime});
+  host.innerHTML=ranked.map(item=>'<div class="recommendation-item">'+card(item.anime)+'<p class="recommendation-reason">'+esc(item.reason)+'</p><button class="recommendation-dismiss" type="button" data-a="recommendation-dismiss" data-i="'+item.anime.id+'">Не интересно</button></div>').join("");
+  xshikiPosters(ranked.map(item=>item.anime)).catch(error=>console.warn("[AniWatch] Recommendation poster lookup failed:",error));
+  sv();
+ }catch(error){
+  console.warn("[AniWatch] Recommendations unavailable:",error);
+  if(request===recommendationRequest&&activePage()==="home")host.innerHTML='<p class="m">Не удалось загрузить рекомендации. Попробуй обновить главную позже.</p>';
+ }
+}
 
 var rc;
 
@@ -325,7 +378,7 @@ async function handleAuthSubmit(form){
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
-   S=await restoreCloudState(S,AUTH_USER.id);if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();
+   S=await restoreCloudState(S,AUTH_USER.id);var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();
   }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
@@ -585,7 +638,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M);if(activePage()==="home")refreshContinueShelf()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
@@ -873,6 +926,7 @@ var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw 
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
  if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
  else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove()}
+ else if(a==="recommendation-dismiss"){e.preventDefault();e.stopPropagation();S.recommendationDismissed=S.recommendationDismissed||{};S.recommendationDismissed[i]="not_interested";sv();if(AUTH_USER)saveRecommendationFeedback(AUTH_USER.id,i).catch(error=>console.warn("[AniWatch] Recommendation feedback sync failed:",error));var item=t.closest(".recommendation-item");if(item)item.remove();if(!$("#recommendation-cards")?.children.length)$("#recommendation-cards").innerHTML='<p class="m">На сегодня подборка закончилась. Новые варианты появятся после обновления каталога.</p>';toast("Убрали тайтл из рекомендаций")}
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-toggle"){e.preventDefault();e.stopPropagation();var watched=watchedFor(i),already=watched.includes(Number(v));setEpisodeWatched(i,v,!already);toast(!already?"Серия отмечена как просмотренная":"Отметка о просмотре снята")}
  else if(a==="inline-watch"){e.preventDefault();e.stopPropagation();var inlineAnime=M[i];if(inlineAnime)startInlineWatch(inlineAnime,Number(v)||1)}
