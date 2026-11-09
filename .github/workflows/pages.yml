@@ -24,7 +24,11 @@ jobs:
         with:
           enablement: true
       - name: Check JavaScript syntax
-        run: node --check js/app.js
+        run: |
+          find js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check sw.js
+      - name: Validate pages and Service Worker
+        run: node scripts/check-pages.mjs
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
