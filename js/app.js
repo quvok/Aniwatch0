@@ -525,27 +525,54 @@ async function enrichRelatedFromShikimori(list){
      if(match)break;
     }catch(error){console.warn("[AniWatch] Related Shikimori lookup failed:",error)}
    }
-   if(!match)continue;
-   var normalized=shikiToItem(match);
-   item.shikiId=normalized.shikiId;
-   item.n=normalized.n;
-   item.o=normalized.o;
-   item.g=normalized.g;
-   item.y=normalized.y;
-   item.r=normalized.r;
-   item.e=normalized.e;
-   item.s=normalized.s;
-   item.img=normalized.img||item.img;
+   if(match){
+    var normalized=shikiToItem(match);
+    item.shikiId=normalized.shikiId;
+    item.n=normalized.n;
+    item.o=normalized.o;
+    item.g=normalized.g;
+    item.y=normalized.y;
+    item.r=normalized.r;
+    item.e=normalized.e;
+    item.s=normalized.s;
+    item.img=normalized.img||item.img;
+   }
   }
  }
  await Promise.all(Array.from({length:Math.min(3,items.length)},()=>worker()));
+
+ // AniLibria IDs are a separate namespace. Match only by the explicit
+ // Shikimori cross-reference supplied by AniLibria, never by numeric ID equality.
+ var candidates=(list||[]).filter(x=>x&&Number(x.shikiId)>0);
+ cursor=0;
+ async function anilibriaWorker(){
+  while(cursor<candidates.length){
+   var item=candidates[cursor++],queries=[un(item.n),un(item.o)].filter(Boolean),matched=null;
+   for(var query of queries){
+    try{
+     var page=await fetchAniLibriaCatalogPage({page:1,limit:50,search:query});
+     matched=(page.items||[]).find(raw=>{
+      var release=raw&&raw.release?raw.release:raw;
+      return Number(release&&release.shikimori&&release.shikimori.id)===Number(item.shikiId);
+     });
+     if(matched)break;
+    }catch(error){console.warn("[AniWatch] Related AniLibria lookup failed:",error)}
+   }
+   if(!matched)continue;
+   var normalizedRelease=anilibriaToItem(matched);
+   if(!normalizedRelease)continue;
+   Object.assign(item,normalizedRelease);
+   M[item.id]=item;
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(2,candidates.length)},()=>anilibriaWorker()));
  return list||[];
 }
 async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===11&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===12&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
@@ -609,7 +636,7 @@ async function loadRelated(d){
    var all=relations.map(x=>x.anime).concat(creatorWorks);
    await enrichRelatedFromShikimori(all);
    await xshikiPosters(all);
-   var data={v:11,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var data={v:12,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
