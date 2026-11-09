@@ -3021,3 +3021,5 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .anime-media-lightbox-panel img{max-height:78vh}
  .anime-media-lightbox-close{top:-11px;right:-7px}
 }
+
+.anime-media-lightbox-panel iframe{display:block;width:min(92vw,1100px);height:min(78vh,620px);border:0;border-radius:12px;background:#000}
