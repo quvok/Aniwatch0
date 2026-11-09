@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUBLIC_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+const ADMIN_EMAIL = "demid.prim@gmail.com";
 const service = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const allowedOrigins = new Set([
@@ -75,6 +76,11 @@ Deno.serve(async (req: Request) => {
     });
     const { data: userData, error: userError } = await authClient.auth.getUser(token);
     if (userError || !userData.user) return json({ error: "Unauthorized" }, 401, origin);
+
+    const accountEmail = String(userData.user.email || "").trim().toLowerCase();
+    if (accountEmail !== ADMIN_EMAIL || !userData.user.email_confirmed_at) {
+      return json({ error: "Forbidden" }, 403, origin);
+    }
 
     const { data: isAdmin, error: adminError } = await authClient.rpc("is_site_admin");
     if (adminError || isAdmin !== true) return json({ error: "Forbidden" }, 403, origin);
