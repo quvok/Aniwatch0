@@ -25,7 +25,11 @@ function rank(item,anime){
  if(wanted.some(x=>candidates.some(y=>y.includes(x)||x.includes(y))))return 1;
  return 99;
 }
+const searchCache=new Map();
 export async function searchKodikAnime(anime){
+ const cacheKey=String(anime?.shikiId||anime?.shiki_id||anime?.id||anime?.n||anime?.o||"unknown");
+ if(searchCache.has(cacheKey))return searchCache.get(cacheKey);
+ const pending=(async()=>{
  const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
  const common={types:"anime-serial,anime",limit:50,with_episodes_data:true};
  let results=[];
@@ -48,6 +52,10 @@ export async function searchKodikAnime(anime){
   const at=a.type==="anime-serial"?0:1,bt=b.type==="anime-serial"?0:1;
   return at-bt||String(a.translation?.title||"").localeCompare(String(b.translation?.title||""),"ru");
  });
+
+ })();
+ searchCache.set(cacheKey,pending);
+ try{return await pending}catch(error){searchCache.delete(cacheKey);throw error}
 }
 export function getKodikEpisodeLink(item,episode,seasonNumber){
  const seasons=item?.seasons||{};
