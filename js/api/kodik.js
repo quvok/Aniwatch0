@@ -49,15 +49,20 @@ export async function searchKodikAnime(anime){
   return at-bt||String(a.translation?.title||"").localeCompare(String(b.translation?.title||""),"ru");
  });
 }
-export function getKodikEpisodeLink(item,episode){
+export function getKodikEpisodeLink(item,episode,seasonNumber){
  const seasons=item?.seasons||{};
- const seasonEntries=Object.entries(seasons);
- const preferred=seasonEntries.find(([key])=>Number(key)===1)||seasonEntries[0];
- const season=preferred?.[1];
- const episodes=season?.episodes||{};
- const episodeEntry=Object.entries(episodes).find(([key])=>Number(key)===Number(episode));
- const link=episodeEntry?.[1]?.link||episodeEntry?.[1]?.url||"";
- return normalizeKodikLink(link||season?.link||item?.link||"");
+ const entries=Object.entries(seasons);
+ const wantedSeason=Number(seasonNumber);
+ const ordered=Number.isFinite(wantedSeason)&&wantedSeason>0
+  ?[...entries.filter(([key])=>Number(key)===wantedSeason),...entries.filter(([key])=>Number(key)!==wantedSeason)]
+  :entries;
+ for(const [seasonKey,season] of ordered){
+  const episodes=season?.episodes||{};
+  const entry=Object.entries(episodes).find(([key,value])=>Number(key)===Number(episode)||Number(value?.episode)===Number(episode)||Number(value?.number)===Number(episode));
+  const link=entry?.[1]?.link||entry?.[1]?.url;
+  if(link)return normalizeKodikLink(link);
+ }
+ return normalizeKodikLink(item?.link||"");
 }
 export function normalizeKodikLink(link){
  const value=String(link||"").trim();
