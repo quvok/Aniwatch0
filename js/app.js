@@ -18,6 +18,7 @@ import { listCollections, getCollection, createCollection, updateCollection, del
 import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
 import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
+import { loadNotifications, markNotificationRead, markAllNotificationsRead, subscribeNotifications } from "./core/notifications.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
 import { fetchAniLibriaWeek, fetchAniLibriaHomeCollections } from "./api/anilibria.js";
 import { renderCalendarPage } from "./pages/calendar.js";
@@ -41,7 +42,7 @@ var D=[
 ["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
-var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null,socialChannelCleanup=null,socialLoadRequest=0,socialRefreshPending=false;
+var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null,socialChannelCleanup=null,socialLoadRequest=0,socialRefreshPending=false,notificationChannelCleanup=null,notificationItems=[];
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
@@ -345,6 +346,28 @@ V.watch=p=>{
  if(inRoom)connectWatchParty();
 };
 
+function renderNotificationPanel(data){
+ notificationItems=data?.items||[];
+ var count=Number(data?.unread)||0,badge=$("#notification-count"),host=$("#notifications-list"),subtitle=$("#notifications-subtitle");
+ if(badge){badge.textContent=count>99?"99+":String(count);badge.hidden=count===0}
+ if(subtitle)subtitle.textContent=count?count+" непрочитанных":"Все просмотрено";
+ if(!host)return;
+ host.innerHTML=notificationItems.length?notificationItems.map(item=>{
+  var actor=item.actor?.username||"AniWatch",date=new Date(item.created_at),stamp=Number.isNaN(date.getTime())?"":date.toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  return '<button type="button" class="notification-item'+(item.read_at?'':' is-unread')+'" data-a="notification-open" data-id="'+esc(item.id)+'" data-href="'+esc(item.href||"/together.html")+'"><span class="notification-dot"></span><span class="notification-copy"><b>'+esc(item.title)+'</b><small>'+esc(actor)+' · '+esc(item.body||"")+'</small><time>'+esc(stamp)+'</time></span></button>';
+ }).join(""):'<p class="notifications-empty">Пока нет уведомлений. Здесь появятся заявки в друзья и приглашения на просмотр.</p>';
+}
+async function refreshNotifications(){
+ if(!AUTH_USER)return;
+ try{renderNotificationPanel(await loadNotifications(AUTH_USER.id))}
+ catch(error){console.warn("[AniWatch] Notifications load failed:",error);var host=$("#notifications-list");if(host)host.innerHTML='<p class="notifications-empty">Не удалось загрузить уведомления.</p>'}
+}
+async function startNotifications(){
+ if(!AUTH_USER)return;
+ await refreshNotifications();
+ if(notificationChannelCleanup)notificationChannelCleanup();
+ notificationChannelCleanup=await subscribeNotifications(AUTH_USER.id,()=>refreshNotifications());
+}
 async function loadTogetherView(){
  var request=++socialLoadRequest;
  app.innerHTML='<p class="empty">Загружаем друзей и приглашения…</p>';
@@ -433,7 +456,7 @@ async function handleAuthSubmit(form){
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
-   S=await restoreCloudState(S,AUTH_USER.id);var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();if(activePage()==="home")loadHomeRecommendations();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();else if(activePage()==="together")loadTogetherView();
+   S=await restoreCloudState(S,AUTH_USER.id);startNotifications().catch(error=>console.warn("[AniWatch] Notifications init failed:",error));var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();if(activePage()==="home")loadHomeRecommendations();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();else if(activePage()==="together")loadTogetherView();
   }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
@@ -456,6 +479,7 @@ async function handleAuthLogout(){
   hd();
   toast("Вы вышли из аккаунта");
   if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+  if(notificationChannelCleanup){notificationChannelCleanup();notificationChannelCleanup=null}notificationItems=[];renderNotificationPanel({items:[],unread:0});
   if(activePage()==="together")loadTogetherView();else V.profile();
  }catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
 }
@@ -694,7 +718,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);startNotifications().catch(e=>console.warn("[AniWatch] Notifications init failed:",e));var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
