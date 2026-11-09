@@ -2427,3 +2427,23 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
   padding-right:0
  }
 }
+
+
+/* Fix mobile ongoing/status badge: keep it compact instead of stretching across the poster. */
+@media(max-width:700px){
+ .row>.card .poster-status{
+  left:6px!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:6px!important;
+  width:max-content!important;
+  max-width:calc(100% - 12px)!important;
+  height:auto!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  background:rgba(9,10,17,.82);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+ }
+}
