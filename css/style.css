@@ -2652,3 +2652,65 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .calendar-toolbar{font-size:9px}
  .poster .poster-new-episode{left:5px;bottom:5px;max-width:calc(100% - 10px);font-size:7px;padding:4px 5px}
 }
+
+
+/* Friends and persistent watch-party invitations */
+.social-hub{display:grid;gap:16px;margin-top:30px}
+.social-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.social-heading h2{margin:5px 0;font-size:clamp(22px,3vw,30px);letter-spacing:-.035em}
+.social-heading p{margin:0;color:var(--mt);font-size:12px;line-height:1.6}
+.social-refresh{border:1px solid var(--ln);border-radius:10px;padding:9px 12px;background:rgba(255,255,255,.04);color:#ddd5f4;font-size:11px}
+.social-search,.social-card,.social-login{padding:18px 20px;background:linear-gradient(145deg,rgba(25,26,43,.92),rgba(13,15,25,.92))}
+.social-search form{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1fr);align-items:end;gap:16px}
+.social-search form>div:first-child{display:grid;gap:5px}
+.social-search label{font-size:13px;font-weight:800;color:#f2efff}
+.social-search small,.social-person-info small,.social-outgoing small{font-size:10px;color:var(--mt)}
+.social-search-controls{display:flex;gap:8px}
+.social-search-controls input{min-width:0;flex:1;height:42px;padding:10px 12px;border:1px solid var(--ln);border-radius:10px;background:#10121d;color:#fff}
+.social-search-controls .btn{min-width:92px;justify-content:center}
+#friend-search-results{display:grid;gap:8px;margin-top:12px}
+.social-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.social-card{min-width:0;border:1px solid var(--ln);border-radius:16px}
+.social-card-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.social-card-title h3{margin:0;font-size:15px}
+.social-card-title>span{display:grid;place-items:center;min-width:25px;height:25px;padding:0 7px;border-radius:20px;background:rgba(167,139,250,.13);color:#c9b8ff;font-size:10px;font-weight:800}
+.social-list{display:grid;gap:8px}
+.social-person{display:flex;align-items:center;gap:11px;min-width:0;padding:10px;border:1px solid rgba(255,255,255,.065);border-radius:12px;background:rgba(255,255,255,.025)}
+.social-avatar{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;overflow:hidden;border-radius:50%;background:linear-gradient(140deg,#7757bd,#302a4a);color:#fff;font-size:14px;font-weight:800}
+.social-avatar img{width:100%;height:100%;object-fit:cover}
+.social-person-info{display:grid;gap:3px;flex:1;min-width:0}
+.social-person-info b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.social-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.social-actions .btn,.social-person>.btn{min-height:33px;padding:7px 10px;font-size:10px}
+.social-remove,.social-outgoing button{padding:7px 9px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:transparent;color:#c7bfd8;font-size:10px}
+.social-empty{margin:0;padding:16px 8px;color:var(--mt);font-size:11px;line-height:1.6;text-align:center}
+.social-error{margin:0;padding:12px;border:1px solid rgba(240,120,140,.2);border-radius:10px;background:rgba(240,90,120,.06);color:#f0aebc;font-size:11px}
+.social-sublist{display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--ln)}
+.social-sublist>b{font-size:11px;color:#d8d0e8}
+.social-outgoing{display:flex;align-items:center;gap:10px;min-width:0;font-size:11px}
+.social-outgoing>span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.social-outgoing small{white-space:nowrap}
+.social-invites{margin-top:0}
+.social-login{display:grid;justify-items:start;gap:9px;border:1px solid var(--ln);border-radius:16px}
+.social-login h3,.social-login p{margin:0}
+.social-login h3{font-size:16px}
+.social-login p{max-width:520px;color:var(--mt);font-size:12px;line-height:1.6}
+.room-invite-panel{margin:12px 0 16px;padding:15px;border:1px solid rgba(167,139,250,.25);border-radius:14px;background:linear-gradient(145deg,rgba(30,25,49,.98),rgba(13,15,25,.98))}
+.room-invite-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.room-invite-title>div{display:grid;gap:4px}
+.room-invite-title b{font-size:13px}
+.room-invite-title small{font-size:10px;color:var(--mt)}
+.room-invite-title>button{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);color:#fff;font-size:18px}
+#room-invite-friend-list{display:grid;gap:8px}
+@media(max-width:760px){
+ .social-columns{grid-template-columns:1fr}
+ .social-search{padding:15px}
+ .social-search form{grid-template-columns:1fr;gap:10px}
+ .social-search-controls{width:100%}
+ .social-card{padding:14px}
+ .social-person{gap:8px;padding:8px}
+ .social-person>.btn,.social-actions .btn{padding:7px 8px}
+ .social-outgoing{flex-wrap:wrap}
+ .social-outgoing small{order:3;width:100%}
+ .social-heading{align-items:flex-start}
+}
