@@ -16,7 +16,10 @@ export function trackPageView(){
   if(trackingStarted||!window.location||/(^|\/)stats\.html$/i.test(location.pathname))return;
   if(navigator.doNotTrack==="1"||window.doNotTrack==="1")return;
   trackingStarted=true;
-  const path=location.pathname||"/";
+  const pathname=location.pathname||"/";
+  const routeId=Number(new URLSearchParams(location.search).get("id"))||0;
+  const routeMatch=pathname.match(/\/(anime|watch)\.html$/i);
+  const path=routeMatch&&routeId>0?pathname.replace(/\/$/,"")+"/"+routeId:pathname;
   let referrerHost="";
   try{if(document.referrer){const referrer=new URL(document.referrer);if(referrer.origin!==location.origin)referrerHost=referrer.hostname}}catch(_){}
   const event={action:"track",visitor_id:visitorId(),page_path:path.slice(0,180),referrer_host:referrerHost,device_type:deviceType()};
