@@ -323,6 +323,18 @@ function renderAnimeDescription(d,description){
   node.insertAdjacentElement("afterend",toggle);
  }else if(!expanded&&toggle)toggle.remove();
 }
+async function fetchShikimoriAnimeScreenshots(shikiId){
+ var id=Number(shikiId);if(!Number.isFinite(id)||id<=0)return[];
+ var controller=typeof AbortController!=="undefined"?new AbortController():null;
+ var timeout=controller?setTimeout(()=>controller.abort(),6500):null;
+ try{
+  var response=await fetch("https://shikimori.io/api/animes/"+encodeURIComponent(id)+"/screenshots",{signal:controller?controller.signal:undefined,headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("Shikimori screenshots HTTP "+response.status);
+  var payload=await response.json();
+  return Array.isArray(payload)?payload:[];
+ }catch(error){console.warn("[AniWatch] Shikimori screenshots endpoint unavailable:",error);return[]}
+ finally{if(timeout)clearTimeout(timeout)}
+}
 async function fetchJikanAnimePictures(malId){
  var id=Number(malId);if(!Number.isFinite(id)||id<=0)return[];
  var controller=typeof AbortController!=="undefined"?new AbortController():null;
@@ -386,7 +398,7 @@ function renderAnimeExtras(d,data){
 }
 function loadAnimeExtras(d){
  var host=$("#anime-extra-sections");if(!host)return;
- var cacheId=Number(d.shikiId)||Number(d.id),now=Date.now(),key="aw-anime-detail-v2-"+cacheId;
+ var cacheId=Number(d.shikiId)||Number(d.id),now=Date.now(),key="aw-anime-detail-v3-"+cacheId;
  if(animeExtraMemory[cacheId]&&typeof animeExtraMemory[cacheId].description==="string"){renderAnimeExtras(d,animeExtraMemory[cacheId]);return}
  try{
   var saved=JSON.parse(localStorage.getItem(key)||"null");
@@ -405,11 +417,15 @@ function loadAnimeExtras(d){
   if(!id){renderAnimeDescription(d,"");return}
   var raw=await fetchAnimeById(id);
   var shikiScreenshots=Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[];
-  var screenshots=shikiScreenshots;
-  if(shikiScreenshots.length<10&&Number(d.mal)>0){
-   var jikanScreenshots=await fetchJikanAnimePictures(d.mal);
-   screenshots=mergeAnimeScreenshots(shikiScreenshots,jikanScreenshots);
-  }else screenshots=mergeAnimeScreenshots(shikiScreenshots,[]);
+  var malId=Number(d.mal)||Number(raw.myanimelist_id)||0;
+  var screenshots=mergeAnimeScreenshots(shikiScreenshots,[]);
+  if(screenshots.length<10){
+   var extraSources=await Promise.all([
+    fetchShikimoriAnimeScreenshots(id),
+    fetchJikanAnimePictures(malId)
+   ]);
+   screenshots=mergeAnimeScreenshots(screenshots,extraSources[0].concat(extraSources[1]));
+  }
   var data={
    videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
    screenshots:screenshots,
