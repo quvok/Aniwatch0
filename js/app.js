@@ -18,6 +18,8 @@ import { listCollections, getCollection, createCollection, updateCollection, del
 import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
+import { fetchAniLibriaWeek } from "./api/anilibria.js";
+import { renderCalendarPage } from "./pages/calendar.js";
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
@@ -38,7 +40,7 @@ var D=[
 ["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
-var M={},H=[],AUTH_USER=null,AUTH_BUSY=false;
+var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null;
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
@@ -57,7 +59,10 @@ var bg=d=>{var image=shikiImageUrl(d.img);return(image?"url('"+image+"') center/
 var bn=d=>{var image=shikiImageUrl(d.ban)||shikiImageUrl(d.img);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
-function card(d,pr,href){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id)})}
+function card(d,pr,href,badge){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id),badge:badge})}
+function scheduleEntryForAnime(d){if(!anilibriaSchedule||!d)return null;return anilibriaSchedule.find(item=>(Number(d.mal)>0&&Number(item.malId)===Number(d.mal))||(Number(d.shikiId)>0&&Number(item.shikimoriId)===Number(d.shikiId)))||null}
+function newEpisodeBadge(d){var item=scheduleEntryForAnime(d);return item&&item.publishedEpisode!==null?"Новая серия · "+item.publishedEpisode:""}
+async function loadAniLibriaSchedule(force){if(anilibriaSchedule&&!force)return anilibriaSchedule;if(anilibriaSchedulePending)return anilibriaSchedulePending;anilibriaSchedulePending=fetchAniLibriaWeek(!!force).then(items=>{anilibriaSchedule=items;return items}).finally(()=>{anilibriaSchedulePending=null});return anilibriaSchedulePending}
 var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>d.e>0?d.e:(d.ae>0?d.ae:0);
@@ -361,8 +366,9 @@ async function loadCollectionsView(params){
  }catch(error){console.error("[AniWatch] Collections load failed:",error);app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить коллекции</h1><p>Проверь подключение и попробуй ещё раз.</p><button class="btn" data-a="collections-reload">Повторить</button></section>'}
 }
 V.collections=loadCollectionsView;
-V.favorites=()=>renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d))});
-V.mylist=()=>renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d))});
+V.favorites=()=>{renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="favorites")V.favorites()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
+V.mylist=()=>{renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist")V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
+V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:error.message||"Не удалось связаться с AniLibria"})}};
 V.profile=()=>renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
@@ -946,6 +952,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="g"){location.href=pageUrl("catalog",{g:v})}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
+  else if(a==="calendar-reload"){loadAniLibriaSchedule(true).then(items=>{if(activePage()==="calendar")renderCalendarPage({app,items})}).catch(error=>renderCalendarPage({app,error:error.message||"Ошибка загрузки"}))}
  else if(a==="add-to-collection"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
   listCollections(AUTH_USER.id).then(rows=>{
