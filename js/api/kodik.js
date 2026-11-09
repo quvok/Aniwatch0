@@ -1,22 +1,18 @@
 const API_BASE="https://kodik-api.com";
 const clean=value=>String(value||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim();
-export function getKodikToken(){try{return sessionStorage.getItem("aniwatch_kodik_token")||""}catch{return""}}
-export function setKodikToken(value){try{if(value)sessionStorage.setItem("aniwatch_kodik_token",String(value).trim());else sessionStorage.removeItem("aniwatch_kodik_token")}catch{}}
-async function request(params,token){
- if(!token)throw new Error("Введи API-токен Kodik");
- const url=new URL("/search",API_BASE);
- url.searchParams.set("token",token);
- Object.entries(params).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value))});
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+const FUNCTION_URL="https://oikuyhdgcobuuesbuygl.supabase.co/functions/v1/kodik-search";
+const SUPABASE_KEY="sb_publishable_Ker59ui359qC1e9dsGsmsg_VW6azZfK";
+async function request(params){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
  try{
-  const response=await fetch(url.toString(),{method:"POST",headers:{Accept:"application/json"},signal:controller.signal});
-  if(!response.ok)throw new Error("Kodik API: HTTP "+response.status);
-  const data=await response.json();
-  if(!data||!Array.isArray(data.results))throw new Error(data?.error||"Kodik вернул неожиданный ответ");
+  const response=await fetch(FUNCTION_URL,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({params}),signal:controller.signal});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data?.error)throw new Error(data?.error||("Kodik API: HTTP "+response.status));
+  if(!Array.isArray(data?.results))throw new Error("Kodik вернул неожиданный ответ");
   return data.results;
  }catch(error){
-  if(error?.name==="AbortError")throw new Error("Kodik API не ответил за 12 секунд");
-  if(error instanceof TypeError)throw new Error("Не удалось подключиться к Kodik API. Возможно, API блокирует запросы с этого домена (CORS).");
+  if(error?.name==="AbortError")throw new Error("Kodik API не ответил за 15 секунд");
+  if(error instanceof TypeError)throw new Error("Не удалось подключиться к серверу Kodik");
   throw error;
  }finally{clearTimeout(timer)}
 }
@@ -29,15 +25,15 @@ function rank(item,anime){
  if(wanted.some(x=>candidates.some(y=>y.includes(x)||x.includes(y))))return 1;
  return 99;
 }
-export async function searchKodikAnime(anime,token=getKodikToken()){
+export async function searchKodikAnime(anime){
  const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
  const common={types:"anime-serial,anime",limit:50,with_episodes_data:true};
  let results=[];
- if(shikiId>0)results=await request({...common,shikimori_id:shikiId},token);
+ if(shikiId>0)results=await request({...common,shikimori_id:shikiId});
  if(!results.length){
   const title=String(anime?.n||anime?.o||anime?.title||"").trim();
   if(title.length<2)throw new Error("Не удалось определить название аниме");
-  results=await request({...common,title},token);
+  results=await request({...common,title});
  }
  const exact=results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.score<99);
  const idMatches=shikiId>0?results.filter(item=>Number(item?.shikimori_id)===shikiId):[];
