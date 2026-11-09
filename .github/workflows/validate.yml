@@ -26,3 +26,5 @@ jobs:
             echo "Checking $file"
             node --check "$file"
           done
+      - name: Test recommendation scoring
+        run: node scripts/check-recommendations.mjs
