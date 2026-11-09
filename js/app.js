@@ -147,14 +147,16 @@ function recommendationLibrary(){
  return [...ids].map(id=>{
   var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
   if(!anime)return null;
-  return {id:id,genres:anime.g||[],rating:S.rate&&S.rate[id],favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
+  return {id:id,mal:Number(anime.mal)||0,genres:anime.g||[],rating:S.rate&&S.rate[id],favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
  }).filter(Boolean);
 }
 function recommendationExcludedIds(){
- return new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),Object.keys(S.recommendationDismissed||{}),S.fav||[]).map(Number).filter(id=>Number.isFinite(id)&&id>0));
+ var excluded=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),Object.keys(S.recommendationDismissed||{}),S.fav||[]).map(Number).filter(id=>Number.isFinite(id)&&id>0));
+ recommendationLibrary().forEach(item=>{if(item.mal>0)excluded.add("mal:"+item.mal)});
+ return excluded;
 }
 function normalizeRecommendationGenre(value){
- return String(value||"").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu," ").trim();
+ return String(value||"").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu," ").trim();
 }
 async function loadHomeRecommendations(){
  var host=$("#recommendation-cards");
