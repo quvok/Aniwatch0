@@ -697,8 +697,13 @@ async function loadHomeCollections(){
  try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v1")||"null")}catch(e){}
  if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
  if(!source){
-  source=await fetchAniLibriaHomeCollections();
-  try{localStorage.setItem("aw-home-anilibria-shiki-v1",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+  try{
+   source=await fetchAniLibriaHomeCollections();
+   try{localStorage.setItem("aw-home-anilibria-shiki-v1",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+  }catch(error){
+   console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
+   source={trending:[],popular:[],ongoing:[],recent:[]};
+  }
  }
  var lists=["trending","popular","ongoing","recent"],releaseIds=new Set();
  lists.forEach(key=>(source[key]||[]).forEach(release=>{
