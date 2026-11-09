@@ -69,13 +69,8 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
     const recencyScore = Number(anime.aired_on || anime.y) >= new Date().getFullYear() - 1 ? 2 : 0;
     const score = genreScore - avoidedPenalty + catalogScore + recencyScore;
 
-    const reason = matches.length
-      ? "Похоже на твой вкус: " + matches.slice(0, 2).map(item => item.name).join(", ") + (avoidedMatches.length ? " · учтены низкие оценки жанров" : "")
-      : avoidedMatches.length
-        ? "Учтены жанры, которые ты раньше низко оценивал"
-        : profile?.hasTaste
-          ? "Популярный тайтл с высоким рейтингом"
-          : "Популярный выбор зрителей — пока собираем твои предпочтения";
+    if (profile?.hasTaste && !matches.length) continue;
+    const reason = "Похоже на твой вкус: " + matches.slice(0, 2).map(item => item.name).join(", ") + (avoidedMatches.length ? " · учтены низкие оценки жанров" : "");
 
     ranked.push({ anime, score, reason });
   }
