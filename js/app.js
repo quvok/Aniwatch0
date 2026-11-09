@@ -863,107 +863,6 @@ async function xshikiPosters(L){
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
  sv();
 }
-
-var catalogPosterGeneration=0,catalogAniLibriaPosterCacheKey="aw-catalog-anilibria-posters-v1";
-function readCatalogAniLibriaPosterCache(){
- try{
-  var saved=JSON.parse(localStorage.getItem(catalogAniLibriaPosterCacheKey)||"null");
-  return saved&&saved.items&&typeof saved.items==="object"?saved.items:{};
- }catch(e){return {}}
-}
-function catalogAniLibriaReleaseMatch(anime,releases){
- var shikiId=Number(anime&&anime.shikiId)||0;
- var exact=(releases||[]).filter(release=>Number(release&&release.shikimori&&release.shikimori.id)===shikiId&&shikiId>0);
- if(exact.length===1)return exact[0];
- if(exact.length>1)return null;
- var wanted=new Set([un(anime&&anime.n),un(anime&&anime.o)].map(normalizeMatchTitle).filter(Boolean));
- if(!wanted.size)return null;
- var matches=(releases||[]).filter(release=>{
-  var linkedId=Number(release&&release.shikimori&&release.shikimori.id)||0;
-  if(linkedId&&linkedId!==shikiId)return false;
-  var name=release&&release.name||{};
-  var names=[name.main,name.english,...String(name.alternative||"").split(","),release&&release.name_ru,release&&release.name_en];
-  if(!names.some(value=>wanted.has(normalizeMatchTitle(value))))return false;
-  var releaseYear=Number(release&&release.year)||0;
-  return !anime.y||!releaseYear||releaseYear===Number(anime.y);
- });
- if(Number(anime&&anime.y)){
-  var exactYear=matches.filter(release=>Number(release&&release.year)===Number(anime.y));
-  if(exactYear.length===1)return exactYear[0];
-  if(exactYear.length>1)return null;
-  var withoutYear=matches.filter(release=>!Number(release&&release.year));
-  return withoutYear.length===1?withoutYear[0]:null;
- }
- return matches.length===1?matches[0]:null;
-}
-async function searchCatalogAniLibriaPoster(anime){
- var names=[un(anime&&anime.n),un(anime&&anime.o)].filter((value,index,list)=>value&&list.indexOf(value)===index);
- for(var query of names){
-  var timer=null;
-  try{
-   var controller=new AbortController();timer=setTimeout(()=>controller.abort(),7000);
-   var response=await fetch("https://api.anilibria.app/api/v1/app/search/releases?query="+encodeURIComponent(query),{signal:controller.signal});
-   clearTimeout(timer);timer=null;
-   if(!response.ok)continue;
-   var result=await response.json(),releases=Array.isArray(result)?result:(result.list||result.data||[]);
-   if(!Array.isArray(releases))continue;
-   var matched=catalogAniLibriaReleaseMatch(anime,releases),poster=aniLibriaPosterUrl(matched);
-   if(poster)return poster;
-  }catch(error){if(timer)clearTimeout(timer)}
- }
- return "";
-}
-function applyCatalogAniLibriaPoster(anime,url){
- if(!anime||!url)return;
- var previous=shikiImageUrl(anime.img);
- if(previous&&previous!==url&&!anime.posterFallback)anime.posterFallback=previous;
- anime.img=url;M[anime.id]=anime;
- S.shikiAnime=S.shikiAnime||{};S.shikiAnime[anime.id]=anime;
- var cardElement=document.querySelector('#cr .card[data-anime-id="'+Number(anime.id)+'"]');
- if(!cardElement)return;
- var poster=cardElement.querySelector(".poster");
- if(!poster)return;
- var img=poster.querySelector(".poster-image");
- if(!img){
-  img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="eager";img.fetchPriority="low";img.decoding="async";poster.prepend(img);
- }
- img.onerror=function(){
-  var fallback=anime.posterFallback;
-  if(fallback&&this.dataset.posterFallback!=="used"){this.dataset.posterFallback="used";this.src=fallback;return}
-  this.removeAttribute("src");this.style.display="none";
- };
- if(img.src!==url)img.src=url;
- var letter=poster.querySelector("i");if(letter)letter.remove();
-}
-async function loadCatalogAniLibriaPosters(animeList,generation){
- var list=(animeList||[]).filter(anime=>anime&&Number(anime.shikiId)>0);
- if(!list.length)return;
- var cache=readCatalogAniLibriaPosterCache(),now=Date.now(),pending=[],updates={};
- list.forEach(anime=>{
-  var saved=cache[String(anime.shikiId)];
-  if(saved&&now-Number(saved.at)<(saved.url?7:1)*86400000){
-   if(saved.url)applyCatalogAniLibriaPoster(anime,saved.url);
-  }else pending.push(anime);
- });
- var cursor=0,workers=Array.from({length:Math.min(4,pending.length)},async()=>{
-  while(cursor<pending.length){
-   var anime=pending[cursor++];
-   if(generation!==catalogPosterGeneration||activePage()!=="catalog")return;
-   var url=await searchCatalogAniLibriaPoster(anime);
-   if(generation!==catalogPosterGeneration||activePage()!=="catalog")return;
-   cache[String(anime.shikiId)]=updates[String(anime.shikiId)]={url:url,at:Date.now()};
-   if(url)applyCatalogAniLibriaPoster(anime,url);
-  }
- });
- await Promise.all(workers);
- if(generation===catalogPosterGeneration&&activePage()==="catalog"){
-  var latest=readCatalogAniLibriaPosterCache();Object.assign(latest,updates);
-  var keys=Object.keys(latest);
-  if(keys.length>1200)keys.sort((a,b)=>Number(latest[a].at||0)-Number(latest[b].at||0)).slice(0,keys.length-1200).forEach(key=>delete latest[key]);
-  try{localStorage.setItem(catalogAniLibriaPosterCacheKey,JSON.stringify({items:latest}))}catch(e){}
-  sv();
- }
-}
 function dHasImage(list,id){
  return (list||[]).some(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))===id&&!!shikiImageUrl(d.img));
 }
@@ -987,7 +886,7 @@ V.catalog=()=>{
 };
 rc=()=>{var s=$("#cs");xCF.q=s?s.value.trim():(F.q||"");F.q=xCF.q;if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){catalogPosterGeneration++;xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
+ if(reset){xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  var requestId=++xSearchRequest;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
@@ -1013,8 +912,7 @@ async function xcq(reset){
   L.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  var posterGeneration=catalogPosterGeneration;
-  xshikiPosters(L).then(()=>loadCatalogAniLibriaPosters(L,posterGeneration)).catch(error=>console.warn("[AniWatch] Catalog poster enrichment failed:",error));
+  xshikiPosters(L);
   xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
