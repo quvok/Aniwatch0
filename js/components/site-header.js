@@ -1,5 +1,6 @@
 // Shared navigation: desktop sidebar and compact mobile bottom bar.
 import {PAGES} from "../core/router.js";
+import { trackPageView } from "../core/analytics.js";
 
 const NAV=[
  ["home","Главная","⌂"],
@@ -15,6 +16,7 @@ function navLinks(){
 }
 
 export function renderSiteHeader(){
+ trackPageView();
  const host=document.getElementById("site-header");
  if(!host)return;
  const links=navLinks();
