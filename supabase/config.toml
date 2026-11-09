@@ -1,0 +1,2 @@
+[functions.site-analytics]
+verify_jwt = false
