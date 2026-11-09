@@ -192,7 +192,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    };
    const render=()=>{
     const eps=episodesOf(selected);
-    const voiceButtons=available.map((item,index)=>'<button type="button" class="kodik-voice'+(item===selected?' on':'')+'" data-kodik-voice="'+index+'" aria-pressed="'+(item===selected?'true':'false')+'"><span>'+esc(item.translation?.title||"Озвучка "+(index+1))+'</span><small>'+esc(item.quality||"Kodik")+'</small></button>').join("");
+    const voiceButtons=available.map((item,index)=>'<button type="button" class="kodik-voice'+(item===selected?' on':'')+'" data-kodik-voice="'+index+'" aria-pressed="'+(item===selected?'true':'false')+'"><span>'+esc(item.translation?.title||"Озвучка "+(index+1))+'</span></button>').join("");
     const episodeInfo=eps.length?'<span class="kodik-episode-info">Доступно серий: '+eps.length+'</span>':'<span class="kodik-episode-info">Серия '+episode+'</span>';
     options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom"><span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Kodik")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
     options.querySelectorAll("[data-kodik-voice]").forEach(button=>button.addEventListener("click",()=>{
