@@ -3243,3 +3243,49 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .stats-page .stats-page-link:hover{color:#c4b5fd;text-decoration:underline;text-underline-offset:3px}
 .stats-page .stats-bar-meta>span{min-width:0;overflow-wrap:anywhere}
 .stats-page .stats-page-link:focus-visible{outline:2px solid #a78bfa;outline-offset:3px;border-radius:4px}
+
+
+/* Screenshot gallery: cards are buttons, not anchors. Keep frames visible on touch screens. */
+.anime-screenshot-grid{
+ display:grid!important;
+ grid-template-columns:repeat(5,minmax(0,1fr));
+ gap:10px;
+ width:100%;
+}
+.anime-screenshot-card{
+ appearance:none;
+ -webkit-appearance:none;
+ display:block!important;
+ width:100%;
+ min-width:0;
+ min-height:0;
+ aspect-ratio:16/9;
+ padding:0;
+ overflow:hidden;
+ border:1px solid rgba(255,255,255,.12);
+ border-radius:10px;
+ background:#171421;
+ cursor:zoom-in;
+}
+.anime-screenshot-card img{
+ display:block!important;
+ width:100%!important;
+ height:100%!important;
+ min-height:0;
+ object-fit:cover;
+ opacity:1!important;
+ visibility:visible!important;
+}
+@media(max-width:700px){
+ .anime-screenshot-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px;
+ }
+ .anime-screenshot-card{
+  min-height:88px;
+  border-radius:9px;
+ }
+ .anime-screenshot-card img{
+  object-fit:cover;
+ }
+}
