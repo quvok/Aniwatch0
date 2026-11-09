@@ -864,7 +864,7 @@ async function xshikiPosters(L){
  sv();
 }
 
-var catalogAniLibriaPosterCacheKey="aw-catalog-anilibria-posters-v1";
+var catalogPosterGeneration=0,catalogAniLibriaPosterCacheKey="aw-catalog-anilibria-posters-v1";
 function readCatalogAniLibriaPosterCache(){
  try{
   var saved=JSON.parse(localStorage.getItem(catalogAniLibriaPosterCacheKey)||"null");
@@ -935,10 +935,10 @@ function applyCatalogAniLibriaPoster(anime,url){
  if(img.src!==url)img.src=url;
  var letter=poster.querySelector("i");if(letter)letter.remove();
 }
-async function loadCatalogAniLibriaPosters(animeList,requestId){
+async function loadCatalogAniLibriaPosters(animeList,generation){
  var list=(animeList||[]).filter(anime=>anime&&Number(anime.shikiId)>0);
  if(!list.length)return;
- var cache=readCatalogAniLibriaPosterCache(),now=Date.now(),pending=[];
+ var cache=readCatalogAniLibriaPosterCache(),now=Date.now(),pending=[],updates={};
  list.forEach(anime=>{
   var saved=cache[String(anime.shikiId)];
   if(saved&&now-Number(saved.at)<(saved.url?7:1)*86400000){
@@ -948,18 +948,19 @@ async function loadCatalogAniLibriaPosters(animeList,requestId){
  var cursor=0,workers=Array.from({length:Math.min(4,pending.length)},async()=>{
   while(cursor<pending.length){
    var anime=pending[cursor++];
-   if(requestId!==xSearchRequest||activePage()!=="catalog")return;
+   if(generation!==catalogPosterGeneration||activePage()!=="catalog")return;
    var url=await searchCatalogAniLibriaPoster(anime);
-   if(requestId!==xSearchRequest||activePage()!=="catalog")return;
-   cache[String(anime.shikiId)]={url:url,at:Date.now()};
+   if(generation!==catalogPosterGeneration||activePage()!=="catalog")return;
+   cache[String(anime.shikiId)]=updates[String(anime.shikiId)]={url:url,at:Date.now()};
    if(url)applyCatalogAniLibriaPoster(anime,url);
   }
  });
  await Promise.all(workers);
- if(requestId===xSearchRequest&&activePage()==="catalog"){
-  var keys=Object.keys(cache);
-  if(keys.length>1200)keys.sort((a,b)=>Number(cache[a].at||0)-Number(cache[b].at||0)).slice(0,keys.length-1200).forEach(key=>delete cache[key]);
-  try{localStorage.setItem(catalogAniLibriaPosterCacheKey,JSON.stringify({items:cache}))}catch(e){}
+ if(generation===catalogPosterGeneration&&activePage()==="catalog"){
+  var latest=readCatalogAniLibriaPosterCache();Object.assign(latest,updates);
+  var keys=Object.keys(latest);
+  if(keys.length>1200)keys.sort((a,b)=>Number(latest[a].at||0)-Number(latest[b].at||0)).slice(0,keys.length-1200).forEach(key=>delete latest[key]);
+  try{localStorage.setItem(catalogAniLibriaPosterCacheKey,JSON.stringify({items:latest}))}catch(e){}
   sv();
  }
 }
@@ -986,7 +987,7 @@ V.catalog=()=>{
 };
 rc=()=>{var s=$("#cs");xCF.q=s?s.value.trim():(F.q||"");F.q=xCF.q;if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
+ if(reset){catalogPosterGeneration++;xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
  var requestId=++xSearchRequest;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
@@ -1012,7 +1013,8 @@ async function xcq(reset){
   L.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
-  xshikiPosters(L).then(()=>loadCatalogAniLibriaPosters(L,requestId)).catch(error=>console.warn("[AniWatch] Catalog poster enrichment failed:",error));
+  var posterGeneration=catalogPosterGeneration;
+  xshikiPosters(L).then(()=>loadCatalogAniLibriaPosters(L,posterGeneration)).catch(error=>console.warn("[AniWatch] Catalog poster enrichment failed:",error));
   xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
