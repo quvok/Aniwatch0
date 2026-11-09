@@ -1,7 +1,8 @@
 const API_BASE="https://anilibria.top/api/v1";
 const CACHE_KEY="aw-anilibria-schedule-week-v1";
 const CACHE_TTL=10*60*1000;
-let memoryCache=null,memoryAt=0,pending=null;
+const HOME_CACHE_TTL=20*60*1000;
+let memoryCache=null,memoryAt=0,pending=null,homeMemory=null,homeMemoryAt=0,homePending=null;
 
 function normalizePayload(payload){
  const raw=Array.isArray(payload)?payload:Array.isArray(payload?.data)?payload.data:Array.isArray(payload?.data?.items)?payload.data.items:[];
@@ -10,7 +11,7 @@ function normalizePayload(payload){
   const poster=release.poster||{},optimized=poster.optimized||{};
   const posterPath=optimized.preview||optimized.src||optimized.thumbnail||poster.preview||poster.src||poster.thumbnail||"";
   let posterUrl="";
-  if(posterPath){try{posterUrl=new URL(posterPath, "https://anilibria.top").href}catch{}}
+  if(posterPath){try{posterUrl=new URL(posterPath,"https://anilibria.top").href}catch{}}
   return {
    day:Number(release.publish_day?.value)||Number(item.day)||0,
    dayName:String(release.publish_day?.description||""),
@@ -31,6 +32,52 @@ function normalizePayload(payload){
    type:String(release.type?.description||"")
   };
  }).filter(item=>item.day>=1&&item.day<=7);
+}
+
+function listFrom(payload){
+ if(Array.isArray(payload))return payload;
+ if(Array.isArray(payload?.data))return payload.data;
+ if(Array.isArray(payload?.data?.items))return payload.data.items;
+ return [];
+}
+async function getJson(path,params={}){
+ const url=new URL(API_BASE+path);
+ Object.entries(params).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value))});
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),14000);
+ try{
+  const response=await fetch(url.toString(),{signal:controller.signal,headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("AniLibria API: HTTP "+response.status+" ("+path+")");
+  return await response.json();
+ }finally{clearTimeout(timer)}
+}
+async function catalogPage(sorting,publishStatuses){
+ const params={page:1,limit:50,"f[sorting]":sorting};
+ if(publishStatuses)params["f[publish_statuses]"]=publishStatuses;
+ return listFrom(await getJson("/anime/catalog/releases",params));
+}
+
+export async function fetchAniLibriaHomeCollections(force=false){
+ if(!force&&homeMemory&&Date.now()-homeMemoryAt<HOME_CACHE_TTL)return homeMemory;
+ if(homePending)return homePending;
+ homePending=(async()=>{
+  const jobs=[
+   catalogPage("RATING_DESC"),
+   getJson("/anime/releases/recommended",{limit:50}).then(listFrom),
+   catalogPage("RATING_DESC","IS_ONGOING"),
+   getJson("/anime/releases/latest",{limit:50}).then(listFrom)
+  ];
+  const settled=await Promise.allSettled(jobs);
+  const lists=settled.map((result,index)=>{
+   if(result.status==="fulfilled")return result.value;
+   console.warn("[AniWatch] AniLibria home shelf "+index+" failed:",result.reason);
+   return [];
+  });
+  if(!lists.some(list=>list.length))throw new Error("AniLibria не вернула данные для главной");
+  homeMemory={trending:lists[0],popular:lists[1],ongoing:lists[2],recent:lists[3]};
+  homeMemoryAt=Date.now();
+  return homeMemory;
+ })().finally(()=>{homePending=null});
+ return homePending;
 }
 
 export async function fetchAniLibriaWeek(force=false){
