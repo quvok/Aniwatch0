@@ -314,7 +314,7 @@ function loadAnimeExtras(d){
   var data={
    videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
    screenshots:Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[],
-   rates_scores_stats:Array.isArray(raw.rates_scores_stats)?raw.rates_scores_stats:[],
+   rates_scores_stats:Array.isArray(raw.rates_scores_stats)?raw.rates_scores_stats:(Array.isArray(raw.scores_stats)?raw.scores_stats:(Array.isArray(raw.scoresStats)?raw.scoresStats:[])),
    score:Number(raw.score)||Number(d.r)||0
   };
   animeExtraMemory[id]=data;
