@@ -657,9 +657,9 @@ async function loadHomeCollections(){
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
   async function collect(options,pages){var result=[],seen=new Set();for(var page=1;page<=(pages||1)&&result.length<150;page++){var response=await fetchAniLibriaCatalogPage(Object.assign({page:page,limit:50},options)),batch=response.items||[];if(!batch.length)break;batch.forEach(item=>{var id=Number(item&&item.id);if(id>0&&!seen.has(id)){seen.add(id);result.push(item)}});if(batch.length<50)break}return result}
-  var [ratingPool,ongoing,recent]=await Promise.all([collect({sorting:"RATING_DESC"},3),collect({sorting:"RATING_DESC",publishStatus:"IS_ONGOING"},1),collect({sorting:"FRESH_AT_DESC"},1)]);
+  var [ratingPool,ongoing,recent]=await Promise.all([collect({sorting:"RATING_DESC"},5),collect({sorting:"RATING_DESC",publishStatus:"IS_ONGOING"},1),collect({sorting:"FRESH_AT_DESC"},1)]);
   if(!ratingPool.length&&!ongoing.length&&!recent.length)throw new Error("AniLibria вернула пустой каталог");
-  var popularPool=ratingPool.slice(),bestPool=ratingPool.filter(item=>Number(item.rating&&item.rating.average)>0);
+  var popularPool=ratingPool.slice(),bestPool=ratingPool.filter(item=>Number(item.rating&&item.rating.average)>0&&Number(item.rating&&item.rating.votes)>=10);if(bestPool.length<15)bestPool=ratingPool.filter(item=>Number(item.rating&&item.rating.average)>0);
   bestPool.sort((x,y)=>(Number(y.rating&&y.rating.average)-Number(x.rating&&x.rating.average))||(Number(y.rating&&y.rating.votes)-Number(x.rating&&x.rating.votes)));
   popularPool.sort((x,y)=>(Number(y.added_in_users_favorites)||0)-(Number(x.added_in_users_favorites)||0));
   data={best:bestPool,popular:popularPool,ongoing:ongoing,recent:recent};try{localStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
