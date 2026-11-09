@@ -2599,3 +2599,56 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .recommendation-dismiss{font-size:9px;min-height:26px;padding:4px 7px}
 }
 @media(max-width:390px){.recommendation-list>.recommendation-item{flex-basis:116px;width:116px}}
+
+
+/* AniLibria weekly release calendar */
+.poster .poster-new-episode{
+ position:absolute;z-index:4;left:8px;right:auto;top:auto;bottom:8px;max-width:calc(100% - 16px);
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 7px;border:1px solid rgba(167,139,250,.42);
+ border-radius:7px;background:rgba(71,42,130,.92);color:#f2eaff;font-size:9px;font-weight:850;line-height:1.2;
+ box-shadow:0 4px 14px rgba(0,0,0,.28)
+}
+.calendar-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:22px;margin:8px 0 25px}
+.calendar-page-head .eyebrow{margin-bottom:9px}
+.calendar-page-head h1{font-size:clamp(29px,4vw,42px);letter-spacing:-1.2px}
+.calendar-page-head p{margin-top:6px;color:var(--mt);font-size:13px}
+.calendar-summary{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:2px 9px;padding:12px 15px;border:1px solid var(--ln);border-radius:13px;background:rgba(19,21,33,.72);white-space:nowrap}
+.calendar-summary b{font-size:19px;color:#d8c8ff;font-variant-numeric:tabular-nums}
+.calendar-summary span{font-size:10px;color:var(--mt)}
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;color:var(--mt);font-size:11px}
+.calendar-toolbar .text-link{margin:0}
+.calendar-week{display:grid;gap:14px}
+.calendar-day{padding:17px;border:1px solid var(--ln);border-radius:16px;background:linear-gradient(145deg,rgba(20,21,34,.88),rgba(12,13,22,.9))}
+.calendar-day.is-today{border-color:rgba(167,139,250,.42);box-shadow:0 0 0 1px rgba(167,139,250,.08),0 12px 28px rgba(0,0,0,.14)}
+.calendar-day-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.calendar-day-heading h2{margin:0;font-size:17px}
+.calendar-day-heading span{font-size:10px;color:var(--mt)}
+.calendar-release-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.calendar-release{display:flex;gap:12px;min-width:0;padding:9px;border:1px solid rgba(190,197,230,.1);border-radius:12px;background:rgba(255,255,255,.025)}
+.calendar-poster{display:block;flex:0 0 62px;width:62px;height:88px;overflow:hidden;border-radius:8px;background:linear-gradient(145deg,#30234d,#141522)}
+.calendar-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.calendar-poster-placeholder{display:grid;width:100%;height:100%;place-items:center;color:#bda9f2;font-weight:900}
+.calendar-release-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-width:0}
+.calendar-title{font-size:12px;font-weight:800;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.calendar-title:hover{color:#d8c8ff}
+.calendar-release-meta{font-size:9px;color:var(--mt)}
+.calendar-episode-state{font-size:10px;font-weight:800}
+.calendar-new-episode{color:#cbb5ff}
+.calendar-next{color:#aeb4c8}
+.calendar-season-done{color:#9dd8b5}
+.calendar-release-info p{font-size:9px;color:var(--mt);line-height:1.35}
+.calendar-empty-day{grid-column:1/-1;padding:8px 0;color:var(--mt);font-size:11px}
+@media(max-width:700px){
+ .calendar-page-head{align-items:flex-start;flex-direction:column;margin:4px 0 18px;gap:12px}
+ .calendar-page-head h1{font-size:28px}
+ .calendar-summary{grid-template-columns:auto auto auto auto;gap:5px 7px;padding:8px 10px}
+ .calendar-summary b{font-size:15px}.calendar-summary span{font-size:9px}
+ .calendar-day{padding:12px;border-radius:13px}
+ .calendar-day-heading h2{font-size:15px}
+ .calendar-release-list{grid-template-columns:1fr;gap:8px}
+ .calendar-release{padding:8px;gap:10px}
+ .calendar-poster{flex-basis:54px;width:54px;height:76px}
+ .calendar-title{font-size:11px}
+ .calendar-toolbar{font-size:9px}
+ .poster .poster-new-episode{left:5px;bottom:5px;max-width:calc(100% - 10px);font-size:7px;padding:4px 5px}
+}
