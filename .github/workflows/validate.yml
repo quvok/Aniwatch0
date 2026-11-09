@@ -5,9 +5,14 @@ on:
     branches: [main, redesign/product-audit-2026-11-08]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   syntax:
@@ -22,9 +27,9 @@ jobs:
       - name: Check all JavaScript modules
         run: |
           set -e
-          for file in $(find js -type f -name '*.js' | sort); do
+          while IFS= read -r -d '' file; do
             echo "Checking $file"
             node --check "$file"
-          done
+          done < <(find js -type f -name '*.js' -print0 | sort -z)
       - name: Test recommendation scoring
         run: node scripts/check-recommendations.mjs
