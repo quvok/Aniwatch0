@@ -3238,3 +3238,8 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .stats-page .stats-message{margin:12px auto;padding:23px 19px;border-radius:17px}
 }
 @media(max-width:360px){.stats-page .stats-kpis{grid-template-columns:1fr}.stats-page .stats-kpi{min-height:0}}
+
+.stats-page .stats-page-link{color:#e6ddff;text-decoration:none;font-weight:600;transition:color .18s}
+.stats-page .stats-page-link:hover{color:#c4b5fd;text-decoration:underline;text-underline-offset:3px}
+.stats-page .stats-bar-meta>span{min-width:0;overflow-wrap:anywhere}
+.stats-page .stats-page-link:focus-visible{outline:2px solid #a78bfa;outline-offset:3px;border-radius:4px}
