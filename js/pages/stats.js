@@ -48,6 +48,7 @@ async function loadStats(){
   const client=await getSupabaseClient(),{data:sessionData,error:sessionError}=await client.auth.getSession();
   if(sessionError)throw sessionError;
   if(!sessionData.session){shell("Чтобы открыть панель, войди в свой аккаунт AniWatch.",'<a class="btn" href="profile.html">Перейти к профилю</a>');return}
+  if(String(sessionData.session.user?.email||"").trim().toLowerCase()!=="demid.prim@gmail.com"){shell("Доступ к панели есть только у владельца сайта.");return}
   const {data,error}=await client.functions.invoke("site-analytics",{body:{action:"stats"}});
   if(error){const status=error.context?.status;if(status===403){shell("У этого аккаунта нет доступа к статистике сайта.");return}if(status===401){shell("Сессия закончилась. Войди в аккаунт ещё раз.",'<a class="btn" href="profile.html">Открыть профиль</a>');return}throw error}
   if(!data?.ok||!data.stats)throw new Error("Сервер не вернул статистику.");
