@@ -648,7 +648,6 @@ async function loadHomeCollections(){
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
 xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xXC={},xIO=null,xGenrePromise=null,xGenreOptions=null;
-var catalogSuggestTimer=null,catalogSuggestRequest=0;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -724,23 +723,6 @@ V.catalog=()=>{
  var routeKey=xCF.k;
  xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
-async function searchCatalogSuggestions(query){
- const host=$("#catalog-search-suggestions"),q=String(query||"").trim(),request=++catalogSuggestRequest;
- if(!host)return;
- if(q.length<2){host.hidden=true;host.innerHTML="";return}
- host.hidden=false;host.innerHTML='<div class="catalog-suggestion-state">Ищем совпадения…</div>';
- try{
-  const raw=await fetchCatalogPage({query:q,page:1,limit:8,order:"popularity"});
-  if(request!==catalogSuggestRequest||activePage()!=="catalog"||($("#cs")?.value||"").trim()!==q)return;
-  const list=(Array.isArray(raw)?raw:[]).map(shikiToItem).filter(Boolean).slice(0,7);
-  list.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
-  host.innerHTML=list.length?list.map(d=>'<a class="catalog-suggestion" href="'+titleUrl(d.id)+'"><span class="poster catalog-suggestion-poster" data-anime-id="'+d.id+'" style="background:'+bg(d)+'"></span><span class="catalog-suggestion-copy"><b>'+esc(un(d.n))+'</b><small>'+esc(d.y||"Год неизвестен")+' · '+esc((d.g||[]).slice(0,2).join(" · "))+'</small></span><span class="catalog-suggestion-rating">★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span></a>').join(""):'<div class="catalog-suggestion-state">Ничего не найдено</div>';
-  if(list.length)xshikiPosters(list);
- }catch(error){
-  if(request!==catalogSuggestRequest)return;
-  host.innerHTML='<div class="catalog-suggestion-state">Подсказки временно недоступны. Нажми Enter для обычного поиска.</div>';
- }
-}
 rc=()=>{var s=$("#cs");xCF.q=s?s.value.trim():(F.q||"");F.q=xCF.q;if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
  if(reset){xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
@@ -959,8 +941,7 @@ listen(document,"input",e=>{var i=e.target.id;
 listen(document,"change",async e=>{if(e.target.id==="profile-avatar-file"){var file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;try{if(AUTH_USER){S.avatar=await uploadProfileAvatar(file,AUTH_USER.id)}else{if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>1024*1024)throw new Error("Выбери JPG, PNG или WebP до 1 МБ.");S.avatar=await new Promise((resolve,reject)=>{var reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsDataURL(file)})}sv();hd();toast("Фото профиля обновлено");V.profile()}catch(error){toast(error.message||"Не удалось загрузить фото")};return}if(e.target.id==="backup-file"){var selected=e.target.files&&e.target.files[0];importBackup(selected);e.target.value="";return}if(e.target.id=="so"){F.s=e.target.value;rc()}if(e.target.id=="status-filter"){F.status=e.target.value;rc()}if(e.target.id=="anime-list-status"){var id=+e.target.dataset.id,value=e.target.value;if(value)S.watchlist[id]=value;else delete S.watchlist[id];sv();toast(value?"Статус сохранён":"Удалено из списка")}});
 listen(window,"keydown",e=>{if(e.key==="Escape"){var authModal=document.getElementById("auth-modal");if(authModal){authModal.remove();return}}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;var video=$("#stream-player video");if(!video)return;
  if(e.code==="Space"){e.preventDefault();if(video.paused)video.play().catch(()=>{});else video.pause()}else if(e.code==="ArrowRight"){video.currentTime=Math.min(video.duration||video.currentTime+10,video.currentTime+10)}else if(e.code==="ArrowLeft"){video.currentTime=Math.max(0,video.currentTime-10)}});
-listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.q=xCF.q;var hq=$("#q");if(hq)hq.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450);clearTimeout(catalogSuggestTimer);catalogSuggestTimer=setTimeout(()=>searchCatalogSuggestions(xCF.q),280)});
- listen(document,"click",e=>{if(e.target.closest(".catalog-search-label"))return;var host=$("#catalog-search-suggestions");if(host)host.hidden=true});
+listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.q=xCF.q;var hq=$("#q");if(hq)hq.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)});
  listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
  listen(document,"click",e=>{if(e.target.closest("[data-xr]")){xcq(false);return}if(e.target.closest("[data-cf-reset]")){xCF.g="";xCF.y="";xCF.season="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.minScore="";xCF.q="";F.q="";F.g="";["cs","cf-g","cf-y","cf-season","cf-st","cf-f","cf-r","cf-o"].forEach(id=>{var el=$("#"+id);if(el)el.value=id==="cf-o"?"POPULARITY_DESC":""});var hq=$("#q");if(hq)hq.value="";xcq(true)}});
  addEventListener("pagehide",()=>{stashItems();disconnectRoom()});
