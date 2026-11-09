@@ -174,11 +174,19 @@ async function loadHomeRecommendations(){
     }
    }catch(error){console.warn("[AniWatch] Recommendation genres unavailable:",error)}
   }
+  var usedRankedFallback=false;
   if(raw.length<15){
-   try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}))}catch(error){if(!raw.length)throw error}
+   try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}));usedRankedFallback=true}catch(error){if(!raw.length)throw error}
   }
   if(request!==recommendationRequest||activePage()!=="home")return;
-  var candidates=raw.map(shikiToItem),ranked=rankRecommendations(candidates,profile,recommendationExcludedIds(),12);
+  var candidates=raw.map(shikiToItem),excluded=recommendationExcludedIds(),ranked=rankRecommendations(candidates,profile,excluded,12);
+  if(ranked.length<8&&!usedRankedFallback){
+   try{
+    raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}));
+    candidates=raw.map(shikiToItem);
+    ranked=rankRecommendations(candidates,profile,excluded,12);
+   }catch(error){console.warn("[AniWatch] Recommendation fallback failed:",error)}
+  }
   if(!ranked.length){
    host.innerHTML='<p class="m">Пока не удалось найти новые тайтлы. Попробуй позже — каталог Shikimori может быть временно недоступен.</p>';
    return;
