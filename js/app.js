@@ -728,8 +728,8 @@ async function ru(d){
  await enrichShikimori([d]);
  var description=d&&d.d?cleanDesc(d.d):"";
  var detail=$("#td");
- if(detail&&description){
-  detail.textContent=description;
+ if(detail){
+  detail.textContent=description||"Описание пока недоступно. Попробуй обновить страницу позже.";
   detail.classList.toggle("collapsed",description.length>260);
   var toggle=detail.parentElement&&detail.parentElement.querySelector(".desc-toggle");
   if(toggle){toggle.hidden=description.length<=260;toggle.setAttribute("aria-expanded","false");toggle.innerHTML='Читать полностью <span>⌄</span>'}
