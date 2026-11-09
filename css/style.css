@@ -2447,3 +2447,38 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
   -webkit-backdrop-filter:blur(8px);
  }
 }
+
+
+/* Home mobile card polish: keep status badges compact on every homepage shelf. */
+@media(max-width:700px){
+ .home-primary .shelf>.row>.card>.poster>.poster-status,
+ .home-primary .row>.card>.poster>.poster-status,
+ .home-rail .rail-list>.card>.poster>.poster-status{
+  position:absolute!important;
+  left:6px!important;right:auto!important;top:auto!important;bottom:6px!important;
+  display:inline-flex!important;align-items:center!important;
+  width:auto!important;height:auto!important;min-width:0!important;
+  max-width:calc(100% - 12px)!important;
+  padding:4px 6px!important;margin:0!important;
+  border-radius:6px!important;
+  background:rgba(9,10,17,.84)!important;
+  border:1px solid rgba(255,255,255,.13)!important;
+  color:#e5e0f3!important;
+  font-size:8px!important;line-height:1.2!important;font-weight:800!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+ }
+ .home-primary .shelf>.row>.card>.poster,
+ .home-primary .row>.card>.poster{
+  position:relative!important;display:block!important;
+  width:100%!important;aspect-ratio:2/3!important;height:auto!important;min-height:0!important;
+  overflow:hidden!important;
+ }
+ .home-primary .shelf>.row>.card>.poster>.poster-image,
+ .home-primary .row>.card>.poster>.poster-image{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:cover!important;
+ }
+ .home-primary .shelf>.row>.card>.poster .rating,
+ .home-primary .row>.card>.poster .rating{right:auto!important;bottom:auto!important}
+}
