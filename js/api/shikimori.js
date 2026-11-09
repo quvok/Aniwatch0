@@ -87,3 +87,22 @@ export async function fetchAnimeSimilar(id,{signal}={}){
  if(!response.ok)throw new Error("Ошибка загрузки похожих тайтлов (HTTP "+response.status);
  const result=await response.json();if(!Array.isArray(result))throw new Error("Некорректный ответ similar");return result;
 }
+
+/** Resolve Shikimori metadata by MAL ID without mixing ID namespaces. */
+export async function fetchAnimeByMalId(malId, titles=[], {signal}={}) {
+ const numeric=Number(malId);
+ if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный MAL ID");
+ const candidates=[...new Set((titles||[]).map(value=>String(value||"").trim()).filter(value=>value.length>=2))];
+ for(const title of candidates){
+  const url=new URL(API_ROOT+"/animes");
+  url.searchParams.set("search",title);
+  url.searchParams.set("limit","50");
+  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
+  if(!response.ok)continue;
+  const rows=await response.json();
+  if(!Array.isArray(rows))continue;
+  const match=rows.find(item=>Number(item&&item.myanimelist_id)===numeric);
+  if(match)return match;
+ }
+ throw new Error("Аниме с таким MAL ID не найдено в Shikimori");
+}
