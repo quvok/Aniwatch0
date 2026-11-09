@@ -150,9 +150,15 @@ function startInlineWatch(anime,episode){
  var inlineHistory=S.hist[anime.id],inlineResume=inlineHistory&&Number(inlineHistory.ep)===Number(episode)?inlineHistory:{};
  INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,resumeAt:Number(inlineResume.t)||0,resumeSpeed:Number(inlineResume.speed)||1,onEpisodeEnded:()=>{
   setEpisodeWatched(anime.id,episode,true);
-  S.hist[anime.id]={ep:episode+1,t:0,at:Date.now()};sv();
+  var nextAvailable=availableEpCount(anime);
   var next=section.querySelector('.episode-inline-play[data-v="'+(episode+1)+'"]');
-  if(next){next.classList.add("next-ready");toast("Серия отмечена. Можно включить следующую.");}
+  if(nextAvailable!==null&&episode<nextAvailable){
+   S.hist[anime.id]={ep:episode+1,t:0,at:Date.now()};sv();
+   if(next){next.classList.add("next-ready");toast("Серия отмечена. Можно включить следующую.");}
+  }else{
+   delete S.hist[anime.id];sv();
+   toast("Серия отмечена как просмотренная");
+  }
  },onPlayback:media=>{
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){S.hist[anime.id]={ep:episode,t:time,at:now,speed:Number(media.speed)||1};if(!startInlineWatch.lastSave||now-startInlineWatch.lastSave>=5000||!media.playing){startInlineWatch.lastSave=now;sv()}}
