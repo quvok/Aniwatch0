@@ -333,7 +333,7 @@ function renderAnimeExtras(d,data){
  var videoHtml="";
  if(trailer){
   var trailerUrl=safeAnimeMediaUrl(trailer.player_url||trailer.playerUrl||trailer.url),trailerImage=safeAnimeMediaUrl(trailer.image_url||trailer.imageUrl);
-  videoHtml='<section class="anime-media-section"><div class="anime-media-heading"><h2>Трейлер</h2></div><div class="anime-video-grid"><a class="anime-video-card" href="'+esc(trailerUrl)+'" target="_blank" rel="noopener noreferrer">'+(trailerImage?'<img src="'+esc(trailerImage)+'" alt="" loading="lazy">':'<span class="anime-video-placeholder">▶</span>')+'<span class="anime-video-caption">'+esc(trailer.name||"Смотреть трейлер")+'</span><span class="anime-video-play">▶</span></a></div></section>';
+  videoHtml='<section class="anime-media-section"><div class="anime-media-heading"><h2>Трейлер</h2><span>Нажми, чтобы увеличить</span></div><div class="anime-video-grid"><button type="button" class="anime-video-card" data-a="anime-media-open" data-src="'+esc(trailerImage||trailerUrl)+'" data-title="'+esc(trailer.name||"Трейлер")+'">'+(trailerImage?'<img src="'+esc(trailerImage)+'" alt="" loading="lazy">':'<span class="anime-video-placeholder">▶</span>')+'<span class="anime-video-caption">'+esc(trailer.name||"Смотреть трейлер")+'</span><span class="anime-video-play">▶</span></button><a class="anime-trailer-open" href="'+esc(trailerUrl)+'" target="_blank" rel="noopener noreferrer">Открыть трейлер ↗</a></div></section>';
  }
  var ratingHtml="";
  if(scoreStats.length){
@@ -348,7 +348,7 @@ function renderAnimeExtras(d,data){
   var preview=safeAnimeMediaUrl(x.preview||x.x332||x.x166||x.preview_url||x.previewUrl||x.original||x.original_url||x.originalUrl||x.url||x.src||x.image_url||x.imageUrl,"https://shikimori.io/");
   return{full:full,preview:preview};
  }).filter(x=>x.full&&x.preview).slice(0,12);
- var shotHtml=shots.length?'<section class="anime-media-section"><div class="anime-media-heading"><h2>Кадры</h2><span>'+shots.length+'</span></div><div class="anime-screenshot-grid">'+shots.map(x=>'<a href="'+esc(x.full)+'" target="_blank" rel="noopener noreferrer"><img src="'+esc(x.preview)+'" alt="Кадр из аниме" loading="lazy"></a>').join("")+'</div></section>':"";
+ var shotHtml=shots.length?'<section class="anime-media-section"><div class="anime-media-heading"><h2>Кадры</h2><span>'+shots.length+' · нажми, чтобы увеличить</span></div><div class="anime-screenshot-grid">'+shots.map((x,index)=>'<button type="button" class="anime-screenshot-card" data-a="anime-media-open" data-src="'+esc(x.full)+'" data-title="Кадр '+(index+1)+'"><img src="'+esc(x.preview)+'" alt="Кадр из аниме" loading="lazy"></button>').join("")+'</div></section>':"";
  host.innerHTML=videoHtml+ratingHtml+shotHtml;
  host.hidden=!host.innerHTML;
 }
@@ -1197,6 +1197,16 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-toggle"){e.preventDefault();e.stopPropagation();var watched=watchedFor(i),already=watched.includes(Number(v));setEpisodeWatched(i,v,!already);toast(!already?"Серия отмечена как просмотренная":"Отметка о просмотре снята")}
  else if(a==="inline-watch"){e.preventDefault();e.stopPropagation();var inlineAnime=M[i];if(inlineAnime)startInlineWatch(inlineAnime,Number(v)||1)}
+ else if(a==="anime-media-open"){
+  e.preventDefault();e.stopPropagation();
+  var src=safeAnimeMediaUrl(t.dataset.src),title=t.dataset.title||"Просмотр";
+  if(src){
+   var overlay=document.createElement("div");overlay.className="anime-media-lightbox";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-label",title);
+   overlay.innerHTML='<div class="anime-media-lightbox-panel"><button type="button" class="anime-media-lightbox-close" aria-label="Закрыть">×</button><img src="'+esc(src)+'" alt="'+esc(title)+'"><span>'+esc(title)+'</span></div>';
+   overlay.addEventListener("click",event=>{if(event.target===overlay||event.target.closest(".anime-media-lightbox-close"))overlay.remove()});
+   document.body.appendChild(overlay);
+  }
+ }
  else if(a=="desc"){var p=$("#td"),open=t.getAttribute("aria-expanded")==="true";if(p){p.classList.toggle("collapsed",open);t.setAttribute("aria-expanded",String(!open));t.textContent=open?"Читать полностью":"Свернуть"}}
  else if(a=="rate"){S.rate[i]=+v;sv();draw()}
  else if(a=="random"){if(activePage()==="random")xrandom();else location.href=pageUrl("random")}
