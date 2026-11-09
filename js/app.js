@@ -711,7 +711,7 @@ GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
 // русские названия для произвольного списка (пачками по 50, кэш awr2)
 async function xrn(L){return enrichShikimori(L)}
 // избранное/история/списки, найденные через каталог, подгружаем по id после перезагрузки
-async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{})).map(Number)),w=S.watchlist;if(w&&!Array.isArray(w))Object.keys(w).forEach(k=>ids.add(+k));
+async function xhyd(){var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}),Object.keys(S.rate||{}),Object.keys(S.watchedEpisodes||{})).map(Number)),w=S.watchlist;if(w&&!Array.isArray(w))Object.keys(w).forEach(k=>ids.add(+k));
  var saved=S.shikiAnime||{};ids.forEach(i=>{if(!M[i]&&saved[i])M[i]=saved[i]});
  var need=[...ids].filter(i=>i>0&&!M[i]&&i<1000000000).slice(0,50);if(!need.length)return;
  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:need})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}catch(e){}}
