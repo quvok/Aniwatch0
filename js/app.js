@@ -744,6 +744,8 @@ async function loadHomeCollections(){
   if(!item)return null;
   var mapped=shikiToItem(item);
   if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId)))return null;
+  // AniLibria supplies the poster for its own release; Shikimori remains the fallback.
+  if(release&&release.poster)mapped.img=shikiImageUrl(release.poster)||mapped.img;
   seenIds.add(Number(mapped.shikiId));
   return mapped;
  }
