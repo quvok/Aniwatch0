@@ -409,11 +409,12 @@ function applyEpisodeRange(from,to){
  document.querySelectorAll(".episode-range-btn").forEach(function(button){var active=Number(button.dataset.from)===from;button.classList.toggle("on",active);button.setAttribute("aria-pressed",String(active))});
  var host=$("#episode-range-list");if(host)host.dataset.activeFrom=String(from);
 }
-function jumpToEpisode(value){
- var n=Math.floor(Number(value)),items=document.querySelectorAll(".title-episodes .eps .episode-item");
- if(!Number.isFinite(n)||n<1||n>items.length){toast("Такого номера серии нет");return}
- var from=Math.floor((n-1)/100)*100+1;applyEpisodeRange(from,Math.min(items.length,from+99));
- var target=items[n-1];if(target){target.hidden=false;target.scrollIntoView({behavior:"smooth",block:"center"});target.querySelector("a")?.focus({preventScroll:true})}
+function jumpToEpisode(value,animeId){
+ var anime=M[Number(animeId)]||M[routeArgs()[0]],n=Math.floor(Number(value));
+ if(!anime||!Number.isFinite(n)||n<1||n>epTotal(anime)){toast("Такого номера серии нет");return}
+ var available=availableEpCount(anime);
+ if(available!==null&&n>available){toast("Эта серия ещё не вышла");return}
+ location.href=watchUrl(anime.id,n);
 }
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
@@ -1221,8 +1222,8 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a==="recommendation-dismiss"){e.preventDefault();e.stopPropagation();S.recommendationDismissed=S.recommendationDismissed||{};S.recommendationDismissed[i]="not_interested";sv();if(AUTH_USER)saveRecommendationFeedback(AUTH_USER.id,i).catch(error=>console.warn("[AniWatch] Recommendation feedback sync failed:",error));var item=t.closest(".recommendation-item");if(item)item.remove();if(!$("#recommendation-cards")?.children.length)$("#recommendation-cards").innerHTML='<p class="m">На сегодня подборка закончилась. Новые варианты появятся после обновления каталога.</p>';toast("Убрали тайтл из рекомендаций")}
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-range"){e.preventDefault();e.stopPropagation();applyEpisodeRange(Number(t.dataset.from),Number(t.dataset.to))}
- else if(a==="episode-jump-go"){e.preventDefault();e.stopPropagation();jumpToEpisode($("#episode-jump")?.value)}
- else if(a==="episode-last-watched"){e.preventDefault();e.stopPropagation();var lastList=watchedFor(i),lastEpisode=lastList.length?Math.max(...lastList):1;jumpToEpisode(lastEpisode)}
+ else if(a==="episode-jump-go"){e.preventDefault();e.stopPropagation();jumpToEpisode($("#episode-jump")?.value,i)}
+ else if(a==="episode-last-watched"){e.preventDefault();e.stopPropagation();var historyEntry=S.hist&&S.hist[i],lastList=watchedFor(i),lastEpisode=Number(historyEntry&&historyEntry.ep)||(lastList.length?Math.max(...lastList):0);if(lastEpisode>0)jumpToEpisode(lastEpisode,i);else toast("Ты ещё не начинал смотреть это аниме")}
  else if(a==="episode-toggle"){e.preventDefault();e.stopPropagation();var watched=watchedFor(i),already=watched.includes(Number(v));setEpisodeWatched(i,v,!already);toast(!already?"Серия отмечена как просмотренная":"Отметка о просмотре снята")}
  else if(a==="inline-watch"){e.preventDefault();e.stopPropagation();var inlineAnime=M[i];if(inlineAnime)startInlineWatch(inlineAnime,Number(v)||1)}
  else if(a==="anime-media-open"){
