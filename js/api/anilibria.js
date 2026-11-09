@@ -75,6 +75,17 @@ export async function fetchAniLibriaCatalogPage(options={}){
  const payload=await requestApi("/anime/catalog/releases",params),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:Array.isArray(payload?.data?.items)?payload.data.items:[]);
  return{items,meta:payload?.meta||null};
 }
+export async function fetchAniLibriaSearchReleases(query){
+ const value=String(query||"").trim();if(!value)return [];
+ const payload=await requestApi("/app/search/releases",{query:value});
+ const items=Array.isArray(payload)?payload:
+  Array.isArray(payload?.data)?payload.data:
+  Array.isArray(payload?.data?.items)?payload.data.items:
+  Array.isArray(payload?.items)?payload.items:
+  Array.isArray(payload?.list)?payload.list:[];
+ return items.filter(item=>item&&(item.release||item).id);
+}
+
 export async function fetchAniLibriaGenres(){
  const payload=await requestApi("/anime/catalog/references/genres"),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:[]);
  return items.filter(item=>item&&Number(item.id)>0&&item.name).map(item=>({id:Number(item.id),name:String(item.name)}));
