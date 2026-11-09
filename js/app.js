@@ -755,7 +755,7 @@ async function resolveAniLibriaHomeItems(rawItems){
   try{(await fetchAnimeByIds(ids)).forEach(anime=>{if(anime&&Number(anime.id)>0)resolved.set(Number(anime.id),anime)})}
   catch(error){console.warn("[AniWatch] AniLibria -> Shikimori ID lookup failed:",error)}
  }
- releases.forEach(release=>{var id=Number(release.shikimori&&release.shikimori.id)||0;if(!id||!resolved.has(id))needSearch.push(release)});
+ releases.forEach(release=>{var id=Number(release.shikimori&&release.shikimori.id)||0;if(!id||!resolved.has(id))needSearch.push(release)});needSearch=needSearch.slice(0,12);
  var cursor=0;
  async function searchWorker(){
   while(cursor<needSearch.length){
