@@ -43,7 +43,7 @@ function listFrom(payload){
 async function getJson(path,params={}){
  const url=new URL(API_BASE+path);
  Object.entries(params).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value))});
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),14000);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
  try{
   const response=await fetch(url.toString(),{signal:controller.signal,headers:{Accept:"application/json"}});
   if(!response.ok)throw new Error("AniLibria API: HTTP "+response.status+" ("+path+")");
@@ -60,11 +60,13 @@ export async function fetchAniLibriaHomeCollections(force=false){
  if(!force&&homeMemory&&Date.now()-homeMemoryAt<HOME_CACHE_TTL)return homeMemory;
  if(homePending)return homePending;
  homePending=(async()=>{
+  // Avoid unstable AniLibria endpoints: /recommended currently returns 422,
+  // while /latest can stall. Shikimori fills these shelves downstream.
   const jobs=[
    catalogPage("RATING_DESC"),
-   getJson("/anime/releases/recommended",{limit:50}).then(listFrom),
+   Promise.resolve([]),
    catalogPage("RATING_DESC","IS_ONGOING"),
-   getJson("/anime/releases/latest",{limit:50}).then(listFrom)
+   Promise.resolve([])
   ];
   const settled=await Promise.allSettled(jobs);
   const lists=settled.map((result,index)=>{
