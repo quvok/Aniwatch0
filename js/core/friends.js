@@ -97,10 +97,19 @@ export async function removeFriend(requestId) {
 export async function sendWatchInvite(userId, friendId, roomCode, animeId, episode) {
   if (!userId || !friendId || !roomCode || !Number(animeId)) throw new Error("Сначала создай комнату и выбери друга.");
   const client = await getSupabaseClient();
+  const normalizedCode = String(roomCode).toUpperCase();
+  const existing = await checked(client.from("watch_party_invites")
+    .select("id,expires_at")
+    .eq("inviter_id", userId).eq("invitee_id", friendId)
+    .eq("room_code", normalizedCode).eq("status", "pending").limit(1));
+  if (existing?.[0]) {
+    if (Date.parse(existing[0].expires_at) > Date.now()) throw new Error("Ты уже приглашал этого друга в текущую комнату.");
+    await checked(client.from("watch_party_invites").delete().eq("id", existing[0].id));
+  }
   return checked(client.from("watch_party_invites").insert({
     inviter_id: userId,
     invitee_id: friendId,
-    room_code: String(roomCode).toUpperCase(),
+    room_code: normalizedCode,
     anime_id: Number(animeId),
     episode: Math.max(1, Number(episode) || 1),
     status: "pending"
