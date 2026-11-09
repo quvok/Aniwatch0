@@ -535,10 +535,10 @@ async function enrichShikimori(list,{description=true}={}){
   while(cursor<items.length){
    var d=items[cursor++];
    await enrichOne(d);
-   await new Promise(resolve=>setTimeout(resolve,250));
+   await new Promise(resolve=>setTimeout(resolve,400));
   }
  }
- await Promise.all(Array.from({length:Math.min(3,items.length)},()=>worker()));
+ await Promise.all(Array.from({length:Math.min(2,items.length)},()=>worker()));
  saveLocalState(S,M);
  return items;
 }
