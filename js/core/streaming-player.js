@@ -20,6 +20,40 @@ function getLibertyStreams(ep){
  return [...new Set(urls.filter(v=>typeof v==="string"&&v.indexOf("http")===0))];
 }
 
+const ANIMELIB_EPISODE_APIS=["https://api.cdnlibs.org/api/episodes","https://api.lib.social/api/episodes"];
+async function requestAnimeLibEpisodes(shikiId){
+ const errors=[];
+ for(const base of ANIMELIB_EPISODE_APIS){
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),11000);
+    let response;
+    try{
+     response=await fetch(base+"?shiki_id="+encodeURIComponent(shikiId),{
+      headers:{Accept:"application/json","Site-Id":"5"},
+      referrer:"https://v5.animelib.org/",
+      referrerPolicy:"strict-origin-when-cross-origin",
+      signal:controller.signal
+     });
+    }finally{clearTimeout(timer)}
+    if(!response.ok){
+     const error=new Error("HTTP "+response.status+" ("+new URL(base).host+")");
+     if(response.status>=500&&attempt<2){await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));continue}
+     throw error;
+    }
+    const payload=await response.json();
+    if(!payload||(!Array.isArray(payload.data)&&!Array.isArray(payload)))throw new Error("AnimeLib вернул неожиданный формат ответа");
+    return payload;
+   }catch(error){
+    errors.push(error?.message||"ошибка запроса");
+    const retryable=/HTTP 5\d\d|Failed to fetch|NetworkError|AbortError/i.test((error?.message||"")+" "+(error?.name||""));
+    if(attempt<2&&retryable){await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));continue}
+    break;
+   }
+  }
+ }
+ throw new Error("AnimeLib API недоступен: "+[...new Set(errors)].join("; "));
+}
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
