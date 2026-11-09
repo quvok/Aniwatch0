@@ -173,10 +173,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const available=releases.filter(item=>item?.link&&item?.translation);
    if(!available.length)throw new Error("Kodik не вернул доступных вариантов озвучки");
    let selected=available[0];
-   const seasonsOf=item=>Object.entries(item?.seasons||{});
    const episodesOf=item=>{
     const all=[];
-    for(const [seasonKey,season] of seasonsOf(item)){
+    for(const [seasonKey,season] of Object.entries(item?.seasons||{})){
      for(const [number,data] of Object.entries(season?.episodes||{})){
       const episodeNumber=Number(data?.episode??data?.number??number);
       if(Number.isFinite(episodeNumber))all.push({number:episodeNumber,season:Number(seasonKey)||1});
@@ -185,9 +184,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     return [...new Map(all.map(x=>[x.number,x])).values()].sort((a,b)=>a.number-b.number);
    };
    const playSelected=()=>{
-    const seasonSelect=options.querySelector("#kodik-season");
-    const chosenSeason=seasonSelect?Number(seasonSelect.value):undefined;
-    const link=getKodikEpisodeLink(selected,episode,chosenSeason);
+    const link=getKodikEpisodeLink(selected,episode);
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
     stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Kodik player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
@@ -195,19 +192,15 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    };
    const render=()=>{
     const eps=episodesOf(selected);
-    const seasons=seasonsOf(selected).map(([key])=>Number(key)).filter(Number.isFinite);
     const voiceButtons=available.map((item,index)=>'<button type="button" class="kodik-voice'+(item===selected?' on':'')+'" data-kodik-voice="'+index+'" aria-pressed="'+(item===selected?'true':'false')+'"><span>'+esc(item.translation?.title||"Озвучка "+(index+1))+'</span><small>'+esc(item.quality||"Kodik")+'</small></button>').join("");
-    const seasonControl=seasons.length>1?'<label class="kodik-season-label">Сезон<select id="kodik-season">'+seasons.map(value=>'<option value="'+value+'">'+value+'</option>').join("")+'</select></label>':"";
     const episodeInfo=eps.length?'<span class="kodik-episode-info">Доступно серий: '+eps.length+'</span>':'<span class="kodik-episode-info">Серия '+episode+'</span>';
-    options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom">'+seasonControl+'<span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Kodik")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
+    options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom">'<span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Kodik")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
     options.querySelectorAll("[data-kodik-voice]").forEach(button=>button.addEventListener("click",()=>{
      selected=available[Number(button.dataset.kodikVoice)]||available[0];
      render();
      playSelected();
     }));
     options.querySelector("#kodik-play").addEventListener("click",playSelected);
-    const season=options.querySelector("#kodik-season");
-    if(season)season.addEventListener("change",playSelected);
    };
    render();
    playSelected();
