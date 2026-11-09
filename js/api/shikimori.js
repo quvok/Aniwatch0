@@ -88,6 +88,25 @@ export async function fetchAnimeSimilar(id,{signal}={}){
  const result=await response.json();if(!Array.isArray(result))throw new Error("Некорректный ответ similar");return result;
 }
 
+/** Resolve a Shikimori record by an exact normalized title when no external ID exists. */
+export async function fetchAnimeByTitle(titles=[], {signal}={}) {
+ const candidates=[...new Set((titles||[]).map(value=>String(value||"").trim()).filter(value=>value.length>=2))];
+ const normalize=value=>String(value||"").normalize("NFKC").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[^\p{L}\p{N}]+/gu,"");
+ for(const title of candidates){
+  const url=new URL(API_ROOT+"/animes");
+  url.searchParams.set("search",title);
+  url.searchParams.set("limit","50");
+  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);
+  const rows=await response.json();
+  if(!Array.isArray(rows))continue;
+  const wanted=normalize(title);
+  const match=rows.find(item=>[item&&item.russian,item&&item.name].some(value=>normalize(value)===wanted));
+  if(match)return match;
+ }
+ throw new Error("Тайтл не найден в Shikimori");
+}
+
 /** Resolve Shikimori metadata by MAL ID without mixing ID namespaces. */
 export async function fetchAnimeByMalId(malId, titles=[], {signal}={}) {
  const numeric=Number(malId);
