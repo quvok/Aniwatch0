@@ -302,25 +302,31 @@ function renderAnimeExtras(d,data){
  host.hidden=!host.innerHTML;
 }
 function loadAnimeExtras(d){
- var id=Number(d.shikiId)||0,host=$("#anime-extra-sections");if(!id||!host)return;
- var key="aw-anime-detail-v1-"+id,now=Date.now();
- if(animeExtraMemory[id]){renderAnimeExtras(d,animeExtraMemory[id]);return}
+ var host=$("#anime-extra-sections");if(!host)return;
+ var cacheId=Number(d.shikiId)||Number(d.id),now=Date.now(),key="aw-anime-detail-v1-"+cacheId;
+ if(animeExtraMemory[cacheId]){renderAnimeExtras(d,animeExtraMemory[cacheId]);return}
  try{
   var saved=JSON.parse(localStorage.getItem(key)||"null");
-  if(saved&&now-Number(saved.at)<86400000&&saved.data){animeExtraMemory[id]=saved.data;renderAnimeExtras(d,saved.data);return}
+  if(saved&&now-Number(saved.at)<86400000&&saved.data){animeExtraMemory[cacheId]=saved.data;renderAnimeExtras(d,saved.data);return}
  }catch(e){}
- if(animeExtraPending[id])return;
- animeExtraPending[id]=fetchAnimeById(id).then(raw=>{
+ if(animeExtraPending[cacheId])return;
+ animeExtraPending[cacheId]=(async()=>{
+  var id=Number(d.shikiId)||(Number(d.id)>=1000000000?Number(d.id)-1000000000:0);
+  if(!id&&Number(d.mal)>0){
+   try{var matches=await fetchAnimeByIds([Number(d.mal)]);id=Number(matches&&matches[0]&&matches[0].id)||0}catch(resolveError){console.warn("[AniWatch] Shikimori ID resolution failed:",resolveError)}
+  }
+  if(!id)return;
+  var raw=await fetchAnimeById(id);
   var data={
    videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
    screenshots:Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[],
    rates_scores_stats:Array.isArray(raw.rates_scores_stats)?raw.rates_scores_stats:(Array.isArray(raw.scores_stats)?raw.scores_stats:(Array.isArray(raw.scoresStats)?raw.scoresStats:[])),
    score:Number(raw.score)||Number(d.r)||0
   };
-  animeExtraMemory[id]=data;
-  try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
+  animeExtraMemory[cacheId]=data;
+  try{localStorage.setItem("aw-anime-detail-v1-"+id,JSON.stringify({at:Date.now(),data:data}))}catch(e){}
   renderAnimeExtras(d,data);
- }).catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[id]});
+ })().catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[cacheId]});
 }
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
