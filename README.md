@@ -332,3 +332,16 @@ node scripts/check-recommendations.mjs
 - AnimeLib не поддерживает совместную синхронизацию; доступность iframe зависит от политики сайта.
 - Офлайн-режим доступен только для закэшированной оболочки; каталог, авторизация, видео и актуальные данные требуют сети.
 - Для полноценной эксплуатации Supabase должен быть настроен отдельно: схема базы, политики доступа, Storage и Edge Functions.
+
+
+## Social notifications
+
+The header notification center is backed by `public.notifications`. Database triggers create events for incoming friend requests, accepted friend requests, and watch-party invitations. The UI shows an unread counter, supports opening notifications and marking one/all as read, and refreshes through Supabase Realtime.
+
+Security notes:
+- RLS restricts notification reads and updates to the recipient.
+- Anonymous/public roles have no table access.
+- Authenticated users can only update `read_at`; they cannot insert, delete, or alter notification content.
+- Notification creation is performed by a private trigger function, not a client RPC.
+
+The notification flow is implemented but still needs an end-to-end check with two separate user accounts.
