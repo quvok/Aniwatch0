@@ -56,3 +56,24 @@ export async function fetchAniLibriaWeek(force=false){
  })();
  return pending;
 }
+
+async function requestApi(path,params){
+ const url=new URL(API_BASE+path);Object.entries(params||{}).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=="")url.searchParams.set(key,String(value))});
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{const response=await fetch(url.href,{signal:controller.signal,headers:{Accept:"application/json"}});if(!response.ok)throw new Error("AniLibria API: HTTP "+response.status);return await response.json()}
+ finally{clearTimeout(timer)}
+}
+export async function fetchAniLibriaCatalogPage(options={}){
+ const params={page:Math.max(1,Number(options.page)||1),limit:Math.min(50,Math.max(1,Number(options.limit)||50))};
+ if(options.sorting)params["f[sorting]"]=options.sorting;if(options.publishStatus)params["f[publish_statuses]"]=options.publishStatus;if(options.genreId)params["f[genres]"]=options.genreId;if(options.search)params["f[search]"]=String(options.search);
+ const payload=await requestApi("/anime/catalog/releases",params),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:[]);
+ return{items,meta:payload?.meta||null};
+}
+export async function fetchAniLibriaGenres(){
+ const payload=await requestApi("/anime/catalog/references/genres"),items=Array.isArray(payload)?payload:(Array.isArray(payload?.data)?payload.data:[]);
+ return items.filter(item=>item&&Number(item.id)>0&&item.name).map(item=>({id:Number(item.id),name:String(item.name)}));
+}
+export async function fetchAniLibriaReleaseById(id){
+ const numeric=Number(id);if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный AniLibria ID");
+ const payload=await requestApi("/anime/releases/"+numeric);return payload?.data?.release||payload?.data||payload?.release||payload;
+}
