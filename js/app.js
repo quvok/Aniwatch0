@@ -17,6 +17,7 @@ import { renderTogetherPage } from "./pages/together.js";
 import { listCollections, getCollection, createCollection, updateCollection, deleteCollection, addCollectionAnime, removeCollectionAnime, rateCollection } from "./core/collections.js";
 import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
+import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
 import { fetchAniLibriaWeek, fetchAniLibriaHomeCollections } from "./api/anilibria.js";
 import { renderCalendarPage } from "./pages/calendar.js";
@@ -40,7 +41,7 @@ var D=[
 ["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
 ["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
 ].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
-var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null;
+var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null,socialChannelCleanup=null,socialLoadRequest=0,socialRefreshPending=false;
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
@@ -324,7 +325,7 @@ V.watch=p=>{
  var queryRoom=new URLSearchParams(location.search).get("room");
  if(queryRoom){var normalized=queryRoom.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12),guestInvite=new URLSearchParams(location.search).get("guest")==="1",roomChanged=S.room!==normalized;if(roomChanged||guestInvite){S.room=normalized;if(roomChanged||guestInvite)S.roomHost=false;S.roomAnime=d.id;sv()}}
  var n=Math.max(p[1]||1,1),h=S.hist[d.id],available=availableEpCount(d);if(epTotal(d)>0)n=Math.min(n,epTotal(d));if(available!==null&&n>available){document.title=htmlText(d.n)+" · серия ещё не вышла — AniWatch";app.innerHTML='<section class="offline-state"><div class="eyebrow">СКОРО</div><h1>Эта серия ещё не вышла</h1><p>Сейчас доступно '+available+' серий. Вернись позже, когда выйдет серия '+n+'.</p><a class="btn" href="'+titleUrl(d.id)+'">Вернуться к аниме</a></section>';return}document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
- var inRoom=!!S.room;
+ var inRoom=!!S.room;if(inRoom){S.roomAnime=d.id;S.roomEpisode=n;sv()}
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:h&&h.ep==n&&Number(h.speed)>0?Number(h.speed):1};
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
@@ -344,7 +345,43 @@ V.watch=p=>{
  if(inRoom)connectWatchParty();
 };
 
-V.together=()=>renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc});
+async function loadTogetherView(){
+ var request=++socialLoadRequest;
+ app.innerHTML='<p class="empty">Загружаем друзей и приглашения…</p>';
+ try{
+  if(!AUTH_USER){var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}}
+  if(request!==socialLoadRequest||activePage()!=="together")return;
+  if(!AUTH_USER){if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:null,social:null});return}
+  var social=await loadSocialHub(AUTH_USER.id);
+  if(request!==socialLoadRequest||activePage()!=="together")return;
+  renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:AUTH_USER,social});
+  if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+  socialChannelCleanup=await subscribeSocialUpdates(AUTH_USER.id,()=>{
+   if(activePage()!=="together"||socialRefreshPending)return;
+   socialRefreshPending=true;
+   setTimeout(()=>{socialRefreshPending=false;if(activePage()==="together")loadTogetherView()},350);
+  });
+ }catch(error){
+  console.error("[AniWatch] Social hub failed:",error);
+  if(request===socialLoadRequest&&activePage()==="together")renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:AUTH_USER,social:{friends:[],incomingRequests:[],outgoingRequests:[],incomingInvites:[],outgoingInvites:[]},error:error.message||"Не удалось загрузить друзей."});
+ }
+}
+V.together=()=>loadTogetherView();
+async function openRoomInvitePanel(){
+ var panel=$("#room-invite-panel"),host=$("#room-invite-friend-list");
+ if(!panel||!host)return;
+ if(panel.hidden===false){panel.hidden=true;return}
+ if(!AUTH_USER){openAuthModal();toast("Войди в аккаунт, чтобы приглашать друзей");return}
+ panel.hidden=false;host.innerHTML='<p class="social-empty">Загружаем друзей…</p>';
+ try{
+  var social=await loadSocialHub(AUTH_USER.id);
+  if(!P||!S.room){host.innerHTML='<p class="social-empty">Комната больше не активна. Создай новую.</p>';return}
+  host.innerHTML=social.friends.length?social.friends.map(friend=>{
+   var avatar=friend.avatar_url&&/^https:\/\//i.test(friend.avatar_url)?'<img src="'+esc(friend.avatar_url)+'" alt="">':'<span>'+esc(String(friend.username||"?").slice(0,1).toUpperCase())+'</span>';
+   return '<article class="social-person"><div class="social-avatar">'+avatar+'</div><div class="social-person-info"><b>'+esc(friend.username)+'</b><small>Друг</small></div><button class="btn" type="button" data-a="room-send-invite" data-id="'+esc(friend.id)+'">Пригласить</button></article>';
+  }).join(""):'<p class="social-empty">У тебя пока нет друзей. Добавь их во вкладке «Вместе».</p>';
+ }catch(error){host.innerHTML='<p class="social-error">'+esc(error.message||"Не удалось загрузить друзей.")+'</p>'}
+}
 async function searchCollectionAnime(query){
  var host=$("#collection-anime-search-results"),q=String(query||"").trim(),request=++collectionSearchRequest;if(!host)return;
  if(q.length<2){host.innerHTML='<p class="profile-hint">Введи минимум 2 символа для поиска.</p>';return}
@@ -1074,15 +1111,25 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="pp"&&P){P.on=!P.on;tick(0);pauseSave();broadcastPlayback("playback")}
  else if(a=="sp"&&P){var s=[1,1.25,1.5,2];P.sp=s[(s.indexOf(P.sp)+1)%4];t.textContent=P.sp+"×";broadcastPlayback("playback")}
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0);broadcastPlayback("playback")}
- else if(a=="room"){var roomAnime=Number($("#room-anime")&&$("#room-anime").value)||Number(D[0]&&D[0].id);if(!roomAnime){toast("Сначала дождись загрузки каталога");return}S.room=createRoomCode();S.roomHost=true;S.roomAnime=roomAnime;sv();location.href=watchUrl(roomAnime,1)+"&room="+encodeURIComponent(S.room)}
- else if(a=="room-copy"&&S.room){var invite=new URL(location.href);invite.searchParams.set("room",S.room);invite.searchParams.set("guest","1");var inviteText=invite.toString();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inviteText).then(()=>toast("Ссылка-приглашение скопирована")).catch(()=>prompt("Скопируй ссылку на комнату:",inviteText));else prompt("Скопируй ссылку на комнату:",inviteText)}
- else if(a=="room-leave"){disconnectRoom();ROOM_CONNECTED=false;S.room="";S.roomHost=false;S.roomAnime=0;sv();toast("Вы вышли из комнаты");location.href=watchUrl(P.d.id,P.n)}
+ else if(a=="room"){var roomAnime=Number($("#room-anime")&&$("#room-anime").value)||Number(D[0]&&D[0].id);if(!roomAnime){toast("Сначала дождись загрузки каталога");return}S.room=createRoomCode();S.roomHost=true;S.roomAnime=roomAnime;S.roomEpisode=1;sv();location.href=watchUrl(roomAnime,1)+"&room="+encodeURIComponent(S.room)}
+ else if(a==="room-invite-friends"){openRoomInvitePanel()}
+  else if(a==="room-invite-close"){var invitePanel=$("#room-invite-panel");if(invitePanel)invitePanel.hidden=true}
+  else if(a==="room-send-invite"){if(!AUTH_USER||!P||!S.room){toast("Комната недоступна");return}t.disabled=true;t.textContent="Отправляем…";sendWatchInvite(AUTH_USER.id,t.dataset.id,S.room,P.d.id,P.n).then(()=>{t.textContent="Отправлено";t.disabled=true;toast("Приглашение отправлено")}).catch(error=>{t.disabled=false;t.textContent="Пригласить";toast(error.message||"Не удалось отправить приглашение")})}
+  else if(a==="friend-add"){if(!AUTH_USER){openAuthModal();return}t.disabled=true;sendFriendRequest(AUTH_USER.id,t.dataset.id).then(result=>{toast(result==="accepted"?"Вы теперь друзья":"Заявка отправлена");loadTogetherView()}).catch(error=>{t.disabled=false;toast(error.message||"Не удалось добавить друга")})}
+  else if(a==="friend-accept"||a==="friend-decline"){if(!AUTH_USER)return;respondFriendRequest(t.dataset.id,AUTH_USER.id,a==="friend-accept").then(()=>{toast(a==="friend-accept"?"Теперь вы друзья":"Заявка отклонена");loadTogetherView()}).catch(error=>toast(error.message||"Не удалось обработать заявку"))}
+  else if(a==="friend-remove"){if(!confirm("Удалить эту связь?"))return;removeFriend(t.dataset.id).then(()=>{toast("Готово");loadTogetherView()}).catch(error=>toast(error.message||"Не удалось удалить"))}
+  else if(a==="invite-accept"){if(!AUTH_USER)return;respondWatchInvite(t.dataset.id,AUTH_USER.id,true).then(invite=>{S.room=invite.room_code;S.roomHost=false;S.roomAnime=Number(invite.anime_id);S.roomEpisode=Number(invite.episode)||1;sv();location.href=watchUrl(invite.anime_id,invite.episode)+"&room="+encodeURIComponent(invite.room_code)+"&guest=1"}).catch(error=>toast(error.message||"Приглашение уже недействительно"))}
+  else if(a==="invite-decline"){if(!AUTH_USER)return;respondWatchInvite(t.dataset.id,AUTH_USER.id,false).then(()=>{toast("Приглашение отклонено");loadTogetherView()}).catch(error=>toast(error.message||"Не удалось отклонить приглашение"))}
+  else if(a==="social-reload"){loadTogetherView()}
+  else if(a=="room-copy"&&S.room){var invite=new URL(location.href);invite.searchParams.set("room",S.room);invite.searchParams.set("guest","1");var inviteText=invite.toString();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inviteText).then(()=>toast("Ссылка-приглашение скопирована")).catch(()=>prompt("Скопируй ссылку на комнату:",inviteText));else prompt("Скопируй ссылку на комнату:",inviteText)}
+ else if(a=="room-leave"){disconnectRoom();ROOM_CONNECTED=false;S.room="";S.roomHost=false;S.roomAnime=0;S.roomEpisode=0;sv();toast("Вы вышли из комнаты");location.href=watchUrl(P.d.id,P.n)}
  else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var ew=$("#auth-email-wrap");if(ew)ew.hidden=mode!=="signup";var emailInput=$("#auth-email");if(emailInput)emailInput.required=mode==="signup";var lw=$("#auth-login-wrap");if(lw)lw.hidden=mode==="signup";var loginInput=$("#auth-login");if(loginInput)loginInput.required=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
  else if(a==="profile-avatar"){var avatarInput=$("#profile-avatar-file");if(avatarInput)avatarInput.click()}else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
  else if(a=="export"){exportBackup()}else if(a=="import"){var fileInput=$("#backup-file");if(fileInput)fileInput.click()}else if(a=="reset"){S={};df();sv();toast("Данные сброшены");draw()}else if(a=="reload"){location.reload()}});
 listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
  if(f=="site-search"){var sq=($("#q").value||"").trim();if(activePage()==="catalog"){F.q=sq;rc()}else location.href=pageUrl("catalog",{q:sq});return}
+  if(f==="friend-search-form"){if(!AUTH_USER){openAuthModal();return}var query=($("#friend-search")?.value||"").trim(),host=$("#friend-search-results");if(!host)return;host.innerHTML='<p class="social-empty">Ищем пользователей…</p>';try{var found=await searchProfiles(query,AUTH_USER.id);host.innerHTML=found.length?found.map(person=>{var avatar=person.avatar_url&&/^https:\/\//i.test(person.avatar_url)?'<img src="'+esc(person.avatar_url)+'" alt="">':'<span>'+esc(String(person.username||"?").slice(0,1).toUpperCase())+'</span>';return '<article class="social-person"><div class="social-avatar">'+avatar+'</div><div class="social-person-info"><b>'+esc(person.username||"Пользователь")+'</b><small>AniWatch</small></div><button class="btn" type="button" data-a="friend-add" data-id="'+esc(person.id)+'">Добавить</button></article>'}).join(""):'<p class="social-empty">Никого не нашли. Проверь написание ника.</p>'}catch(error){host.innerHTML='<p class="social-error">'+esc(error.message||"Ошибка поиска")+'</p>'}return;}
  if(f=="profile-form"){var name=$("#nm").value.trim();if(name){S.name=name;sv();hd();toast("Ник сохранён");V.profile()}}
  if(f==="collection-create-form"||f==="collection-edit-form"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы управлять коллекциями");return}
@@ -1107,6 +1154,6 @@ listen(window,"keydown",e=>{if(e.key==="Escape"){var authModal=document.getEleme
 listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.q=xCF.q;var hq=$("#q");if(hq)hq.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)});
  listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
  listen(document,"click",e=>{if(e.target.closest("[data-xr]")){xcq(false);return}if(e.target.closest("[data-cf-reset]")){xCF.g="";xCF.y="";xCF.season="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.minScore="";xCF.q="";F.q="";F.g="";["cs","cf-g","cf-y","cf-season","cf-st","cf-f","cf-r","cf-o"].forEach(id=>{var el=$("#"+id);if(el)el.value=id==="cf-o"?"POPULARITY_DESC":""});var hq=$("#q");if(hq)hq.value="";xcq(true)}});
- addEventListener("pagehide",()=>{stashItems();disconnectRoom()});
+ addEventListener("pagehide",()=>{stashItems();disconnectRoom();if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}});
 idx();boot();
 })();
