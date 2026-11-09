@@ -269,7 +269,7 @@ async function loadNextEpisode(d){
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
- renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true)});
+ renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
  loadNextEpisode(d);ru(d);loadRelated(d)
 };
 
