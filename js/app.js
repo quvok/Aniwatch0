@@ -193,7 +193,7 @@ async function loadHomeRecommendations(){
    }catch(error){console.warn("[AniWatch] Recommendation fallback failed:",error)}
   }
   if(!ranked.length){
-   host.innerHTML='<p class="m">Пока не удалось найти новые тайтлы. Попробуй позже — каталог Shikimori может быть временно недоступен.</p>';
+   host.innerHTML='<p class="m">Пока не удалось найти новые тайтлы. Попробуй позже.</p>';
    return;
   }
   ranked.forEach(item=>{M[item.anime.id]=item.anime;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[item.anime.id]=item.anime});
@@ -368,7 +368,7 @@ async function loadCollectionsView(params){
 V.collections=loadCollectionsView;
 V.favorites=()=>{renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="favorites")V.favorites()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
 V.mylist=()=>{renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist")V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
-V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:error.message||"Не удалось связаться с AniLibria"})}};
+V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:error.message||"Не удалось загрузить расписание"})}};
 V.profile=()=>renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
