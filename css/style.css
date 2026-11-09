@@ -2277,7 +2277,7 @@ header{display:block;min-height:64px}
 #mobile-bottom-nav{display:none}
 body{padding-bottom:0!important}
 main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28px 30px 60px}
-.home-layout{display:grid;grid-template-columns:minmax(0,1fr) 276px;align-items:start;gap:26px}
+.home-layout{display:block;min-width:0}
 .home-primary{min-width:0}
 .home-rail{position:sticky;top:94px;display:grid;gap:17px;min-width:0;padding-top:4px}
 .rail-panel{
