@@ -4,7 +4,7 @@ import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, uploadProfileAvatar, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
 import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
-import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
+import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl as routeWatchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
 import { renderFavorites, renderMyList, renderProfile } from "./pages/collection.js";
 import { renderCatalogPage } from "./pages/catalog.js";
@@ -46,6 +46,7 @@ var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
+function watchUrl(id,episode){var url=routeWatchUrl(id,episode);if(S&&S.room)url+=(url.indexOf("?")>=0?"&":"?")+"room="+encodeURIComponent(S.room);return url}
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
 var esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 var un=s=>String(s||"").replace(/&quot;/g,'"').replace(/&gt;/g,">").replace(/&lt;/g,"<").replace(/&amp;/g,"&");
@@ -1113,7 +1114,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="pp"&&P){P.on=!P.on;tick(0);pauseSave();broadcastPlayback("playback")}
  else if(a=="sp"&&P){var s=[1,1.25,1.5,2];P.sp=s[(s.indexOf(P.sp)+1)%4];t.textContent=P.sp+"×";broadcastPlayback("playback")}
  else if(a=="seek"&&P){var r=t.getBoundingClientRect();P.t=Math.round((e.clientX-r.left)/r.width*DUR);tick(0);broadcastPlayback("playback")}
- else if(a=="room"){var roomAnime=Number($("#room-anime")&&$("#room-anime").value)||Number(D[0]&&D[0].id);if(!roomAnime){toast("Сначала дождись загрузки каталога");return}S.room=createRoomCode();S.roomHost=true;S.roomAnime=roomAnime;S.roomEpisode=1;sv();location.href=watchUrl(roomAnime,1)+"&room="+encodeURIComponent(S.room)}
+ else if(a=="room"){S.room=createRoomCode();S.roomHost=true;S.roomAnime=0;S.roomEpisode=0;sv();location.href=pageUrl("home")}
  else if(a==="room-invite-friends"){openRoomInvitePanel()}
   else if(a==="room-invite-close"){var invitePanel=$("#room-invite-panel");if(invitePanel)invitePanel.hidden=true}
   else if(a==="room-send-invite"){if(!AUTH_USER||!P||!S.room){toast("Комната недоступна");return}t.disabled=true;t.textContent="Отправляем…";sendWatchInvite(AUTH_USER.id,t.dataset.id,S.room,P.d.id,P.n).then(()=>{t.textContent="Отправлено";t.disabled=true;toast("Приглашение отправлено")}).catch(error=>{t.disabled=false;t.textContent="Пригласить";toast(error.message||"Не удалось отправить приглашение")})}
