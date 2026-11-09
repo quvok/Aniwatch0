@@ -368,7 +368,7 @@ async function loadCollectionsView(params){
 V.collections=loadCollectionsView;
 V.favorites=()=>{renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="favorites")V.favorites()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
 V.mylist=()=>{renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist")V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
-V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:error.message||"Не удалось загрузить расписание"})}};
+V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание. Попробуй ещё раз."})}};
 V.profile=()=>renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
@@ -1034,7 +1034,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="g"){location.href=pageUrl("catalog",{g:v})}
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
-  else if(a==="calendar-reload"){loadAniLibriaSchedule(true).then(items=>{if(activePage()==="calendar")renderCalendarPage({app,items})}).catch(error=>renderCalendarPage({app,error:error.message||"Ошибка загрузки"}))}
+  else if(a==="calendar-reload"){loadAniLibriaSchedule(true).then(items=>{if(activePage()==="calendar")renderCalendarPage({app,items})}).catch(error=>renderCalendarPage({app,error:"Не удалось загрузить расписание. Попробуй ещё раз."}))}
  else if(a==="add-to-collection"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
   listCollections(AUTH_USER.id).then(rows=>{
