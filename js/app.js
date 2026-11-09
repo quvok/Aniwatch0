@@ -18,7 +18,7 @@ import { listCollections, getCollection, createCollection, updateCollection, del
 import { renderCollectionsPage } from "./pages/collections.js";
 import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./core/rooms.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
-import { fetchAniLibriaWeek, fetchAniLibriaCatalogPage, fetchAniLibriaGenres, fetchAniLibriaReleaseById } from "./api/anilibria.js";
+import { fetchAniLibriaWeek, fetchAniLibriaCatalogPage, fetchAniLibriaSearchReleases, fetchAniLibriaGenres, fetchAniLibriaReleaseById } from "./api/anilibria.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 (function(){
 if(legacyRedirect())return;
@@ -550,11 +550,18 @@ async function enrichRelatedFromShikimori(list){
    var item=candidates[cursor++],queries=[un(item.n),un(item.o)].filter(Boolean),matched=null;
    for(var query of queries){
     try{
-     var page=await fetchAniLibriaCatalogPage({page:1,limit:50,search:query});
-     matched=(page.items||[]).find(raw=>{
+     var searchResults=await fetchAniLibriaSearchReleases(query);
+     matched=searchResults.find(raw=>{
       var release=raw&&raw.release?raw.release:raw;
       return Number(release&&release.shikimori&&release.shikimori.id)===Number(item.shikiId);
      });
+     if(!matched){
+      var page=await fetchAniLibriaCatalogPage({page:1,limit:50,search:query});
+      matched=(page.items||[]).find(raw=>{
+       var release=raw&&raw.release?raw.release:raw;
+       return Number(release&&release.shikimori&&release.shikimori.id)===Number(item.shikiId);
+      });
+     }
      if(matched)break;
     }catch(error){console.warn("[AniWatch] Related AniLibria lookup failed:",error)}
    }
@@ -572,7 +579,7 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===12&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===13&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
@@ -636,7 +643,7 @@ async function loadRelated(d){
    var all=relations.map(x=>x.anime).concat(creatorWorks);
    await enrichRelatedFromShikimori(all);
    await xshikiPosters(all);
-   var data={v:12,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var data={v:13,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
