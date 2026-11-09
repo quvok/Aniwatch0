@@ -323,6 +323,37 @@ function renderAnimeDescription(d,description){
   node.insertAdjacentElement("afterend",toggle);
  }else if(!expanded&&toggle)toggle.remove();
 }
+async function fetchJikanAnimePictures(malId){
+ var id=Number(malId);if(!Number.isFinite(id)||id<=0)return[];
+ var controller=typeof AbortController!=="undefined"?new AbortController():null;
+ var timeout=controller?setTimeout(()=>controller.abort(),6500):null;
+ try{
+  var response=await fetch("https://api.jikan.moe/v4/anime/"+encodeURIComponent(id)+"/pictures",{signal:controller?controller.signal:undefined,headers:{Accept:"application/json"}});
+  if(!response.ok)throw new Error("Jikan HTTP "+response.status);
+  var payload=await response.json(),items=Array.isArray(payload&&payload.data)?payload.data:[];
+  return items.map(item=>{
+   var jpg=item&&item.jpg||{},webp=item&&item.webp||{};
+   var full=jpg.large_image_url||webp.large_image_url||jpg.image_url||webp.image_url||"";
+   var preview=jpg.small_image_url||webp.small_image_url||jpg.image_url||webp.image_url||full;
+   return full?{original:full,preview:preview}:null;
+  }).filter(Boolean).slice(0,20);
+ }catch(error){console.warn("[AniWatch] Jikan screenshots unavailable:",error);return[]}
+ finally{if(timeout)clearTimeout(timeout)}
+}
+function mergeAnimeScreenshots(primary,secondary){
+ var result=[],seen=new Set();
+ (primary||[]).concat(secondary||[]).forEach(item=>{
+  if(!item)return;
+  var full=typeof item==="string"?item:(item.original||item.original_url||item.originalUrl||item.url||item.src||item.image_url||item.imageUrl||"");
+  var preview=typeof item==="string"?item:(item.preview||item.x332||item.x166||item.preview_url||item.previewUrl||full);
+  full=safeAnimeMediaUrl(full,"https://shikimori.io/");preview=safeAnimeMediaUrl(preview,"https://shikimori.io/");
+  if(!full||!preview)return;
+  var key;try{key=new URL(full).pathname.toLowerCase()}catch(e){key=full.toLowerCase()}
+  if(seen.has(key))return;seen.add(key);
+  result.push({original:full,preview:preview});
+ });
+ return result.slice(0,12);
+}
 function renderAnimeExtras(d,data){
  var host=$("#anime-extra-sections");if(!host||!isRoute("title",d.id))return;
  renderAnimeDescription(d,data.description);
@@ -355,7 +386,7 @@ function renderAnimeExtras(d,data){
 }
 function loadAnimeExtras(d){
  var host=$("#anime-extra-sections");if(!host)return;
- var cacheId=Number(d.shikiId)||Number(d.id),now=Date.now(),key="aw-anime-detail-v1-"+cacheId;
+ var cacheId=Number(d.shikiId)||Number(d.id),now=Date.now(),key="aw-anime-detail-v2-"+cacheId;
  if(animeExtraMemory[cacheId]&&typeof animeExtraMemory[cacheId].description==="string"){renderAnimeExtras(d,animeExtraMemory[cacheId]);return}
  try{
   var saved=JSON.parse(localStorage.getItem(key)||"null");
@@ -373,9 +404,15 @@ function loadAnimeExtras(d){
   }
   if(!id){renderAnimeDescription(d,"");return}
   var raw=await fetchAnimeById(id);
+  var shikiScreenshots=Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[];
+  var screenshots=shikiScreenshots;
+  if(shikiScreenshots.length<10&&Number(d.mal)>0){
+   var jikanScreenshots=await fetchJikanAnimePictures(d.mal);
+   screenshots=mergeAnimeScreenshots(shikiScreenshots,jikanScreenshots);
+  }else screenshots=mergeAnimeScreenshots(shikiScreenshots,[]);
   var data={
    videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
-   screenshots:Array.isArray(raw.screenshots)?raw.screenshots.slice(0,16):[],
+   screenshots:screenshots,
    rates_scores_stats:Array.isArray(raw.rates_scores_stats)?raw.rates_scores_stats:(Array.isArray(raw.scores_stats)?raw.scores_stats:(Array.isArray(raw.scoresStats)?raw.scoresStats:[])),
    score:Number(raw.score)||Number(d.r)||0,
    description:cleanDesc(raw.description_html||raw.description||"")
