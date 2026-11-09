@@ -8,7 +8,7 @@ function normalizePayload(payload){
  return raw.filter(item=>item&&item.release).map(item=>{
   const release=item.release||{},episode=item.published_release_episode||null;
   const poster=release.poster||{},optimized=poster.optimized||{};
-  const posterPath=optimized.preview||poster.preview||optimized.thumbnail||poster.thumbnail||"";
+  const posterPath=optimized.preview||optimized.src||optimized.thumbnail||poster.preview||poster.src||poster.thumbnail||"";
   let posterUrl="";
   if(posterPath){try{posterUrl=new URL(posterPath, "https://anilibria.top").href}catch{}}
   return {
