@@ -219,6 +219,28 @@ export function scheduleCloudSync(state) {
   }, 500);
 }
 
+
+export async function loadRecommendationFeedback(userId) {
+  if (!userId) return {};
+  const client = await getSupabaseClient();
+  const { data, error } = await client
+    .from("anime_recommendation_feedback")
+    .select("anime_id,action")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return Object.fromEntries((data || []).map(row => [String(row.anime_id), row.action]));
+}
+
+export async function saveRecommendationFeedback(userId, animeId) {
+  const id = Number(animeId);
+  if (!userId || !Number.isInteger(id) || id <= 0) return;
+  const client = await getSupabaseClient();
+  const { error } = await client
+    .from("anime_recommendation_feedback")
+    .upsert({ user_id: userId, anime_id: id, action: "not_interested" }, { onConflict: "user_id,anime_id" });
+  if (error) throw error;
+}
+
 export async function uploadProfileAvatar(file, userId) {
   const client = await getSupabaseClient();
   if (!userId) throw new Error("Сначала войди в аккаунт.");
