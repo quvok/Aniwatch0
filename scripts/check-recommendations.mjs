@@ -26,7 +26,7 @@ const candidates = [
 const ranked = rankRecommendations(candidates, profile, new Set(), 5);
 assert.equal(ranked[0].anime.id, 1000000001, "the strongest preferred genre should rank first");
 assert.ok(ranked.some(item => item.anime.id === 1000000004), "cross-language genre aliases should still match candidates");
-assert.match(ranked[0].reason, /фантастика|приключения/i, "recommendations should explain matching genres");
+assert.match(ranked[0].reason, /фэнтези/i, "recommendations should explain matching genres");
 assert.ok(!ranked.some(item => item.anime.id === 1000000002), "strongly disliked genres should be excluded");
 
 const filtered = rankRecommendations(candidates, profile, new Set([1000000001, "mal:404"]), 5);
