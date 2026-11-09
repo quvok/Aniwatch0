@@ -2,6 +2,7 @@
 // Parameters travel in the query string (anime.html?id=5, watch.html?id=5&ep=2), never in the hash.
 export const PAGES={
  home:"index.html",
+ calendar:"calendar.html",
  catalog:"catalog.html",
  favorites:"favorites.html",
  mylist:"lists.html",
