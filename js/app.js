@@ -128,17 +128,17 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshClo
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
 V.home=()=>{
- if(!D.length&&!(homeCollections&&homeCollections.trending&&homeCollections.trending.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
- if(!D.length&&homeCollections&&homeCollections.trending.length)D=homeCollections.trending;
+ if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
+ if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
  featuredIndex=0;
  var cont=Object.keys(S.hist).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6).map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));
- var source=homeCollections||{trending:D,popular:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
- var trending=source.trending.map(d=>{M[d.id]=d;return card(d)});
+ var source=homeCollections||{popular:D,recommended:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
  var popular=source.popular.map(d=>{M[d.id]=d;return card(d)});
+ var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,trendingCards:trending,popularCards:popular,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
@@ -158,6 +158,7 @@ function recommendationLibrary(){
 function recommendationExcludedIds(){
  var excluded=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),Object.keys(S.recommendationDismissed||{}),S.fav||[]).map(Number).filter(id=>Number.isFinite(id)&&id>0));
  recommendationLibrary().forEach(item=>{if(item.mal>0)excluded.add("mal:"+item.mal)});
+ ["recent","ongoing","popular","recommended"].forEach(key=>(homeCollections&&homeCollections[key]||[]).forEach(item=>{if(Number(item.id)>0)excluded.add(Number(item.id));if(Number(item.mal)>0)excluded.add("mal:"+Number(item.mal));if(Number(item.shikiId)>0)excluded.add(1000000000+Number(item.shikiId))}));
  return excluded;
 }
 function normalizeRecommendationGenre(value){
@@ -170,6 +171,9 @@ async function loadHomeRecommendations(){
  host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
  try{
   var profile=buildTasteProfile(recommendationLibrary()),raw=[];
+  var shelf=host.closest(".shelf");
+  if(shelf)shelf.hidden=false;
+  if(profile.usefulSignals<3||profile.topGenres.length<2){if(shelf)shelf.hidden=true;return;}
   if(profile.hasTaste){
    try{
     var genreRows=await fetchAnimeGenres(),wanted=new Set(profile.topGenres.map(item=>item.name));
@@ -193,7 +197,7 @@ async function loadHomeRecommendations(){
    }catch(error){console.warn("[AniWatch] Recommendation fallback failed:",error)}
   }
   if(!ranked.length){
-   host.innerHTML='<p class="m">Пока не удалось найти новые тайтлы. Попробуй позже.</p>';
+   if(shelf)shelf.hidden=true;
    return;
   }
   ranked.forEach(item=>{M[item.anime.id]=item.anime;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[item.anime.id]=item.anime});
@@ -709,18 +713,18 @@ function matchAniLibriaRelease(release,candidates){
 }
 async function loadHomeCollections(){
  var source=null,cache=null;
- try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v2")||"null")}catch(e){}
+ try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v3")||"null")}catch(e){}
  if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
  if(!source){
   try{
    source=await fetchAniLibriaHomeCollections();
-   try{localStorage.setItem("aw-home-anilibria-shiki-v2",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+   try{localStorage.setItem("aw-home-anilibria-shiki-v3",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
   }catch(error){
    console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
-   source={trending:[],popular:[],ongoing:[],recent:[]};
+   source={popular:[],recommended:[],ongoing:[],recent:[]};
   }
  }
- var lists=["trending","popular","ongoing","recent"],releaseIds=new Set();
+ var lists=["recent","ongoing","popular","recommended"],releaseIds=new Set();
  lists.forEach(key=>(source[key]||[]).forEach(release=>{
   var id=Number(release&&release.shikimori&&release.shikimori.id);
   if(Number.isInteger(id)&&id>0)releaseIds.add(id);
@@ -784,15 +788,15 @@ async function loadHomeCollections(){
    }
   }catch(error){console.warn("[AniWatch] Shikimori home fallback failed ("+key+"):",error)}
  }
- await fillShelf("trending",{order:"ranked"});
- await fillShelf("popular",{order:"popularity"});
- await fillShelf("ongoing",{order:"popularity",status:"ongoing"});
  await fillShelf("recent",{order:"aired_on",status:"released"});
+ await fillShelf("ongoing",{order:"popularity",status:"ongoing"});
+ await fillShelf("popular",{order:"popularity"});
+ await fillShelf("recommended",{order:"ranked"});
  homeCollections=mappedLists;
- var allHome=homeCollections.trending.concat(homeCollections.popular,homeCollections.ongoing,homeCollections.recent);
+ var allHome=homeCollections.recent.concat(homeCollections.ongoing,homeCollections.popular,homeCollections.recommended);
  allHome.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
  xshikiPosters(allHome).catch(error=>console.warn("[AniWatch] Shikimori poster enrichment failed:",error));
- if(homeCollections.trending.length)H=homeCollections.trending;
+ if(homeCollections.popular.length)H=homeCollections.popular;
  console.info("[AniWatch] Home shelves resolved:",lists.map(key=>key+":"+homeCollections[key].length).join(", "),"; title searches left:",searchBudget);
  return homeCollections;
 }
