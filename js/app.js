@@ -781,7 +781,7 @@ async function resolveAniLibriaHomeItems(rawItems){
    anime=[...resolved.values()].find(candidate=>homeShikiMatch(release,candidate)&&names.length)||null;
   }
   if(!anime||seen.has(Number(anime.id)))return;
-  seen.add(Number(anime.id));var item=shikiToItem(anime),aniPoster=anilibriaToItem(release).img;if(aniPoster){item.img=aniPoster;item.posterSource="anilibria"}result.push(item);
+  seen.add(Number(anime.id));var item=shikiToItem(anime);result.push(item);
  });
  return result;
 }
@@ -811,7 +811,7 @@ async function fillShikimoriHomeShelf(initial,options,used){
  return result;
 }
 async function loadHomeCollections(){
- var cacheKey="aw-hybrid-home-v3",cache=null;try{cache=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
+ var cacheKey="aw-hybrid-home-v4",cache=null;try{cache=JSON.parse(localStorage.getItem(cacheKey)||"null")}catch(e){}
  var data=cache&&Date.now()-cache.at<20*60*1000?cache.data:null;
  if(!data){
   var used=new Set();
@@ -861,31 +861,21 @@ async function xshikiPosters(L){
  L=(L||[]).filter(Boolean);
  var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
  if(needsLookup.length)await enrichShikimori(needsLookup);
- var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
- var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
- try{
-  for(var i=0;i<ids.length;i+=50){
-   var batchIds=ids.slice(i,i+50),posters=await fetchAnimePostersByIds(batchIds);
-   posters.forEach(a=>{
-    var d=findItem(a.id);if(!d)return;
-    var poster=a.poster||{},path=shikiImageUrl(poster.originalUrl||poster.mainUrl);
-    if(path)d.img=path;
-    M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
-   });
-  }
- }catch(e){console.warn("[AniWatch] Shikimori GraphQL poster lookup failed:",e)}
- // REST is a fallback only; never treat Shikimori's missing_original image as artwork.
- var restIds=ids.filter(id=>{var d=findItem(id);return d&&!shikiImageUrl(d.img)});
- for(var j=0;j<restIds.length;j+=50){
+ var ids=[...new Set(L.map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
+ var findItem=id=>L.find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
+ // Shikimori REST image.original returns its direct original poster URL
+ // (for example /uploads/poster/animes/.../main_2x-....webp).
+ // Prefer that URL instead of GraphQL's alternate mainUrl.
+ for(var i=0;i<ids.length;i+=50){
   try{
-   var batch=await fetchAnimeByIds(restIds.slice(j,j+50));
+   var batch=await fetchAnimeByIds(ids.slice(i,i+50));
    batch.forEach(a=>{
     var d=findItem(a.id);if(!d)return;
-    var image=a.image||{},path=shikiImageUrl(image.original||image.preview||image.x96);
+    var image=a.image||{},path=shikiImageUrl(image.original);
     if(path)d.img=path;
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
-  }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
+  }catch(e){console.warn("[AniWatch] Shikimori original poster lookup failed:",e);break}
  }
  document.querySelectorAll("[data-anime-id]").forEach(el=>{
   var d=M[Number(el.dataset.animeId)];if(!d||!shikiImageUrl(d.img))return;
@@ -898,44 +888,6 @@ async function xshikiPosters(L){
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
  sv();
 }
-var aniPosterFallbackPending=new Map();
-async function findAniLibriaPoster(d){
- if(!d)return "";
- var shikiId=Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))||0,mal=Number(d.mal)||0;
- var names=[un(d.n),un(d.o)].map(value=>String(value||"").trim()).filter((value,index,list)=>value&&list.indexOf(value)===index).slice(0,2);
- if(!names.length)return "";
- var key=shikiId?"shiki:"+shikiId:mal?"mal:"+mal:"title:"+homeTitleKey(names[0]);
- if(aniPosterFallbackPending.has(key))return aniPosterFallbackPending.get(key);
- var task=(async()=>{
-  for(var i=0;i<names.length;i++){
-   try{
-    var matches=await fetchAniLibriaSearchReleases(names[i]),releases=(matches||[]).map(homeAniLibriaRelease);
-    var exact=releases.find(release=>(shikiId&&Number(release.shikimori&&release.shikimori.id)===shikiId)||(mal&&Number(release.mal&&release.mal.id)===mal));
-    var titleMatch=releases.find(release=>homeShikiMatch(release,{russian:names[0],name:names[1]||names[0],aired_on:d.y?String(d.y)+"-01-01":""}));
-    var found=exact||titleMatch,poster=found?anilibriaToItem(found).img:"";
-    if(poster)return poster;
-   }catch(error){console.warn("[AniWatch] AniLibria poster fallback failed:",error)}
-  }
-  return "";
- })();
- aniPosterFallbackPending.set(key,task);
- return task;
-}
-document.addEventListener("error",function(event){
- var img=event.target;
- if(!img||!img.classList||!img.classList.contains("poster-image")||img.dataset.aniFallbackTried==="1")return;
- img.dataset.aniFallbackTried="1";
- var host=img.closest("[data-anime-id]"),d=host&&M[Number(host.dataset.animeId)];
- if(!d)return;
- findAniLibriaPoster(d).then(url=>{
-  if(!url||!img.isConnected)return;
-  d.img=url;d.posterSource="anilibria";M[d.id]=d;
-  if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
-  img.style.display="";img.src=url;
-  var poster=img.closest(".poster");if(poster)poster.style.background=bg(d);
-  sv();
- }).catch(error=>console.warn("[AniWatch] Poster fallback failed:",error));
-},true);
 function dHasImage(list,id){
  return (list||[]).some(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))===id&&!!shikiImageUrl(d.img));
 }
