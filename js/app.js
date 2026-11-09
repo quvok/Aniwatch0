@@ -331,7 +331,7 @@ function loadAnimeExtras(d){
     id=Number(exact&&exact.id)||0;
    }catch(resolveError){console.warn("[AniWatch] Shikimori ID resolution failed:",resolveError)}
   }
-  if(!id)return;
+  if(!id){renderAnimeDescription(d,"");return}
   var raw=await fetchAnimeById(id);
   var data={
    videos:Array.isArray(raw.videos)?raw.videos.slice(0,24):[],
@@ -662,7 +662,7 @@ async function jikanCount(d,force){
 }
 var relatedPending={};
 var relationNames={SEQUEL:"Продолжение",PREQUEL:"Приквел",SIDE_STORY:"Побочная история",PARENT_STORY:"Основная история",ALTERNATIVE:"Альтернативная версия",ALTERNATIVE_SETTING:"Альтернативный сюжет",SPIN_OFF:"Спин-офф",SUMMARY:"Пересказ",FULL_STORY:"Полная версия",CHARACTER:"Связанные персонажи",OTHER:"Связанный тайтл",SOURCE:"Первоисточник",COMPILATION:"Сборник"};
-var relatedFields="id idMal type format title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color} bannerImage";
+var relatedFields="id idMal type format title{romaji english}genres seasonYear startDate{year}averageScore episodes statuscoverImage{extraLarge color} bannerImage";
 function relatedCards(list){return list.map(x=>card(x)).join("")}
 async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
@@ -792,7 +792,7 @@ async function boot(){
 }
 
 // ---- v2: каталог по всей базе AniList и трейлеры ----
-var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status description(asHtml:false)coverImage{extraLarge color}bannerImage",
+var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes statuscoverImage{extraLarge color}bannerImage",
 homeCollections=null;
 function normalizeMatchTitle(value){
  return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu,"").trim();
