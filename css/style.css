@@ -2752,3 +2752,57 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  #site-header .notification-bell svg{width:20px;height:20px}
  #site-header .notifications-panel{right:-48px;top:calc(100% + 9px);max-height:calc(100vh - 92px)}
 }
+
+
+/* AniWatch redesign — refined desktop shell, clearer hierarchy and responsive title pages. */
+:root{--ac:#a78bfa;--ac2:#7651d5;--surface-glass:rgba(18,20,32,.78);--surface-border:rgba(190,197,230,.13)}
+body{background:radial-gradient(ellipse at 70% -10%,rgba(120,91,205,.17),transparent 38%),radial-gradient(ellipse at 4% 36%,rgba(42,91,112,.09),transparent 30%),#080910}
+#site-header .desktop-sidebar{width:238px!important;padding:28px 17px 20px!important;background:linear-gradient(180deg,rgba(17,18,30,.98),rgba(10,11,19,.98))!important;border-right:1px solid rgba(190,197,230,.12)!important;box-shadow:12px 0 42px rgba(0,0,0,.18)!important}
+#site-header .sidebar-logo{font-size:27px!important;letter-spacing:-1.5px!important}
+#site-header .sidebar-caption{font-size:9px!important;letter-spacing:.16em!important;color:#777d95!important;margin:5px 0 34px 3px!important}
+#site-header .desktop-sidebar-nav{gap:6px!important}
+#site-header .desktop-sidebar-nav a{min-height:46px!important;padding:10px 12px!important;border-radius:12px!important;color:#9da2b7!important;font-weight:650!important;transition:background .2s,color .2s,transform .2s!important}
+#site-header .desktop-sidebar-nav a:hover{transform:translateX(2px);background:rgba(255,255,255,.045)!important;color:#fff!important}
+#site-header .desktop-sidebar-nav a.on{background:linear-gradient(100deg,rgba(142,111,220,.22),rgba(142,111,220,.07))!important;box-shadow:inset 3px 0 #a78bfa!important;color:#f2edff!important}
+#site-header .nav-mark{font-size:18px!important;width:24px!important;color:#bba7f7!important}
+#site-header .sidebar-footer{margin-top:auto!important;padding:13px 10px!important;border:1px solid rgba(190,197,230,.11)!important;border-radius:14px!important;background:rgba(255,255,255,.025)!important}
+#site-header .header-top{position:sticky!important;top:0!important;z-index:4!important;min-height:66px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;padding:10px 30px!important;background:rgba(8,9,16,.72)!important;border-bottom:1px solid rgba(190,197,230,.08)!important;backdrop-filter:blur(18px)!important}
+#site-header .mobile-logo{display:none!important}
+#site-header .header-tools{display:flex!important;align-items:center!important;gap:12px!important}
+#site-header .av{width:40px!important;height:40px!important;background:linear-gradient(145deg,#b49aff,#6742c5)!important;border:1px solid rgba(255,255,255,.2)!important}
+@media(min-width:701px){#site-header{padding-left:0!important}main{width:calc(100% - 238px)!important;max-width:1500px!important;margin:0 0 0 238px!important;padding:26px 34px 70px!important}}
+.hero-editorial{border:1px solid rgba(205,195,255,.16)!important;box-shadow:0 26px 70px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.07)!important}
+.hero-editorial::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.035) 55%,transparent 75%)}
+.hero-copy{position:relative;z-index:1}.hero-poster{z-index:1}
+.shelf-head h2{font-size:22px!important;letter-spacing:-.65px!important}
+.shelf-sub{color:#858ca3!important;font-size:12px!important}
+.row>.card{min-width:0}
+.row>.card .poster{border-radius:13px!important;box-shadow:0 12px 30px rgba(0,0,0,.28)!important}
+.row>.card:hover .poster{transform:translateY(-3px) scale(1.015)!important;box-shadow:0 18px 38px rgba(0,0,0,.42),0 0 0 1px rgba(167,139,250,.24)!important}
+.row>.card b{font-size:13px!important;line-height:1.42!important}
+.title-page{position:relative!important;overflow:hidden!important;border-radius:22px!important;border:1px solid rgba(190,197,230,.14)!important;background:linear-gradient(135deg,rgba(25,26,43,.97),rgba(12,14,24,.98))!important;box-shadow:0 24px 65px rgba(0,0,0,.28)!important}
+.title-layout{position:relative!important;z-index:1!important;gap:34px!important;padding:clamp(22px,4vw,44px)!important}
+.title-cover .poster.big{width:min(260px,24vw)!important;border-radius:17px!important;box-shadow:0 24px 50px rgba(0,0,0,.45)!important}
+.title-info{gap:13px!important}
+.title-info h1{font-size:clamp(30px,4vw,48px)!important;letter-spacing:-1.4px!important}
+.title-tags span{background:rgba(167,139,250,.1)!important;border:1px solid rgba(167,139,250,.2)!important;color:#d8cefa!important}
+.title-metrics{border-top:1px solid var(--surface-border)!important;border-bottom:1px solid var(--surface-border)!important;padding:16px 0!important}
+.title-metrics b{font-size:17px!important}.title-metrics small{font-size:9px!important;letter-spacing:.12em!important}
+.title-list-status{background:rgba(255,255,255,.035)!important;border:1px solid var(--surface-border)!important;border-radius:13px!important;padding:12px 14px!important}
+.title-episodes{border:1px solid var(--surface-border)!important;border-radius:18px!important;background:rgba(17,19,31,.72)!important;padding:22px!important}
+.title-section-head h2{font-size:24px!important}
+@media(max-width:700px){
+ #site-header .header-top{min-height:58px!important;padding:8px 14px!important;justify-content:space-between!important}
+ #site-header .mobile-logo{display:inline-flex!important;font-size:22px!important}
+ #site-header .header-tools{gap:8px!important}
+ #site-header .desktop-sidebar{display:none!important}
+ main{width:100%!important;margin:0!important;padding:16px 13px calc(112px + env(safe-area-inset-bottom,0px))!important}
+ .hero-editorial{grid-template-columns:minmax(0,1fr) 92px!important;min-height:270px!important;padding:18px 14px!important}
+ .hero-editorial h1{font-size:clamp(24px,6.8vw,34px)!important}
+ .hero-editorial p{display:none!important}
+ .title-layout{grid-template-columns:104px minmax(0,1fr)!important;gap:14px!important;padding:15px!important}
+ .title-cover .poster.big{width:104px!important;border-radius:11px!important}
+ .title-info h1{font-size:clamp(20px,5.8vw,27px)!important}
+ .title-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .title-episodes{padding:14px 11px!important}
+}
