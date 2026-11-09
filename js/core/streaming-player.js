@@ -61,8 +61,8 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  root.innerHTML=`
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> KODIK · MAIN</span></div>
-  <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
   <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Kodik <em>MAIN</em></button><button type="button" data-provider="liberty">AniLiberty</button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="animelib">AnimeLib</button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Kodik · основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -164,30 +164,53 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
 
  const showKodik=async()=>{
   destroyHls();
-  options.innerHTML='<span class="stream-note">Ищем релизы в Kodik через защищённое подключение…</span>';
-  stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Подключаем каталог и плеер…</small></div>';
-  setStatus("Kodik · поиск релизов…");
+  options.innerHTML='<span class="stream-note">Ищем озвучки и серии Kodik…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Загружаем доступные варианты озвучки…</small></div>';
+  setStatus("Kodik · поиск озвучек…");
   try{
    const releases=await searchKodikAnime(anime);
    if(!releases.length)throw new Error("Kodik не нашёл подходящих релизов для этого аниме");
-   let selected=releases[0];
+   const available=releases.filter(item=>item?.link&&item?.translation);
+   if(!available.length)throw new Error("Kodik не вернул доступных вариантов озвучки");
+   let selected=available[0];
+   const seasonsOf=item=>Object.entries(item?.seasons||{});
+   const episodesOf=item=>{
+    const all=[];
+    for(const [seasonKey,season] of seasonsOf(item)){
+     for(const [number,data] of Object.entries(season?.episodes||{})){
+      const episodeNumber=Number(data?.episode??data?.number??number);
+      if(Number.isFinite(episodeNumber))all.push({number:episodeNumber,season:Number(seasonKey)||1});
+     }
+    }
+    return [...new Map(all.map(x=>[x.number,x])).values()].sort((a,b)=>a.number-b.number);
+   };
+   const playSelected=()=>{
+    const seasonSelect=options.querySelector("#kodik-season");
+    const chosenSeason=seasonSelect?Number(seasonSelect.value):undefined;
+    const link=getKodikEpisodeLink(selected,episode,chosenSeason);
+    if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
+    destroyHls();
+    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Kodik player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    setStatus("Kodik · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
+   };
    const render=()=>{
-    const optionsHtml=releases.map((item,index)=>'<option value="'+index+'" '+(item===selected?'selected':'')+'>'+esc(item.translation?.title||"Неизвестная озвучка")+' · '+esc(item.quality||"качество неизвестно")+' · '+esc(item.id||"")+'</option>').join("");
-    options.innerHTML=(releases.length>1?'<label>Озвучка / релиз<select id="kodik-release">'+optionsHtml+'</select></label>':'<span class="stream-note">'+esc(selected.translation?.title||"Kodik")+' · '+esc(selected.quality||"")+'</span>')+'<button type="button" class="stream-load" id="kodik-play">Смотреть серию '+episode+' <span>→</span></button>';
-    const select=options.querySelector("#kodik-release");
-    if(select)select.addEventListener("change",()=>{selected=releases[Number(select.value)]||releases[0];render()});
-    options.querySelector("#kodik-play").addEventListener("click",()=>{
-     const link=getKodikEpisodeLink(selected,episode);
-     if(!link){setStatus("Kodik не вернул ссылку на плеер для этой серии");return}
-     destroyHls();
-     stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Kodik player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
-     const hasEpisode=Object.values(selected.seasons||{}).some(season=>Object.keys(season?.episodes||{}).some(key=>Number(key)===Number(episode)));
-     setStatus("Kodik · "+esc(selected.translation?.title||"озвучка")+" · "+(hasEpisode?"серия "+episode:"плеер релиза"));
-    });
+    const eps=episodesOf(selected);
+    const seasons=seasonsOf(selected).map(([key])=>Number(key)).filter(Number.isFinite);
+    const voiceButtons=available.map((item,index)=>'<button type="button" class="kodik-voice'+(item===selected?' on':'')+'" data-kodik-voice="'+index+'" aria-pressed="'+(item===selected?'true':'false')+'"><span>'+esc(item.translation?.title||"Озвучка "+(index+1))+'</span><small>'+esc(item.quality||"Kodik")+'</small></button>').join("");
+    const seasonControl=seasons.length>1?'<label class="kodik-season-label">Сезон<select id="kodik-season">'+seasons.map(value=>'<option value="'+value+'">'+value+'</option>').join("")+'</select></label>':"";
+    const episodeInfo=eps.length?'<span class="kodik-episode-info">Доступно серий: '+eps.length+'</span>':'<span class="kodik-episode-info">Серия '+episode+'</span>';
+    options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom">'+seasonControl+'<span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Kodik")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
+    options.querySelectorAll("[data-kodik-voice]").forEach(button=>button.addEventListener("click",()=>{
+     selected=available[Number(button.dataset.kodikVoice)]||available[0];
+     render();
+     playSelected();
+    }));
+    options.querySelector("#kodik-play").addEventListener("click",playSelected);
+    const season=options.querySelector("#kodik-season");
+    if(season)season.addEventListener("change",playSelected);
    };
    render();
-   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Найдено релизов: '+releases.length+'. Выбери озвучку и запусти серию.</small></div>';
-   setStatus("Kodik · найдено релизов: "+releases.length);
+   playSelected();
   }catch(error){
    options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#kodik-retry").addEventListener("click",showKodik);
