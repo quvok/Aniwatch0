@@ -299,6 +299,7 @@ http://localhost:8000
 
 ```bash
 node scripts/check-pages.mjs
+node scripts/check-recommendations.mjs
 ```
 
 Проверка структуры не заменяет ручное тестирование интерфейса, внешних API, авторизации, видеопотоков и Realtime-комнат.
