@@ -512,11 +512,40 @@ var relatedPending={};
 var relationNames={SEQUEL:"Продолжение",PREQUEL:"Приквел",SIDE_STORY:"Побочная история",PARENT_STORY:"Основная история",ALTERNATIVE:"Альтернативная версия",ALTERNATIVE_SETTING:"Альтернативный сюжет",SPIN_OFF:"Спин-офф",SUMMARY:"Пересказ",FULL_STORY:"Полная версия",CHARACTER:"Связанные персонажи",OTHER:"Связанный тайтл",SOURCE:"Первоисточник",COMPILATION:"Сборник"};
 var relatedFields="id idMal type format title{romaji english}genres seasonYear startDate{year}averageScore episodes status description(asHtml:false)coverImage{extraLarge color} bannerImage";
 function relatedCards(list){return list.map(x=>card(x)).join("")}
+async function enrichRelatedFromShikimori(list){
+ var items=(list||[]).filter(x=>x&&Number(x.mal)>0&&!Number(x.shikiId));
+ var cursor=0;
+ async function worker(){
+  while(cursor<items.length){
+   var item=items[cursor++],titles=[un(item.n),un(item.o)].filter(Boolean),match=null;
+   for(var title of titles){
+    try{
+     var found=await fetchCatalogPage({query:title,page:1,limit:10,order:"popularity"});
+     match=(Array.isArray(found)?found:[]).find(a=>Number(a.myanimelist_id)===Number(item.mal));
+     if(match)break;
+    }catch(error){console.warn("[AniWatch] Related Shikimori lookup failed:",error)}
+   }
+   if(!match)continue;
+   var normalized=shikiToItem(match);
+   item.shikiId=normalized.shikiId;
+   item.n=normalized.n;
+   item.o=normalized.o;
+   item.g=normalized.g;
+   item.y=normalized.y;
+   item.r=normalized.r;
+   item.e=normalized.e;
+   item.s=normalized.s;
+   item.img=normalized.img||item.img;
+  }
+ }
+ await Promise.all(Array.from({length:Math.min(3,items.length)},()=>worker()));
+ return list||[];
+}
 async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===10&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===11&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   try{
@@ -578,8 +607,9 @@ async function loadRelated(d){
     await xshikiPosters(fallbackList);
    }
    var all=relations.map(x=>x.anime).concat(creatorWorks);
-   await translateRelated(all);
-   var data={v:10,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   await enrichRelatedFromShikimori(all);
+   await xshikiPosters(all);
+   var data={v:11,relations:relations,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    cached[d.id]=data;sv();renderRelated(d,data);
   }catch(e){
    console.warn("[AniWatch] Related anime:",e);
