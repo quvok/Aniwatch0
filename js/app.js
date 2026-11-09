@@ -371,6 +371,7 @@ async function openRoomInvitePanel(){
  var panel=$("#room-invite-panel"),host=$("#room-invite-friend-list");
  if(!panel||!host)return;
  if(panel.hidden===false){panel.hidden=true;return}
+ if(!AUTH_USER){try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER)S=await restoreCloudState(S,AUTH_USER.id)}catch(error){console.warn("[AniWatch] Auth refresh failed:",error)}}
  if(!AUTH_USER){openAuthModal();toast("Войди в аккаунт, чтобы приглашать друзей");return}
  panel.hidden=false;host.innerHTML='<p class="social-empty">Загружаем друзей…</p>';
  try{
@@ -432,7 +433,7 @@ async function handleAuthSubmit(form){
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
-   S=await restoreCloudState(S,AUTH_USER.id);var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();if(activePage()==="home")loadHomeRecommendations();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();
+   S=await restoreCloudState(S,AUTH_USER.id);var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();if(activePage()==="home")loadHomeRecommendations();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();else if(activePage()==="together")loadTogetherView();
   }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
@@ -454,7 +455,8 @@ async function handleAuthLogout(){
   saveLocalState(S,M);
   hd();
   toast("Вы вышли из аккаунта");
-  V.profile();
+  if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+  if(activePage()==="together")loadTogetherView();else V.profile();
  }catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
 }
 
