@@ -1,3 +1,4 @@
+import {getKodikToken,setKodikToken,searchKodikAnime,getKodikEpisodeLink} from "../api/kodik.js";
 const LIBERTY_BASES=["https://api.anilibria.app/api/v1","https://aniliberty.top/api/v1"];
 let hlsLoader=null,hlsInstance=null;
 const textOf=v=>typeof v==="string"?v:v&&typeof v==="object"?(v.main||v.english||v.russian||""):"";
@@ -61,7 +62,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">A</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> STREAMING</span></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><<button type="button" data-provider="animelib">AnimeLib</button><<</div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="liberty">AniLiberty <em>MAIN</em></button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="animelib">AnimeLib</button><button type="button" data-provider="kodik">Kodik</button></div><div class="stream-options" id="stream-options"></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">AniLiberty · автоматический выбор потока</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
@@ -160,6 +161,55 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
  const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
+
+ const showKodik=async()=>{
+  destroyHls();
+  options.innerHTML="";
+  stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Подключаем каталог и плеер…</small></div>';
+  const token=getKodikToken();
+  if(!token){
+   options.innerHTML='<label class="stream-note" for="kodik-token">API-токен Kodik</label><input id="kodik-token" type="password" autocomplete="off" placeholder="Вставь токен Kodik" style="width:min(100%,420px);padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:inherit"><button type="button" class="stream-load" id="kodik-connect">Подключить Kodik <span>→</span></button><small class="stream-note">Токен хранится только в текущей вкладке браузера и не записывается в GitHub.</small>';
+   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Для доступа к API нужен токен.</small></div>';
+   options.querySelector("#kodik-connect").addEventListener("click",()=>{
+    const value=String(options.querySelector("#kodik-token")?.value||"").trim();
+    if(!value){setStatus("Введи токен Kodik");return}
+    setKodikToken(value);showKodik();
+   });
+   setStatus("Kodik · ожидает API-токен");
+   return;
+  }
+  options.innerHTML='<span class="stream-note">Ищем аниме в Kodik…</span>';
+  setStatus("Kodik · поиск релизов…");
+  try{
+   const releases=await searchKodikAnime(anime,token);
+   if(!releases.length)throw new Error("Kodik не нашёл подходящих релизов для этого аниме");
+   let selected=releases[0];
+   const render=()=>{
+    const optionsHtml=releases.map((item,index)=>'<option value="'+index+'" '+(item===selected?'selected':'')+'>'+esc(item.translation?.title||"Неизвестная озвучка")+' · '+esc(item.quality||"качество неизвестно")+' · '+esc(item.id||"")+'</option>').join("");
+    options.innerHTML=(releases.length>1?'<label>Озвучка / релиз<select id="kodik-release">'+optionsHtml+'</select></label>':'<span class="stream-note">'+esc(selected.translation?.title||"Kodik")+' · '+esc(selected.quality||"")+'</span>')+'<button type="button" class="stream-load" id="kodik-play">Смотреть серию '+episode+' <span>→</span></button><button type="button" class="stream-load" id="kodik-change-token" style="opacity:.75">Сменить токен</button>';
+    const select=options.querySelector("#kodik-release");
+    if(select)select.addEventListener("change",()=>{selected=releases[Number(select.value)]||releases[0];render()});
+    options.querySelector("#kodik-play").addEventListener("click",()=>{
+     const link=getKodikEpisodeLink(selected,episode);
+     if(!link){setStatus("Kodik не вернул ссылку на плеер для этой серии");return}
+     destroyHls();
+     stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Kodik player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+     const hasEpisode=Object.values(selected.seasons||{}).some(season=>Object.keys(season?.episodes||{}).some(key=>Number(key)===Number(episode)));
+     setStatus("Kodik · "+esc(selected.translation?.title||"озвучка")+" · "+(hasEpisode?"серия "+episode:"плеер релиза"));
+    });
+    options.querySelector("#kodik-change-token").addEventListener("click",()=>{setKodikToken("");showKodik()});
+   };
+   render();
+   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Найдено релизов: '+releases.length+'. Выбери озвучку и запусти серию.</small></div>';
+   setStatus("Kodik · найдено релизов: "+releases.length);
+  }catch(error){
+   options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button><button type="button" class="stream-load" id="kodik-change-token">Сменить токен</button>';
+   options.querySelector("#kodik-retry").addEventListener("click",showKodik);
+   options.querySelector("#kodik-change-token").addEventListener("click",()=>{setKodikToken("");showKodik()});
+   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("Kodik: "+(error.message||"ошибка поиска"));
+  }
+ };
  const animeVostRequest=async payload=>{
   const response=await fetch("https://oikuyhdgcobuuesbuygl.supabase.co/functions/v1/animevost-stream",{
    method:"POST",
@@ -290,9 +340,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
-  if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else showLiberty();
+  if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));
- reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else{releaseData=null;showLiberty()}});;
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
  showLiberty()
  return {getPlaybackState,syncPlayback,destroy(){destroyHls();clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
