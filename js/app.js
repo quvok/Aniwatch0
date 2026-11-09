@@ -865,8 +865,8 @@ function aniMedia(d){
  if(d.source&&!(Number(d.mal)>0))return Promise.resolve(null);
  if(xXP[id])return xXP[id];
  var query,vars;
- if(d.source){query="query($mal:Int){Media(idMal:$mal,type:ANIME){id bannerImage trailer{id site}}}";vars={mal:Number(d.mal)}}
- else{query="query($id:Int){Media(id:$id,type:ANIME){id bannerImage trailer{id site}}}";vars={id:Number(d.aniId||d.id)}}
+ if(d.source){query="query($mal:Int){Media(idMal:$mal,type:ANIME){id bannerImage}}";vars={mal:Number(d.mal)}}
+ else{query="query($id:Int){Media(id:$id,type:ANIME){id bannerImage}}";vars={id:Number(d.aniId||d.id)}}
  xXP[id]=xgq(query,vars).then(function(r){
   var m=r&&r.Media||null;xXC[id]=m;
   var t=M[id]||d;if(m&&m.bannerImage&&!t.ban){t.ban=m.bannerImage;if(t.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=t}applyBanner(t);sv()}
@@ -875,12 +875,6 @@ function aniMedia(d){
  return xXP[id];
 }
 function loadBanner(d){if(d&&d.source!=="anilibria"&&!d.ban)aniMedia(d).catch(function(){})}
-var xvt=V.title;V.title=p=>{xvt(p);xex(+p[0])};
-async function xex(id){var d=M[id];if(!d)return;var x=xXC[id];if(!x){try{x=await aniMedia(d)}catch(e){return}}
- if(!x||!isRoute("title",id)||!$(".title-info"))return;var tr=x.trailer;
- if(tr&&tr.id&&!$("#trl")){var u=tr.site=="youtube"?"https://www.youtube-nocookie.com/embed/"+encodeURIComponent(tr.id):tr.site=="dailymotion"?"https://www.dailymotion.com/embed/video/"+encodeURIComponent(tr.id):"";
-  if(u){var s=document.createElement("section");s.id="trl";s.className="trailer";s.innerHTML='<h2>Трейлер</h2><div class="tr-frame"><iframe src="'+u+'" title="Трейлер" loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>';var epsSection=$(".title-episodes");if(epsSection)app.insertBefore(s,epsSection);else app.appendChild(s)}}}
-
 function activePage(){return getActivePage()}
 function hd(){updateNavigation(S)}
 // ---- страницы: данные между переходами, адреса, фильтры ----
