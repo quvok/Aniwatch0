@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080910">
+<title>Статистика сайта — AniWatch</title>
+<meta name="description" content="Закрытая панель статистики AniWatch.">
+<link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body data-page="stats">
+<header id="site-header"></header>
+<main id="analytics-app"><noscript>Для работы панели нужен включённый JavaScript.</noscript></main>
+<script type="module" src="js/pages/stats.js"></script>
+<script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});</script>
+</body>
+</html>
