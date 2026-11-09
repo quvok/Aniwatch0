@@ -396,7 +396,7 @@ V.title=p=>{
 
 function setupEpisodeNavigator(anime){
  var host=$("#episode-range-list"),input=$("#episode-jump");if(!host||!input)return;
- var total=epTotal(anime),watched=watchedFor(anime.id),last=watched.length?Math.max(...watched):0;
+ var total=epTotal(anime),watched=watchedFor(anime.id),last=Number(S.hist&&S.hist[anime.id]&&S.hist[anime.id].ep)|| (watched.length?Math.max(...watched):0);
  input.max=String(total||"");
  var ranges=[];for(var start=1;start<=total;start+=100){var end=Math.min(total,start+99);ranges.push('<button type="button" class="episode-range-btn" data-a="episode-range" data-from="'+start+'" data-to="'+end+'">'+start+'–'+end+'</button>')}
  host.innerHTML=ranges.join("");
