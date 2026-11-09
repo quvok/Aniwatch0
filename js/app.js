@@ -551,8 +551,14 @@ async function loadCollectionsView(params){
  }catch(error){console.error("[AniWatch] Collections load failed:",error);app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить коллекции</h1><p>Проверь подключение и попробуй ещё раз.</p><button class="btn" data-a="collections-reload">Повторить</button></section>'}
 }
 V.collections=loadCollectionsView;
-V.favorites=()=>{renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="favorites")V.favorites()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
-V.mylist=()=>{renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist")V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
+function collectionPosterItems(){
+ var ids=new Set([...(S.fav||[]).map(Number)]),raw=S.watchlist||{};
+ if(Array.isArray(raw))raw.forEach(item=>{var id=Number(item&&(item.id??item.anime_id??item.animeId));if(id>0)ids.add(id)});
+ else Object.keys(raw).forEach(id=>{if(Number(id)>0)ids.add(Number(id))});
+ return [...ids].map(id=>M[id]||S.shikiAnime&&S.shikiAnime[id]).filter(Boolean);
+}
+V.favorites=()=>{renderFavorites({app,state:S,mediaMap:M,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});xshikiPosters(collectionPosterItems()).catch(error=>console.warn("[AniWatch] Collection poster enrichment failed:",error));if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="favorites")V.favorites()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
+V.mylist=()=>{renderMyList({app,state:S,mediaMap:M,filters:F,lists:LISTS,card:d=>card(d,animeProgress(d),undefined,newEpisodeBadge(d))});xshikiPosters(collectionPosterItems()).catch(error=>console.warn("[AniWatch] Collection poster enrichment failed:",error));if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist")V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error))};
 V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание. Попробуй ещё раз."})}};
 V.profile=()=>renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});
 function openAuthModal(){
