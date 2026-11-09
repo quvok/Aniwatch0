@@ -10,9 +10,6 @@ function personAvatar(person, escapeHtml) {
 }
 
 export function renderTogetherPage({ app, state, animeList, escapeHtml, user, social, error }) {
- const options = (animeList || []).slice(0, 80).map(d =>
-  '<option value="' + d.id + '"' + (Number(state.roomAnime) === Number(d.id) ? ' selected' : '') + '>' + escapeHtml(d.n) + '</option>'
- ).join("");
  const animeName = id => (animeList || []).find(item => Number(item.id) === Number(id))?.n || ("Аниме #" + id);
  const requests = social?.incomingRequests || [];
  const outgoing = social?.outgoingRequests || [];
@@ -36,7 +33,7 @@ export function renderTogetherPage({ app, state, animeList, escapeHtml, user, so
  ).join("") + '</div>' : "";
  app.innerHTML =
   '<section class="together-hero"><div class="eyebrow"><span class="live-dot"></span> ANIWATCH WATCH PARTY</div><h1>Смотрите аниме <span>вместе</span></h1><p>Создавай комнаты, добавляй друзей и приглашай их прямо из плеера. Заявки и приглашения сохраняются в аккаунте — даже если друг сейчас не в сети.</p><div class="together-steps"><span>01 · Создай комнату</span><span>02 · Добавь друзей</span><span>03 · Позови смотреть</span></div></section>' +
-  '<section class="together-grid"><div class="panel together-panel"><span class="eyebrow">НОВАЯ КОМНАТА</span><h2>Стань ведущим</h2><p>Ты управляешь воспроизведением и отправляешь приглашения друзьям из комнаты.</p><label for="room-anime">Выбери аниме</label><select id="room-anime">' + (options || '<option value="">Каталог загружается</option>') + '</select><button class="btn" type="button" data-a="room"' + (!options ? ' disabled' : '') + '>Создать комнату и перейти к просмотру</button></div>' +
+  '<section class="together-grid"><div class="panel together-panel"><span class="eyebrow">НОВАЯ КОМНАТА</span><h2>Стань ведущим</h2><p>Создай комнату, затем выбери аниме на главной странице или в каталоге. Друзья смогут присоединиться по приглашению.</p><button class="btn" type="button" data-a="room">Создать комнату и выбрать аниме</button></div>' +
   '<div class="panel together-panel"><span class="eyebrow">УЖЕ ЕСТЬ КОД?</span><h2>Присоединиться</h2><p>Введи код комнаты или открой приглашение от друга. Серия и таймлайн синхронизируются после подключения.</p><form id="jf"><label for="jc">Код комнаты</label><input id="jc" placeholder="Например, 8K4M2P9Q" maxlength="12" autocomplete="off" required><button class="btn ghost" type="submit">Войти в комнату</button></form></div></section>' +
   '<section class="social-hub"><div class="social-heading"><div><span class="eyebrow">ТВОЁ СООБЩЕСТВО</span><h2>Друзья и приглашения</h2><p>Ищи людей по нику AniWatch и собирай компанию для просмотра.</p></div><button class="social-refresh" type="button" data-a="social-reload" aria-label="Обновить">↻ Обновить</button></div>' +
   (user ?
