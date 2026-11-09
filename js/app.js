@@ -781,7 +781,7 @@ async function resolveAniLibriaHomeItems(rawItems){
    anime=[...resolved.values()].find(candidate=>homeShikiMatch(release,candidate)&&names.length)||null;
   }
   if(!anime||seen.has(Number(anime.id)))return;
-  seen.add(Number(anime.id));result.push(shikiToItem(anime));
+  seen.add(Number(anime.id));var item=shikiToItem(anime),aniPoster=anilibriaToItem(release).img;if(aniPoster){item.img=aniPoster;item.posterSource="anilibria"}result.push(item);
  });
  return result;
 }
@@ -898,6 +898,44 @@ async function xshikiPosters(L){
  var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
  sv();
 }
+var aniPosterFallbackPending=new Map();
+async function findAniLibriaPoster(d){
+ if(!d)return "";
+ var shikiId=Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))||0,mal=Number(d.mal)||0;
+ var names=[un(d.n),un(d.o)].map(value=>String(value||"").trim()).filter((value,index,list)=>value&&list.indexOf(value)===index).slice(0,2);
+ if(!names.length)return "";
+ var key=shikiId?"shiki:"+shikiId:mal?"mal:"+mal:"title:"+homeTitleKey(names[0]);
+ if(aniPosterFallbackPending.has(key))return aniPosterFallbackPending.get(key);
+ var task=(async()=>{
+  for(var i=0;i<names.length;i++){
+   try{
+    var matches=await fetchAniLibriaSearchReleases(names[i]),releases=(matches||[]).map(homeAniLibriaRelease);
+    var exact=releases.find(release=>(shikiId&&Number(release.shikimori&&release.shikimori.id)===shikiId)||(mal&&Number(release.mal&&release.mal.id)===mal));
+    var titleMatch=releases.find(release=>homeShikiMatch(release,{russian:names[0],name:names[1]||names[0],aired_on:d.y?String(d.y)+"-01-01":""}));
+    var found=exact||titleMatch,poster=found?anilibriaToItem(found).img:"";
+    if(poster)return poster;
+   }catch(error){console.warn("[AniWatch] AniLibria poster fallback failed:",error)}
+  }
+  return "";
+ })();
+ aniPosterFallbackPending.set(key,task);
+ return task;
+}
+document.addEventListener("error",function(event){
+ var img=event.target;
+ if(!img||!img.classList||!img.classList.contains("poster-image")||img.dataset.aniFallbackTried==="1")return;
+ img.dataset.aniFallbackTried="1";
+ var host=img.closest("[data-anime-id]"),d=host&&M[Number(host.dataset.animeId)];
+ if(!d)return;
+ findAniLibriaPoster(d).then(url=>{
+  if(!url||!img.isConnected)return;
+  d.img=url;d.posterSource="anilibria";M[d.id]=d;
+  if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
+  img.style.display="";img.src=url;
+  var poster=img.closest(".poster");if(poster)poster.style.background=bg(d);
+  sv();
+ }).catch(error=>console.warn("[AniWatch] Poster fallback failed:",error));
+},true);
 function dHasImage(list,id){
  return (list||[]).some(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))===id&&!!shikiImageUrl(d.img));
 }
