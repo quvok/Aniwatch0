@@ -40,7 +40,8 @@ export async function searchKodikAnime(anime,token=getKodikToken()){
   results=await request({...common,title},token);
  }
  const exact=results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.score<99);
- const selected=exact.length?exact:results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.item?.type==="anime-serial"||x.item?.type==="anime");
+ const idMatches=shikiId>0?results.filter(item=>Number(item?.shikimori_id)===shikiId):[];
+ const selected=exact.length?exact:idMatches.map(item=>({item,score:0}));
  const list=selected.map(x=>x.item).filter(item=>item?.link&&item?.translation);
  const unique=new Map();
  for(const item of list){
