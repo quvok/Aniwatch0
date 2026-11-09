@@ -739,7 +739,7 @@ async function ru(d){
  if(!d.mal)return;
  if(!d.e)await jikanCount(d,false);
  if(!d.e||!d.ae)await aniZipCount(d);
- if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d,false);
+ if(!(S.aniEpisodes&&S.aniEpisodes[d.id]&&Number.isFinite(Number(S.aniEpisodes[d.id].available)))&&!(S.kitsuEpisodes&&S.kitsuEpisodes[d.mal]&&Number.isFinite(Number(S.kitsuEpisodes[d.mal].available))))await kitsuCount(d,false);
  refreshEpCount(d);
 }
 
