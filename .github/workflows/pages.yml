@@ -1,3 +1,4 @@
+# Retry Pages deployment after a runnerless Actions failure (2026-11-10)
 name: Deploy AniWatch to GitHub Pages (modular branch)
 on:
   push:
