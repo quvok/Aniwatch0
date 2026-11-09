@@ -21,7 +21,40 @@ function getLibertyStreams(ep){
 }
 
 const ANI_API_BASE="https://anivexa.vercel.app";
-const ANIMELIB_EPISODES="https://api.lib.social/api/episodes";
+const ANIMELIB_EPISODE_APIS=["https://api.cdnlibs.org/api/episodes","https://api.lib.social/api/episodes"];
+async function requestAnimeLibEpisodes(shikiId){
+ const errors=[];
+ for(const base of ANIMELIB_EPISODE_APIS){
+  for(let attempt=0;attempt<3;attempt++){
+   try{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),11000);
+    let response;
+    try{
+     response=await fetch(base+"?shiki_id="+encodeURIComponent(shikiId),{
+      headers:{Accept:"application/json","Site-Id":"5"},
+      referrer:"https://v5.animelib.org/",
+      referrerPolicy:"strict-origin-when-cross-origin",
+      signal:controller.signal
+     });
+    }finally{clearTimeout(timer)}
+    if(!response.ok){
+     const error=new Error("HTTP "+response.status+" ("+new URL(base).host+")");
+     if(response.status>=500&&attempt<2){await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));continue}
+     throw error;
+    }
+    const payload=await response.json();
+    if(!payload||(!Array.isArray(payload.data)&&!Array.isArray(payload)))throw new Error("AnimeLib вернул неожиданный формат ответа");
+    return payload;
+   }catch(error){
+    errors.push(error?.message||"ошибка запроса");
+    const retryable=/HTTP 5\\d\\d|Failed to fetch|NetworkError|AbortError/i.test((error?.message||"")+" "+(error?.name||""));
+    if(attempt<2&&retryable){await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));continue}
+    break;
+   }
+  }
+ }
+ throw new Error("AnimeLib API недоступен: "+[...new Set(errors)].join("; "));
+}
 function safeHttpUrl(value,base){
  try{const url=new URL(String(value||""),base);return /^https?:$/.test(url.protocol)?url.toString():""}catch{return ""}
 }
@@ -294,32 +327,54 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  const showAnimeLib=async()=>{
   destroyHls();
+  const title=String(anime?.n||anime?.o||anime?.name||"").trim();
+  const openAnimeLibPage=async(reason)=>{
+   if(!title)throw new Error(reason||"Не удалось определить название аниме");
+   const search=await requestJson("https://api.cdnlibs.org/api/anime?q="+encodeURIComponent(title),12000);
+   const results=Array.isArray(search?.data)?search.data:[];
+   const normalized=clean(title);
+   const match=results.find(item=>clean(item?.rus_name||item?.name)===normalized)
+    ||results.find(item=>{const candidate=clean(item?.rus_name||item?.name||"");return candidate&&(candidate.includes(normalized)||normalized.includes(candidate))})
+    ||results[0];
+   if(!match?.slug_url)throw new Error("AnimeLib не нашёл страницу для «"+title+"»");
+   const pageUrl="https://v5.animelib.org/ru/anime/"+encodeURIComponent(match.slug_url);
+   options.innerHTML='<span class="stream-note">Список серий через API недоступен ('+esc(reason||"ошибка сервера")+'). Открыта страница AnimeLib — выбери серию на стороне источника.</span><a class="stream-load" href="'+pageUrl+'" target="_blank" rel="noopener noreferrer">Открыть AnimeLib отдельно <span>↗</span></a>';
+   stage.innerHTML='<iframe class="stream-video" src="'+esc(pageUrl)+'" title="AnimeLib" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+   setStatus("AnimeLib · страница тайтла · выбери серию на сайте");
+  };
   const shikiId=Number(anime?.shikiId||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
-  if(!Number.isInteger(shikiId)||shikiId<=0){
-   options.innerHTML='<span class="stream-note">AnimeLib требует Shikimori ID. Для этого тайтла соответствие пока не найдено.</span>';
-   stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>Не удалось сопоставить этот тайтл с Shikimori ID. Попробуй Ani-API или AniLiberty.</small></div>';
-   setStatus("AnimeLib · нет Shikimori ID");
-   return;
-  }
   options.innerHTML='<span class="stream-note">Загружаем список серий AnimeLib…</span>';
   stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>Ищем серию '+episode+'…</small></div>';
   setStatus("AnimeLib · получаем список серий…");
+  if(!Number.isInteger(shikiId)||shikiId<=0){
+   try{await openAnimeLibPage("для тайтла нет Shikimori ID")}
+   catch(error){
+    options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">'+esc(error.message||"Источник недоступен")+'</span>';
+    options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
+    stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+    setStatus("AnimeLib: "+(error.message||"ошибка загрузки"));
+   }
+   return;
+  }
   try{
-   const payload=await requestJson(ANIMELIB_EPISODES+"?shiki_id="+encodeURIComponent(shikiId),14000);
+   const payload=await requestAnimeLibEpisodes(shikiId);
    const list=Array.isArray(payload?.data)?payload.data:Array.isArray(payload)?payload:[];
    const matches=list.filter(item=>Number(item?.number)===Number(episode)&&item?.id);
    if(!matches.length)throw new Error("AnimeLib не вернул эпизод "+episode);
    const selected=matches[0],animeId=Number(selected.anime_id||selected.animeId);
    if(!animeId)throw new Error("AnimeLib не вернул ID тайтла для серии");
-   const watchUrl="https://anilib.me/ru/anime/"+animeId+"/watch?episode="+encodeURIComponent(selected.id);
+   const watchUrl="https://v5.animelib.org/ru/anime/"+animeId+"/watch?episode="+encodeURIComponent(selected.id);
    options.innerHTML='<span class="stream-note">AnimeLib · серия '+episode+' · '+esc(selected.name||"")+'</span><a class="stream-load" href="'+watchUrl+'" target="_blank" rel="noopener noreferrer">Открыть на AnimeLib <span>↗</span></a>';
    stage.innerHTML='<iframe class="stream-video" src="'+esc(watchUrl)+'" title="AnimeLib player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
    setStatus("AnimeLib · внешний плеер · синхронизация недоступна");
   }catch(error){
-   options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">AnimeLib предоставляет список серий; доступность iframe зависит от политики сайта</span>';
-   options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
-   stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
-   setStatus("AnimeLib: "+(error.message||"ошибка загрузки"));
+   try{await openAnimeLibPage(error.message||"API списка серий недоступен")}
+   catch(fallbackError){
+    options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">Список серий и поиск AnimeLib сейчас недоступны: '+esc(fallbackError.message||error.message||"ошибка сервера")+'</span>';
+    options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
+    stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(fallbackError.message||error.message||"Источник недоступен")+'</small></div>';
+    setStatus("AnimeLib: "+(fallbackError.message||error.message||"ошибка загрузки"));
+   }
   }
  };
  const showAniMedia=()=>{
