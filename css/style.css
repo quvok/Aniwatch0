@@ -2482,3 +2482,65 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .home-primary .shelf>.row>.card>.poster .rating,
  .home-primary .row>.card>.poster .rating{right:auto!important;bottom:auto!important}
 }
+
+
+/* AniType-inspired watch experience: restrained player chrome, clear source priority. */
+.watch-page{max-width:1380px;margin:0 auto}
+.watch-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 0 18px;padding:0 2px}
+.watch-head>div:first-child{min-width:0}
+.watch-back{display:inline-flex;align-items:center;gap:7px;margin-bottom:10px;color:#a99cc8;font-size:11px;font-weight:750;transition:color .18s}
+.watch-back:hover{color:#fff}
+.watch-head h1{margin:0 0 6px;font-size:clamp(22px,3vw,34px);letter-spacing:-.8px;line-height:1.15}
+.watch-head p{color:#8f899e;font-size:11px}
+.watch-head p span{padding:0 4px;color:#6f687e}
+.watch-mode{flex:0 0 auto;padding:7px 11px;border:1px solid rgba(167,139,250,.18);border-radius:999px;background:rgba(167,139,250,.07);color:#b9a9e8;font-size:10px;font-weight:750}
+.watch-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.watch-main{display:grid;gap:13px;min-width:0}
+.player-wrap{min-width:0;padding:0;border:1px solid rgba(167,139,250,.16);border-radius:17px;background:#050509;box-shadow:0 22px 60px rgba(0,0,0,.28)}
+.aw-player-shell{border:0;border-radius:16px;box-shadow:none}
+.aw-player-heading{min-height:54px;padding:10px 15px;background:linear-gradient(90deg,#151321,#0d0c13)}
+.aw-player-logo{background:linear-gradient(145deg,#b49aff,#7042d8);box-shadow:0 5px 18px rgba(112,66,216,.24)}
+.aw-player-chip{padding:6px 9px;border:1px solid rgba(167,139,250,.17);border-radius:999px;background:rgba(167,139,250,.06);color:#a99cc8;font-size:8px;letter-spacing:.8px}
+.aw-player-chip i{background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.8)}
+.aw-player-shell .stream-stage{min-height:0;max-height:none;aspect-ratio:16/9;background:#000}
+.aw-player-shell .stream-frame,.aw-player-shell .stream-video{min-height:0}
+.aw-player-shell .stream-placeholder{min-height:0}
+.aw-player-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:12px 14px;background:#111019}
+.aw-player-controls .stream-provider-tabs{display:flex;align-items:center;gap:7px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.055)}
+.aw-player-controls .stream-provider-tabs button{min-height:36px;padding:8px 13px;border-radius:999px;background:#1a1823;border-color:rgba(190,170,240,.11);font-size:10px}
+.aw-player-controls .stream-provider-tabs button.on{background:rgba(139,92,246,.2);border-color:rgba(167,139,250,.5);color:#f1eaff;box-shadow:inset 0 0 0 1px rgba(167,139,250,.08)}
+.aw-player-controls .stream-provider-tabs button[data-provider="kodik"] em{background:rgba(167,139,250,.18);color:#d8c7ff}
+.aw-player-controls .stream-provider-tabs button em{padding:2px 5px;border-radius:5px;background:rgba(167,139,250,.14);color:#c7b5ff;font-size:7px;font-style:normal}
+.aw-player-controls .stream-options{justify-content:flex-start;gap:9px}
+.aw-player-controls .stream-note{max-width:260px}
+.aw-player-controls .stream-load{min-height:35px}
+.aw-player-footer{background:#0d0c13}
+.watch-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid rgba(167,139,250,.12);border-radius:13px;background:linear-gradient(110deg,rgba(25,22,36,.9),rgba(14,13,21,.9))}
+.watch-toolbar>div:first-child{display:flex;align-items:baseline;gap:7px;white-space:nowrap}
+.watch-toolbar>div:first-child b{font-size:14px}
+.watch-toolbar>div:first-child span{color:#8e879d;font-size:10px}
+.watch-toolbar .nv{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.watch-toolbar .nv .btn{min-height:34px;padding:7px 11px;border-radius:9px;font-size:10px}
+.watch-hint{padding:10px 13px;border:1px solid rgba(167,139,250,.1);border-radius:11px;background:rgba(167,139,250,.035)}
+.watch-hint p{color:#928ba0;font-size:10px;line-height:1.6}
+.watch-episodes{padding:16px;border:1px solid rgba(167,139,250,.13);border-radius:15px;background:linear-gradient(145deg,rgba(22,20,32,.88),rgba(12,12,19,.9))}
+.watch-episodes .eps a{border-radius:9px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.055);transition:background .16s,border-color .16s,color .16s}
+.watch-episodes .eps a:hover,.watch-episodes .eps a.on{background:rgba(139,92,246,.17);border-color:rgba(167,139,250,.4);color:#f1eaff}
+@media(max-width:700px){
+ .watch-head{align-items:flex-start;flex-direction:column;gap:8px;margin-bottom:12px}
+ .watch-mode{align-self:flex-start}
+ .player-wrap{border-radius:12px}
+ .aw-player-shell{border-radius:11px}
+ .aw-player-heading{min-height:45px}
+ .aw-player-controls{padding:9px}
+ .aw-player-controls .stream-provider-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-bottom:9px}
+ .aw-player-controls .stream-provider-tabs button{justify-content:center;min-height:38px;padding:7px 6px}
+ .aw-player-controls .stream-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .aw-player-controls .stream-options label{min-width:0}
+ .aw-player-controls .stream-options select{max-width:none}
+ .aw-player-controls .stream-note{max-width:100%;white-space:normal}
+ .watch-toolbar{align-items:stretch;flex-direction:column;gap:10px;padding:11px}
+ .watch-toolbar .nv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+ .watch-toolbar .nv .btn{justify-content:center}
+ .watch-episodes{padding:12px}
+}
