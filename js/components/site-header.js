@@ -4,7 +4,7 @@ import {PAGES} from "../core/router.js";
 const NAV=[
  ["home","Главная","⌂"],
  ["catalog","Каталог","▦"],
- ["calendar","Календарь","▦"],
+ ["calendar","Календарь","▣"],
  ["mylist","Мои списки","♡"],
  ["collections","Коллекции","▤"],
  ["together","Вместе","⇄"]
