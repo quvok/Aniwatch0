@@ -1,24 +1,54 @@
 // Presentational pages for the user's saved collection and local profile.
-export function renderFavorites({app,state,mediaMap,card}){
- const items=state.fav.filter(id=>mediaMap[id]).map(id=>card(mediaMap[id]));
- app.innerHTML='<h2>Избранное</h2>'+(items.length?'<div class="row">'+items.join("")+'</div>':'<p class="empty">Пока пусто. Нажмите «♡ В избранное» на странице тайтла.</p>');
+function savedAnime(state,mediaMap,id){
+ return mediaMap?.[id]||state?.shikiAnime?.[id]||null;
 }
-
+function normalizedWatchlist(state){
+ const raw=state?.watchlist||{},out={};
+ const aliases={watching:"watching",planned:"planned",planning:"planned",completed:"completed",complete:"completed",dropped:"dropped"};
+ if(Array.isArray(raw)){
+  raw.forEach(item=>{
+   if(!item||typeof item!=="object")return;
+   const id=Number(item.id??item.anime_id??item.animeId);
+   const status=aliases[String(item.status??item.listStatus??"").toLowerCase()];
+   if(Number.isSafeInteger(id)&&id>0&&status)out[id]=status;
+  });
+  return out;
+ }
+ if(!raw||typeof raw!=="object")return out;
+ Object.entries(raw).forEach(([key,value])=>{
+  const id=Number(key),status=aliases[String(typeof value==="string"?value:(value?.status??value?.listStatus??"")).toLowerCase()];
+  if(Number.isSafeInteger(id)&&id>0&&status)out[id]=status;
+ });
+ return out;
+}
+function animeCards(ids,state,mediaMap,card){
+ return ids.map(id=>savedAnime(state,mediaMap,id)).filter(Boolean).map(card).join("");
+}
+export function renderFavorites({app,state,mediaMap,card}){
+ const ids=[...new Set((state.fav||[]).map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))]
+  .filter(id=>savedAnime(state,mediaMap,id))
+  .sort((a,b)=>savedAnime(state,mediaMap,a).n.localeCompare(savedAnime(state,mediaMap,b).n,"ru"));
+ const content=animeCards(ids,state,mediaMap,card);
+ app.innerHTML='<section class="personal-list-page"><div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Избранное</h1><p>Аниме, к которым хочется вернуться.</p></div><b>'+ids.length+'</b></div><div class="list-results">'+(content?'<div class="list-card-grid">'+content+'</div>':'<p class="empty">В избранном пока пусто. Добавь аниме с помощью кнопки ♡ на странице тайтла.</p>')+'</div></section>';
+}
 export function renderMyList({app,state,mediaMap,filters,lists,card}){
- const key=filters.listStatus||"all",items=state.watchlist||{};
- const favorites=key==="favorites";
- const ids=favorites
-  ?(state.fav||[]).map(Number).filter(id=>mediaMap[id]).sort((a,b)=>mediaMap[a].n.localeCompare(mediaMap[b].n))
-  :Object.keys(items).filter(id=>key==="all"||items[id]===key).map(Number).filter(id=>mediaMap[id]).sort((a,b)=>mediaMap[a].n.localeCompare(mediaMap[b].n));
- const tabs=[["all","Все"],...lists];
- app.innerHTML='<div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Все сохранённые тайтлы в одном месте.</p></div><b>'+ids.length+'</b></div>'+
- '<div class="collection-switch" role="group" aria-label="Раздел коллекции"><button type="button" data-a="list-filter" data-v="all" class="'+(!favorites?"on":"")+'">Мои списки</button><button type="button" data-a="list-filter" data-v="favorites" class="'+(favorites?"on":"")+'">♥ Избранное <span>'+(state.fav||[]).length+'</span></button></div>'+
- (favorites?'':'<div class="list-chips">'+tabs.map(item=>'<button type="button" data-a="list-filter" data-v="'+item[0]+'" class="'+(key===item[0]?"on":"")+'">'+item[1]+'</button>').join("")+'</div>')+
- '<div class="list-results">'+(ids.length?'<div class="row">'+ids.map(id=>card(mediaMap[id])).join("")+'</div>':'<p class="empty">'+(favorites?'В избранном пока пусто. Нажми «♡ В избранное» на странице аниме.':'В этом списке пока пусто. Открой страницу любого аниме и выбери статус.')+'</p>')+'</div>';
+ const key=filters.listStatus||"all",watchlist=normalizedWatchlist(state),favorites=[...new Set((state.fav||[]).map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))];
+ const isFavorites=key==="favorites";
+ const ids=(isFavorites?favorites:Object.keys(watchlist).filter(id=>key==="all"||watchlist[id]===key).map(Number))
+  .filter(id=>savedAnime(state,mediaMap,id))
+  .sort((a,b)=>savedAnime(state,mediaMap,a).n.localeCompare(savedAnime(state,mediaMap,b).n,"ru"));
+ const tabs=[["all","Все"],...lists],counts={all:Object.keys(watchlist).length};
+ lists.forEach(([status])=>{counts[status]=Object.values(watchlist).filter(value=>value===status).length});
+ const content=animeCards(ids,state,mediaMap,card);
+ const tabButton=(value,label,count,active)=>'<button type="button" data-a="list-filter" data-v="'+value+'" class="'+(active?"on":"")+'" aria-pressed="'+active+'">'+label+(count!==undefined?'<span>'+count+'</span>':"")+'</button>';
+ app.innerHTML='<section class="personal-list-page"><div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Управляй просмотренным и тем, что собираешься посмотреть.</p></div><b>'+ids.length+'</b></div>'+
+ '<div class="collection-switch" role="group" aria-label="Раздел коллекции">'+tabButton("all","Мои списки",counts.all,!isFavorites)+tabButton("favorites","♥ Избранное",favorites.length,isFavorites)+'</div>'+
+ (isFavorites?"":'<div class="list-chips" role="group" aria-label="Фильтр по статусу">'+tabs.map(([value,label])=>tabButton(value,label,value==="all"?counts.all:counts[value],key===value)).join("")+'</div>')+
+ '<div class="list-results">'+(content?'<div class="list-card-grid">'+content+'</div>':'<div class="list-empty-state"><span class="list-empty-icon">'+(isFavorites?"♡":"▤")+'</span><b>'+(isFavorites?"Пока нет избранного":"Здесь пока пусто")+'</b><p>'+(isFavorites?"Добавляй понравившиеся тайтлы в избранное — они появятся здесь.":"Открой страницу аниме и выбери статус, чтобы добавить его в этот список.")+'</p><a class="btn ghost" href="catalog.html">Перейти в каталог</a></div>')+'</div></section>';
 }
 
 export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
- const watchlist=state.watchlist||{},counts={watching:0,planned:0,completed:0,dropped:0};
+ const watchlist=normalizedWatchlist(state),counts={watching:0,planned:0,completed:0,dropped:0};
  Object.values(watchlist).forEach(status=>{if(Object.prototype.hasOwnProperty.call(counts,status))counts[status]++});
  const rated=Object.values(state.rate||{}).map(Number).filter(value=>Number.isFinite(value)&&value>0);
  const average=rated.length?(rated.reduce((sum,value)=>sum+value,0)/rated.length).toFixed(1):"—";
