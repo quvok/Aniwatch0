@@ -46,7 +46,8 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
 
   for (const anime of candidates || []) {
     const id = Number(anime && anime.id);
-    if (!Number.isInteger(id) || id <= 0 || excluded.has(id) || seen.has(id)) continue;
+    const mal = Number(anime && (anime.mal || anime.myanimelist_id)) || 0;
+    if (!Number.isInteger(id) || id <= 0 || excluded.has(id) || (mal > 0 && excluded.has("mal:" + mal)) || seen.has(id)) continue;
     seen.add(id);
 
     const genres = (anime.genres || anime.g || []).filter(Boolean);
