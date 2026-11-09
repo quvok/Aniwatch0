@@ -685,21 +685,27 @@ function matchAniLibriaRelease(release,candidates){
  var names=new Set(aniLibriaNames(release).map(normalizeMatchTitle).filter(Boolean));
  if(!names.size)return null;
  var year=Number(release&&release.year)||0;
- return (candidates||[]).find(item=>{
+ var matches=(candidates||[]).filter(item=>{
   var itemNames=[item&&item.russian,item&&item.name].map(normalizeMatchTitle).filter(Boolean);
   if(!itemNames.some(name=>names.has(name)))return false;
   var itemYear=Number(String(item&&item.aired_on||"").slice(0,4))||0;
-  return !year||!itemYear||Math.abs(year-itemYear)<=1;
- })||null;
+  // A one-year tolerance can map a sequel to the previous season when both share a Russian title.
+  if(year&&itemYear)return year===itemYear;
+  return true;
+ });
+ if(year)return matches[0]||null;
+ // Without a release year, never guess between seasons sharing the same title.
+ var unique=new Map(matches.filter(item=>Number(item&&item.id)>0).map(item=>[Number(item.id),item]));
+ return unique.size===1?[...unique.values()][0]:null;
 }
 async function loadHomeCollections(){
  var source=null,cache=null;
- try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v1")||"null")}catch(e){}
+ try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v2")||"null")}catch(e){}
  if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
  if(!source){
   try{
    source=await fetchAniLibriaHomeCollections();
-   try{localStorage.setItem("aw-home-anilibria-shiki-v1",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+   try{localStorage.setItem("aw-home-anilibria-shiki-v2",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
   }catch(error){
    console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
    source={trending:[],popular:[],ongoing:[],recent:[]};
