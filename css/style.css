@@ -2995,3 +2995,29 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
     box-shadow:0 20px 42px rgba(0,0,0,.42),0 0 0 1px rgba(167,139,250,.14);
   }
 }
+
+/* Compact anime media previews with click-to-expand lightbox. */
+.anime-media-section{padding:15px 16px}
+.anime-media-heading{margin-bottom:11px}
+.anime-video-grid{grid-template-columns:minmax(0,300px);align-items:start;gap:9px}
+.anime-video-card{width:100%;max-width:300px;aspect-ratio:16/9;padding:0;cursor:zoom-in;text-align:left}
+.anime-video-card:focus-visible,.anime-screenshot-card:focus-visible{outline:2px solid #b69aff;outline-offset:3px}
+.anime-trailer-open{font-size:10px;color:#bba8f4;font-weight:750}
+.anime-screenshot-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.anime-screenshot-card{display:block;width:100%;min-width:0;aspect-ratio:16/9;padding:0;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#171421;cursor:zoom-in}
+.anime-screenshot-card img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .22s,filter .22s}
+.anime-screenshot-card:hover img{transform:scale(1.07);filter:brightness(.82)}
+.anime-media-lightbox{position:fixed;z-index:10000;inset:0;display:grid;place-items:center;padding:28px;background:rgba(4,4,9,.94);backdrop-filter:blur(10px)}
+.anime-media-lightbox-panel{position:relative;display:grid;gap:10px;max-width:min(1100px,96vw);max-height:92vh;justify-items:center}
+.anime-media-lightbox-panel img{display:block;max-width:100%;max-height:82vh;object-fit:contain;border-radius:12px;box-shadow:0 24px 90px rgba(0,0,0,.6)}
+.anime-media-lightbox-panel>span{color:#e9e2f8;font-size:12px}
+.anime-media-lightbox-close{position:absolute;z-index:1;top:-15px;right:-15px;width:38px;height:38px;border:1px solid rgba(255,255,255,.2);border-radius:50%;background:#211b31;color:#fff;font-size:25px;cursor:pointer}
+@media(max-width:700px){
+ .anime-media-section{padding:12px 11px}
+ .anime-video-grid{grid-template-columns:minmax(0,230px)}
+ .anime-video-card{max-width:230px}
+ .anime-screenshot-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .anime-media-lightbox{padding:12px}
+ .anime-media-lightbox-panel img{max-height:78vh}
+ .anime-media-lightbox-close{top:-11px;right:-7px}
+}
