@@ -43,7 +43,7 @@ async function requestAnimeLibEpisodes(shikiId){
      throw error;
     }
     const payload=await response.json();
-    if(!payload||(!Array.isArray(payload.data)&&!Array.isArray(payload)))throw new Error("AnimeLib вернул неожиданный формат ответа");
+    if(!payload||(!Array.isArray(payload.data)&&!Array.isArray(payload)))throw new Error("Список серий вернул неожиданный формат ответа");
     return payload;
    }catch(error){
     errors.push(error?.message||"ошибка запроса");
@@ -53,17 +53,17 @@ async function requestAnimeLibEpisodes(shikiId){
    }
   }
  }
- throw new Error("AnimeLib API недоступен: "+[...new Set(errors)].join("; "));
+ throw new Error("Список серий недоступен: "+[...new Set(errors)].join("; "));
 }
 export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
  <div class="aw-player-shell">
-  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> KODIK · MAIN</span></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Kodik <em>MAIN</em></button><button type="button" data-provider="liberty">AniLiberty</button><button type="button" data-provider="animevost">AnimeVost <em>RU</em></button><button type="button" data-provider="animelib">AnimeLib</button></div><div class="stream-options" id="stream-options"></div></div>
-  <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите источник</b><small>Плеер загружается только после выбора источника</small></div></div>
-  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Kodik · основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
+  <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> ОСНОВНОЙ ПЛЕЕР</span></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Основной <em>Рекомендуем</em></button><button type="button" data-provider="liberty">Резервный 1</button><button type="button" data-provider="animevost">Резервный 2 <em>RU</em></button><button type="button" data-provider="animelib">Дополнительный</button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите плеер</b><small>Плеер загружается только после выбора источника</small></div></div>
+  <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
  let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="";
@@ -137,14 +137,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const current=candidates[attempt];if(!current)return;
    destroyHls();v.pause();v.removeAttribute("src");v.load();
    const nativeHls=/^(?!.*(?:Chrome|Chromium|CriOS|Edg|OPR)).*Safari/i.test(navigator.userAgent)&&v.canPlayType("application/vnd.apple.mpegurl")!=="";
-   if(nativeHls){v.src=current.url;setStatus("AniLiberty · Safari HLS · проверяем "+current.label+"…");return}
+   if(nativeHls){v.src=current.url;setStatus("Резервный плеер · Safari HLS · проверяем "+current.label+"…");return}
    try{
     const Hls=await loadHls();
     if(!Hls.isSupported()){fail("браузер не поддерживает Media Source Extensions (MSE), а нативный HLS недоступен");return}
     const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
     hlsInstance=instance;instance.loadSource(current.url);instance.attachMedia(v);
     instance.on(Hls.Events.MANIFEST_PARSED,()=>{
-     if(hlsInstance!==instance)return;settled=true;setStatus("AniLiberty · "+current.label+" · поток готов");
+     if(hlsInstance!==instance)return;settled=true;setStatus("Резервный плеер · "+current.label+" · поток готов");
      const q=options.querySelector("#liberty-quality");
      if(q&&instance.levels?.length){q.innerHTML='<option value="auto">Авто</option>'+instance.levels.map((l,i)=>'<option value="'+i+'">'+(l.height?l.height+"p":Math.round(l.bitrate/1000)+" kbps")+'</option>').join("");q.onchange=()=>{if(hlsInstance===instance)instance.currentLevel=q.value==="auto"?-1:Number(q.value)}}
     });
@@ -159,19 +159,19 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   if(quality)quality.addEventListener("change",()=>{if(quality.value==="auto")return;const i=qualities.findIndex((url,n)=>url&&labels[n]===quality.value+"p");if(i>=0){attempt=Math.max(0,candidates.findIndex(x=>x.url===qualities[i]));startCandidate()}});
   startCandidate();
  };
- const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка AniLiberty")))};
- const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы AniLiberty…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>AniLiberty</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AniLiberty: "+(error.message||"ошибка поиска"))}};
+ const renderLibertyOptions=()=>{const id=selectedRelease?.id;options.innerHTML=(releases.length>1?'<label>Релиз<select id="liberty-release">'+releases.map(r=>'<option value="'+esc(r.id)+'" '+(String(r.id)===String(id)?"selected":"")+'>'+esc(releaseName(r))+'</option>').join("")+'</select></label>':"")+'<span class="stream-note">'+esc(releaseName(selectedRelease))+'</span><button type="button" class="stream-load" id="liberty-load">Загрузить серию '+episode+' <span>→</span></button>';const select=options.querySelector("#liberty-release");if(select)select.addEventListener("change",async()=>{selectedRelease=releases.find(r=>String(r.id)===select.value);releaseData=null;try{releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(e){setStatus(e.message||"Не удалось загрузить релиз")}});options.querySelector("#liberty-load").addEventListener("click",()=>playLiberty().catch(e=>setStatus(e.message||"Ошибка плеера")))};
+ const showLiberty=async()=>{if(releaseData){renderLibertyOptions();return}options.innerHTML='<span class="stream-note">Поиск релиза…</span>';stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>Резервный источник. Поиск запускается только по запросу.</small></div>';setStatus("Ищем релизы…");try{releases=await searchLibertyReleases(anime);if(!releases.length)throw new Error("Релизы не найдены");selectedRelease=releases[0];releaseData=await getLibertyRelease(selectedRelease.id);renderLibertyOptions();await playLiberty()}catch(error){releaseData=null;options.innerHTML='<button type="button" class="stream-load" id="liberty-retry">Повторить <span>↻</span></button>';options.querySelector("#liberty-retry").addEventListener("click",showLiberty);stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("Резервный плеер: "+(error.message||"ошибка поиска"))}};
 
  const showKodik=async()=>{
   destroyHls();
-  options.innerHTML='<span class="stream-note">Ищем озвучки и серии Kodik…</span>';
-  stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>Загружаем доступные варианты озвучки…</small></div>';
-  setStatus("Kodik · поиск озвучек…");
+  options.innerHTML='<span class="stream-note">Ищем озвучки и серии…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>Основной плеер</b><small>Загружаем доступные варианты озвучки…</small></div>';
+  setStatus("Основной плеер · поиск озвучек…");
   try{
    const releases=await searchKodikAnime(anime);
-   if(!releases.length)throw new Error("Kodik не нашёл подходящих релизов для этого аниме");
+   if(!releases.length)throw new Error("Не найдены подходящие релизы для этого аниме");
    const available=releases.filter(item=>item?.link&&item?.translation);
-   if(!available.length)throw new Error("Kodik не вернул доступных вариантов озвучки");
+   if(!available.length)throw new Error("Не найдены доступные варианты озвучки");
    let selected=available[0];
    const episodesOf=item=>{
     const all=[];
@@ -187,14 +187,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const link=getKodikEpisodeLink(selected,episode);
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
-    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Kodik player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-    setStatus("Kodik · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
+    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    setStatus("Основной плеер · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
    };
    const render=()=>{
     const eps=episodesOf(selected);
     const voiceButtons=available.map((item,index)=>'<button type="button" class="kodik-voice'+(item===selected?' on':'')+'" data-kodik-voice="'+index+'" aria-pressed="'+(item===selected?'true':'false')+'"><span>'+esc(item.translation?.title||"Озвучка "+(index+1))+'</span></button>').join("");
     const episodeInfo=eps.length?'<span class="kodik-episode-info">Доступно серий: '+eps.length+'</span>':'<span class="kodik-episode-info">Серия '+episode+'</span>';
-    options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom"><span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Kodik")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
+    options.innerHTML='<div class="kodik-picker"><div class="kodik-picker-head"><div><b>Озвучка</b><small>Выбери студию — видео загрузится автоматически</small></div>'+episodeInfo+'</div><div class="kodik-voices">'+voiceButtons+'</div><div class="kodik-picker-bottom"><span class="kodik-current">Выбрана: '+esc(selected.translation?.title||"Основной плеер")+'</span><button type="button" class="stream-load" id="kodik-play">Обновить плеер <span>↻</span></button></div></div>';
     options.querySelectorAll("[data-kodik-voice]").forEach(button=>button.addEventListener("click",()=>{
      selected=available[Number(button.dataset.kodikVoice)]||available[0];
      render();
@@ -207,8 +207,8 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   }catch(error){
    options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#kodik-retry").addEventListener("click",showKodik);
-   stage.innerHTML='<div class="stream-placeholder"><b>Kodik</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
-   setStatus("Kodik: "+(error.message||"ошибка поиска"));
+   stage.innerHTML='<div class="stream-placeholder"><b>Основной плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("Основной плеер: "+(error.message||"ошибка поиска"));
   }
  };
  const animeVostRequest=async payload=>{
@@ -218,13 +218,13 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    body:JSON.stringify(payload)
   });
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||data.error)throw new Error(data.error||("AnimeVost HTTP "+response.status));
+  if(!response.ok||data.error)throw new Error(data.error||("HTTP "+response.status));
   return data;
  };
  const playAnimeVostStream=async streams=>{
-  if(!Array.isArray(streams)||!streams.length)throw new Error("AnimeVost не вернул видеопоток для этой серии");
+  if(!Array.isArray(streams)||!streams.length)throw new Error("Не удалось получить видеопоток для этой серии");
   const preferred=[...streams].sort((a,b)=>Number((b.quality||"").match(/\d+/)?.[0]||0)-Number((a.quality||"").match(/\d+/)?.[0]||0));
-  options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><label>Скорость<select id="animevost-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label><span class="stream-note">AnimeVost · русская озвучка</span>';
+  options.innerHTML='<label>Качество<select id="animevost-quality">'+preferred.map((x,i)=>'<option value="'+i+'">'+esc(x.quality||("Источник "+(i+1)))+'</option>').join("")+'</select></label><label>Скорость<select id="animevost-speed"><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option><option value="0.75">0.75×</option></select></label><span class="stream-note">Резервный плеер · русская озвучка</span>';
   let resume={time:savedTime,playing:false,speed:savedSpeed};
   const start=async index=>{
    const previous=video();
@@ -241,11 +241,11 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const instance=new Hls({enableWorker:true,lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:45,maxBufferLength:30});
     hlsInstance=instance;instance.loadSource(source.url);instance.attachMedia(v);
     v.addEventListener("loadedmetadata",restore,{once:true});
-    instance.on(Hls.Events.MANIFEST_PARSED,()=>{if(hlsInstance===instance)setStatus("AnimeVost · "+(source.quality||"HLS")+" · поток готов")});
-    instance.on(Hls.Events.ERROR,(_,data)=>{if(hlsInstance===instance&&data?.fatal)setStatus("Ошибка потока AnimeVost: "+(data.details||data.type))});
+    instance.on(Hls.Events.MANIFEST_PARSED,()=>{if(hlsInstance===instance)setStatus("Резервный плеер · "+(source.quality||"HLS")+" · поток готов")});
+    instance.on(Hls.Events.ERROR,(_,data)=>{if(hlsInstance===instance&&data?.fatal)setStatus("Ошибка видеопотока: "+(data.details||data.type))});
    }else{
-    v.src=source.url;setStatus("AnimeVost · "+(source.quality||"видео")+" · загружаем поток…");
-    v.addEventListener("loadedmetadata",()=>{restore();setStatus("AnimeVost · "+(source.quality||"видео")+" · поток готов")},{once:true});
+    v.src=source.url;setStatus("Резервный плеер · "+(source.quality||"видео")+" · загружаем поток…");
+    v.addEventListener("loadedmetadata",()=>{restore();setStatus("Резервный плеер · "+(source.quality||"видео")+" · поток готов")},{once:true});
    }
   };
   options.querySelector("#animevost-quality").addEventListener("change",()=>start(Number(options.querySelector("#animevost-quality").value)).catch(e=>setStatus(e.message)));
@@ -254,36 +254,36 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  const loadAnimeVost=async animeUrl=>{
   options.innerHTML='<span class="stream-note">Получаем видеопотоки…</span>';
-  stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>Загружаем серию '+episode+'…</small></div>';
-  setStatus("AnimeVost · получаем видеопоток…");
+  stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>Загружаем серию '+episode+'…</small></div>';
+  setStatus("Получаем видеопоток…");
   const data=await animeVostRequest({action:"streams",animeUrl,episode:Number(episode)});
-  if(!data.streams?.length)throw new Error("На AnimeVost не найдена серия "+episode);
+  if(!data.streams?.length)throw new Error("Не найдена серия "+episode);
   await playAnimeVostStream(data.streams);
-  setStatus("AnimeVost · "+(data.episode||("серия "+episode))+" · поток готов");
+  setStatus("Резервный плеер · "+(data.episode||("серия "+episode))+" · поток готов");
  };
  const showAnimeVost=async()=>{
   destroyHls();
-  options.innerHTML='<span class="stream-note">Ищем на AnimeVost…</span>';
-  stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>Поиск по названию</small></div>';
-  setStatus("AnimeVost · ищем аниме…");
+  options.innerHTML='<span class="stream-note">Ищем доступные релизы…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>Поиск по названию</small></div>';
+  setStatus("Ищем аниме…");
   try{
    const names=[...new Set([anime?.n,anime?.o].map(x=>String(x||"").trim()).filter(x=>x.length>=2))];
    let results=[];
    for(const name of names){const found=await animeVostRequest({action:"search",title:name});results.push(...(found.results||[]));if(results.length)break}
    results=[...new Map(results.map(x=>[x.url,x])).values()];
-   if(!results.length)throw new Error("Аниме не найдено в каталоге AnimeVost");
+   if(!results.length)throw new Error("Аниме не найдено");
    const selected=results[0];
    options.innerHTML=(results.length>1?'<label>Аниме<select id="animevost-title">'+results.map((x,i)=>'<option value="'+i+'">'+esc(x.title)+'</option>').join("")+'</select></label>':'<span class="stream-note">'+esc(selected.title)+'</span>')+'<button type="button" class="stream-load" id="animevost-open">Загрузить серию '+episode+' <span>→</span></button>';
    const open=()=>loadAnimeVost(results[Number(options.querySelector("#animevost-title")?.value||0)].url).catch(error=>{
-    stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("AnimeVost: "+(error.message||"ошибка"));
+    stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';setStatus("Резервный плеер: "+(error.message||"ошибка"));
    });
    options.querySelector("#animevost-open").addEventListener("click",open);
    await open();
   }catch(error){
    options.innerHTML='<button type="button" class="stream-load" id="animevost-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#animevost-retry").addEventListener("click",showAnimeVost);
-   stage.innerHTML='<div class="stream-placeholder"><b>AnimeVost</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
-   setStatus("AnimeVost: "+(error.message||"ошибка поиска"));
+   stage.innerHTML='<div class="stream-placeholder"><b>Резервный плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+   setStatus("Резервный плеер: "+(error.message||"ошибка поиска"));
   }
  };
 
@@ -298,22 +298,22 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const match=results.find(item=>clean(item?.rus_name||item?.name)===normalized)
     ||results.find(item=>{const candidate=clean(item?.rus_name||item?.name||"");return candidate&&(candidate.includes(normalized)||normalized.includes(candidate))})
     ||results[0];
-   if(!match?.slug_url)throw new Error("AnimeLib не нашёл страницу для «"+title+"»");
+   if(!match?.slug_url)throw new Error("Не найдена страница для «"+title+"»");
    const pageUrl="https://v5.animelib.org/ru/anime/"+encodeURIComponent(match.slug_url);
-   options.innerHTML='<span class="stream-note">Список серий через API недоступен ('+esc(reason||"ошибка сервера")+'). Открыта страница AnimeLib — выбери серию на стороне источника.</span><a class="stream-load" href="'+pageUrl+'" target="_blank" rel="noopener noreferrer">Открыть AnimeLib отдельно <span>↗</span></a>';
-   stage.innerHTML='<iframe class="stream-video" src="'+esc(pageUrl)+'" title="AnimeLib" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
-   setStatus("AnimeLib · страница тайтла · выбери серию на сайте");
+   options.innerHTML='<span class="stream-note">Список серий через API недоступен ('+esc(reason||"ошибка сервера")+'). Открыта страница дополнительный плеер — выбери серию на странице.</span><a class="stream-load" href="'+pageUrl+'" target="_blank" rel="noopener noreferrer">Открыть страницу отдельно <span>↗</span></a>';
+   stage.innerHTML='<iframe class="stream-video" src="'+esc(pageUrl)+'" title="Дополнительный плеер" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+   setStatus("Дополнительный плеер · выбери серию на странице");
   };
   const shikiId=Number(anime?.shikiId||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
-  options.innerHTML='<span class="stream-note">Загружаем список серий AnimeLib…</span>';
-  stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>Ищем серию '+episode+'…</small></div>';
-  setStatus("AnimeLib · получаем список серий…");
+  options.innerHTML='<span class="stream-note">Загружаем список серий…</span>';
+  stage.innerHTML='<div class="stream-placeholder"><b>Дополнительный плеер</b><small>Ищем серию '+episode+'…</small></div>';
+  setStatus("Дополнительный плеер · получаем список серий…");
   if(!Number.isInteger(shikiId)||shikiId<=0){
-   try{await openAnimeLibPage("для тайтла нет Shikimori ID")}
+   try{await openAnimeLibPage("не найден внутренний идентификатор тайтла")}
    catch(error){
     options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">'+esc(error.message||"Источник недоступен")+'</span>';
     options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
-    stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
+    stage.innerHTML='<div class="stream-placeholder"><b>Дополнительный плеер</b><small>'+esc(error.message||"Источник недоступен")+'</small></div>';
     setStatus("AnimeLib: "+(error.message||"ошибка загрузки"));
    }
    return;
@@ -322,19 +322,19 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const payload=await requestAnimeLibEpisodes(shikiId);
    const list=Array.isArray(payload?.data)?payload.data:Array.isArray(payload)?payload:[];
    const matches=list.filter(item=>Number(item?.number)===Number(episode)&&item?.id);
-   if(!matches.length)throw new Error("AnimeLib не вернул эпизод "+episode);
+   if(!matches.length)throw new Error("Не найдена серия "+episode);
    const selected=matches[0],animeId=Number(selected.anime_id||selected.animeId);
-   if(!animeId)throw new Error("AnimeLib не вернул ID тайтла для серии");
+   if(!animeId)throw new Error("Не найден идентификатор тайтла для серии");
    const watchUrl="https://v5.animelib.org/ru/anime/"+animeId+"/watch?episode="+encodeURIComponent(selected.id);
-   options.innerHTML='<span class="stream-note">AnimeLib · серия '+episode+' · '+esc(selected.name||"")+'</span><a class="stream-load" href="'+watchUrl+'" target="_blank" rel="noopener noreferrer">Открыть на AnimeLib <span>↗</span></a>';
-   stage.innerHTML='<iframe class="stream-video" src="'+esc(watchUrl)+'" title="AnimeLib player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
+   options.innerHTML='<span class="stream-note">Дополнительный плеер · серия '+episode+' · '+esc(selected.name||"")+'</span><a class="stream-load" href="'+watchUrl+'" target="_blank" rel="noopener noreferrer">Открыть страницу <span>↗</span></a>';
+   stage.innerHTML='<iframe class="stream-video" src="'+esc(watchUrl)+'" title="Видеоплеер" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;height:100%;min-height:300px;border:0;aspect-ratio:16/9"></iframe>';
    setStatus("AnimeLib · внешний плеер · синхронизация недоступна");
   }catch(error){
    try{await openAnimeLibPage(error.message||"API списка серий недоступен")}
    catch(fallbackError){
-    options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">Список серий и поиск AnimeLib сейчас недоступны: '+esc(fallbackError.message||error.message||"ошибка сервера")+'</span>';
+    options.innerHTML='<button type="button" class="stream-load" id="animelib-retry">Повторить <span>↻</span></button><span class="stream-note">Список серий и поиск сейчас недоступны: '+esc(fallbackError.message||error.message||"ошибка сервера")+'</span>';
     options.querySelector("#animelib-retry").addEventListener("click",showAnimeLib);
-    stage.innerHTML='<div class="stream-placeholder"><b>AnimeLib</b><small>'+esc(fallbackError.message||error.message||"Источник недоступен")+'</small></div>';
+    stage.innerHTML='<div class="stream-placeholder"><b>Дополнительный плеер</b><small>'+esc(fallbackError.message||error.message||"Источник недоступен")+'</small></div>';
     setStatus("AnimeLib: "+(fallbackError.message||error.message||"ошибка загрузки"));
    }
   }
