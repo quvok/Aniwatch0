@@ -142,7 +142,7 @@ var recommendationRequest=0;var recommendationRequest=0;
 function recommendationLibrary(){
  var ids=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),S.fav||[]).map(Number));
  return [...ids].map(id=>{
-  var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
+  var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id])||(S.anilibriaAnime&&S.anilibriaAnime[id]);
   if(!anime)return null;
   return {id:id,mal:Number(anime.mal)||0,genres:anime.g||[],rating:S.rate&&S.rate[id],favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
  }).filter(Boolean);
