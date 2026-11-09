@@ -73,7 +73,7 @@ export async function fetchAniLibriaHomeCollections(force=false){
    return [];
   });
   if(!lists.some(list=>list.length))throw new Error("AniLibria не вернула данные для главной");
-  homeMemory={trending:lists[0],popular:lists[1],ongoing:lists[2],recent:lists[3]};
+  homeMemory={popular:lists[0],recommended:lists[1],ongoing:lists[2],recent:lists[3]};
   homeMemoryAt=Date.now();
   return homeMemory;
  })().finally(()=>{homePending=null});
