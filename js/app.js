@@ -737,7 +737,14 @@ async function loadHomeCollections(){
    batch.forEach(item=>shikiById.set(Number(item.id),item));
   }catch(error){console.warn("[AniWatch] Shikimori ID mapping batch failed:",error)}
  }
- var seenIds=new Set(),searchBudget=12;
+ var seenIds=new Set(),seenMalIds=new Set(),searchBudget=12;
+ Object.keys(S.hist||{}).forEach(id=>{
+  var saved=M[id]||(S.shikiAnime&&S.shikiAnime[id]),numeric=Number(id);
+  var shikiId=Number(saved&&saved.shikiId)||(numeric>=1000000000?numeric-1000000000:0);
+  var mal=Number(saved&&saved.mal)||0;
+  if(shikiId>0)seenIds.add(shikiId);
+  if(mal>0)seenMalIds.add(mal);
+ });
  async function resolveRelease(release){
   var shikiId=Number(release&&release.shikimori&&release.shikimori.id);
   var item=shikiId?shikiById.get(shikiId):null;
@@ -756,11 +763,12 @@ async function loadHomeCollections(){
   }
   if(!item)return null;
   var mapped=shikiToItem(item);
-  if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId)))return null;
+  if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId))||(Number(mapped.mal)>0&&seenMalIds.has(Number(mapped.mal))))return null;
   // AniLibria supplies the primary poster; retain Shikimori artwork as an on-error fallback.
   var aniPoster=aniLibriaPosterUrl(release);
   if(aniPoster){mapped.posterFallback=shikiImageUrl(mapped.img);mapped.img=aniPoster;}
   seenIds.add(Number(mapped.shikiId));
+  if(Number(mapped.mal)>0)seenMalIds.add(Number(mapped.mal));
   return mapped;
  }
  async function resolveShelf(key){
@@ -781,9 +789,10 @@ async function loadHomeCollections(){
    var candidates=await fetchCatalogPage(Object.assign({page:1,limit:50},options));
    for(var candidate of candidates){
     if(output.length>=15)break;
-    var id=Number(candidate&&candidate.id);
-    if(!id||seenIds.has(id))continue;
+    var id=Number(candidate&&candidate.id),mal=Number(candidate&&candidate.myanimelist_id)||0;
+    if(!id||seenIds.has(id)||(mal>0&&seenMalIds.has(mal)))continue;
     seenIds.add(id);
+    if(mal>0)seenMalIds.add(mal);
     output.push(shikiToItem(candidate));
    }
   }catch(error){console.warn("[AniWatch] Shikimori home fallback failed ("+key+"):",error)}
