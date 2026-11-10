@@ -85,4 +85,7 @@ console.log("✓ "+pages.length+" pages OK: "+pages.map(p=>p.file).join(", "));
 const genreLoader=read("js/api/genders.js");
 assert.ok(genreLoader.includes("fetchAnimeGenres"),"dedicated genders.js module must export the genre loader");
 assert.ok(genreLoader.includes("?fields=genres"),"dedicated genre loader must request only genre data from Shikimori");
+assert.ok(genreLoader.includes("resolveShikimoriId"),"genre loader must resolve Shikimori IDs when the anime only has a MAL ID");
+assert.ok(genreLoader.includes("myanimelist_id"),"genre lookup must match the exact MAL ID rather than assuming IDs share a namespace");
 assert.ok(read("js/app.js").includes("loadAnimeGenres(d)"),"anime detail route must call the dedicated genre loader");
+assert.ok(read("js/app.js").includes("fetchDedicatedAnimeGenres(shikiId,{malId,searchTitles})"),"anime detail route must pass the MAL ID and titles when no Shikimori ID is present");
