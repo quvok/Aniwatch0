@@ -111,32 +111,38 @@ export async function signOut() {
 
 function mergeCloudState(local, rows, username) {
   const state = { ...local };
-  state.fav = [...new Set([...(local.fav || []).map(Number), ...rows.filter(r => r.is_favorite).map(r => Number(r.anime_id))])];
-  state.hist = { ...(local.hist || {}) };
-  state.rate = { ...(local.rate || {}) };
-  state.watchlist = { ...(local.watchlist || {}) };
-  state.watchedEpisodes = { ...(local.watchedEpisodes || {}) };
-  for (const row of rows) {
-    const id = String(row.anime_id);
-    if (row.history && typeof row.history === "object" && Object.keys(row.history).length) {
-      if (Array.isArray(row.history.watchedEpisodes)) {
-        const mergedEpisodes = new Set([...(state.watchedEpisodes[id] || []).map(Number), ...row.history.watchedEpisodes.map(Number)]);
-        state.watchedEpisodes[id] = [...mergedEpisodes].filter(n => Number.isInteger(n) && n > 0).sort((a,b) => a-b);
-      }
-      const history = { ...row.history };
-      delete history.watchedEpisodes;
-      if (Object.keys(history).length) {
-        const old = state.hist[id];
-        if (!old || Number(history.at || 0) > Number(old.at || 0)) state.hist[id] = history;
+  // A truly empty cloud library is the legacy migration case: seed it from
+  // this device once. Once cloud rows exist, the database is authoritative
+  // for library fields so stale local snapshots cannot resurrect removed items.
+  if (!rows.length) {
+    state.fav = [...new Set((local.fav || []).map(Number).filter(id => Number.isSafeInteger(id) && id > 0))];
+    state.hist = { ...(local.hist || {}) };
+    state.rate = { ...(local.rate || {}) };
+    state.watchlist = { ...(local.watchlist || {}) };
+    state.watchedEpisodes = { ...(local.watchedEpisodes || {}) };
+  } else {
+    state.fav = [];
+    state.hist = {};
+    state.rate = {};
+    state.watchlist = {};
+    state.watchedEpisodes = {};
+    for (const row of rows) {
+      const id = String(row.anime_id);
+      if (row.is_favorite) state.fav.push(Number(row.anime_id));
+      if (row.status) state.watchlist[id] = row.status;
+      if (row.rating !== null && row.rating !== undefined) state.rate[id] = Number(row.rating);
+      if (row.history && typeof row.history === "object") {
+        if (Array.isArray(row.history.watchedEpisodes)) {
+          state.watchedEpisodes[id] = [...new Set(row.history.watchedEpisodes.map(Number))]
+            .filter(n => Number.isInteger(n) && n > 0).sort((a, b) => a - b);
+        }
+        const history = { ...row.history };
+        delete history.watchedEpisodes;
+        if (Object.keys(history).length) state.hist[id] = history;
       }
     }
-    if (row.rating !== null && row.rating !== undefined && !(Number(id) in (local.rate || {}))) {
-      state.rate[id] = Number(row.rating);
-    }
-    if (row.status && !(id in (local.watchlist || {}))) state.watchlist[id] = row.status;
   }
   if ((!state.name || state.name === "Гость" || state.name === "Аноним") && username) state.name = username;
-  state.fav = state.fav.filter(Number.isFinite);
   return state;
 }
 
