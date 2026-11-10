@@ -59,7 +59,8 @@ function posterImageUrl(path){
  try{
   var parsed=new URL(value.startsWith("//")?"https:"+value:value);
   if(url.protocol==="http:")url.protocol="https:";
-  if(url.protocol!=="https:"||/(^|\.)shikimori\./i.test(url.hostname)||/(missing_original|no[-_]?poster|placeholder)/i.test(url.pathname))return "";
+  if(parsed.protocol==="http:")parsed.protocol="https:";
+  if(parsed.protocol!=="https:"||/(^|\.)shikimori\./i.test(parsed.hostname)||/(missing_original|no[-_]?poster|placeholder)/i.test(parsed.pathname))return "";
   return parsed.href;
  }catch(e){return ""}
 }
