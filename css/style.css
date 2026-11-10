@@ -3432,3 +3432,18 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .social-overview article b{font-size:21px}
  .social-overview article small{font-size:7px}
 }
+
+
+/* Franchise viewing order: only source-confirmed direct relations */
+.franchise-order{margin:24px 0 18px;padding:20px;border:1px solid rgba(190,197,230,.14);border-radius:17px;background:linear-gradient(145deg,rgba(27,25,43,.92),rgba(14,16,27,.94))}
+.franchise-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:17px}
+.franchise-order-head h2{margin:0;font-size:20px;letter-spacing:-.03em}
+.franchise-order-head p{max-width:620px;margin:6px 0 0;color:#9998ad;font-size:11px;line-height:1.55}
+.franchise-order-head>span{flex:none;padding:6px 9px;border:1px solid rgba(167,139,250,.2);border-radius:99px;color:#c9b8ff;font-size:9px}
+.franchise-order-list{display:flex;align-items:stretch;gap:12px;overflow-x:auto;padding:0 0 10px;margin:0;list-style:none;scroll-snap-type:x mandatory}
+.franchise-order-list>li{position:relative;display:flex;flex:0 0 158px;flex-direction:column;gap:8px;scroll-snap-align:start}
+.franchise-order-type{color:#aaa5bd;font-size:10px;font-weight:750}
+.franchise-order-list>li.is-current .franchise-order-type{color:#d2bdff}
+.franchise-order-list .card{width:100%;min-width:0}
+.franchise-order-list>li.is-current .poster{outline:2px solid rgba(167,139,250,.7);outline-offset:2px}
+@media(max-width:700px){.franchise-order{margin:17px 0 13px;padding:14px 12px}.franchise-order-head{gap:8px}.franchise-order-head h2{font-size:17px}.franchise-order-head p{font-size:9px}.franchise-order-head>span{font-size:8px;padding:5px 7px}.franchise-order-list{gap:10px}.franchise-order-list>li{flex-basis:118px}.franchise-order-type{font-size:9px}}
