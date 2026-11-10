@@ -3374,8 +3374,6 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 
 
 /* Profile privacy controls and public profile */
-.profile-readonly-name{display:flex;align-items:center;gap:12px;margin:0 0 13px;padding:10px 12px;border:1px solid rgba(190,197,230,.12);border-radius:10px;background:rgba(255,255,255,.025);font-size:11px}
-.profile-readonly-name span{color:#9998ad}.profile-readonly-name b{color:#eee8ff}
 .profile-edit-form{grid-template-columns:minmax(0,1fr) auto}
 .profile-privacy-form{display:grid;gap:12px;margin-top:20px;padding-top:17px;border-top:1px solid rgba(190,197,230,.1)}
 .profile-privacy-form .profile-block-title{margin-bottom:0}
@@ -3390,3 +3388,13 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 @media(max-width:760px){.profile-edit-form{grid-template-columns:1fr}.profile-privacy-form select{max-width:none}}
 
 .profile-privacy-form>label>small{color:#9291a8;font-size:9px;line-height:1.5}
+
+/* Profile playback preferences and social shortcut */
+.profile-playback-form{display:grid;gap:10px}
+.profile-playback-form>small{color:#9291a8;font-size:10px;line-height:1.55}
+.profile-playback-form .btn{justify-self:start}
+.profile-friends-entry{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px 22px;border:1px solid rgba(190,197,230,.12);border-radius:16px;background:linear-gradient(120deg,rgba(31,27,49,.82),rgba(14,16,26,.9))}
+.profile-friends-entry h2{margin:5px 0;font-size:18px;color:#eee8ff}
+.profile-friends-entry p{margin:0;color:#a9a7bb;font-size:11px;line-height:1.5}
+.profile-friends-entry .btn{flex:0 0 auto;text-decoration:none}
+@media(max-width:600px){.profile-friends-entry{align-items:stretch;flex-direction:column}.profile-friends-entry .btn{width:100%;text-align:center}}
