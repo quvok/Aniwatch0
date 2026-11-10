@@ -1,6 +1,6 @@
 const RULES_URL="https://domain.get-video-domain.com/domain/replace_v2.json";
 const CACHE_TTL=10*60*1000;
-const REQUEST_TIMEOUT=2200;
+const REQUEST_TIMEOUT=1200;
 let cachedRules=[];
 let expiresAt=0;
 let pending=null;
