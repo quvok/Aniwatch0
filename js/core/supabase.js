@@ -308,8 +308,8 @@ function ensureEpisodeProgressRealtime(client, userId) {
 
 export async function saveEpisodeProgress(animeId, episode, isWatched, userId = activeUserId) {
   const anime = Number(animeId), number = Number(episode);
-  if (!userId || !Number.isSafeInteger(anime) || anime <= 0 || !Number.isInteger(number) || number <= 0) return;
-  if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return;
+  if (!userId || !Number.isSafeInteger(anime) || anime <= 0 || !Number.isInteger(number) || number <= 0) return false;
+  if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return false;
   const client = await getSupabaseClient();
   const { error } = await client.from("user_episode_progress").upsert({
     user_id: userId,
@@ -318,6 +318,7 @@ export async function saveEpisodeProgress(animeId, episode, isWatched, userId = 
     is_watched: !!isWatched
   }, { onConflict: "user_id,anime_id,episode" });
   if (error) throw error;
+  return true;
 }
 
 export async function syncCloudState(state, userId = activeUserId) {
