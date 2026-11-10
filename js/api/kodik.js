@@ -62,20 +62,55 @@ export async function searchKodikAnime(anime,{includeEpisodes=true}={}){
  searchCache.set(cacheKey,pending);
  try{return await pending}catch(error){searchCache.delete(cacheKey);throw error}
 }
-export async function getKodikPosterUrl(anime){
- const releases=await searchKodikAnime(anime,{includeEpisodes:false});
- for(const item of releases){
-  const material=item?.material_data||{};
-  // Deliberately exclude anime_poster_url: Kodik documents it as Shikimori artwork.
-  const raw=material.poster_url||item?.poster_url||"";
-  const value=String(raw||"").trim();if(!value)continue;
-  try{
-   const url=new URL(value.startsWith("//")?"https:"+value:value);
-   if(!/^https?:$/.test(url.protocol)||/(^|\\.)shikimori\\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))continue;
-   return url.href;
-  }catch(error){}
+function normalizeKodikPosterUrl(raw){
+ const value=String(raw||"").trim();if(!value)return "";
+ try{
+  const url=new URL(value.startsWith("//")?"https:"+value:value);
+  if(!/^https?:$/.test(url.protocol)||/(^|\\.)shikimori\\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))return "";
+  return url.href;
+ }catch(error){return ""}
+}
+async function requestBatch(lookups){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+ try{
+  const response=await fetch(FUNCTION_URL,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",apikey:SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({lookups}),signal:controller.signal});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data?.error)throw new Error(data?.error||("Kodik API: HTTP "+response.status));
+  if(!Array.isArray(data?.results))throw new Error("Kodik вернул неожиданный пакетный ответ");
+  return data.results;
+ }catch(error){
+  if(error?.name==="AbortError")throw new Error("Пакетный запрос Kodik не ответил за 30 секунд");
+  if(error instanceof TypeError)throw new Error("Не удалось подключиться к серверу Kodik");
+  throw error;
+ }finally{clearTimeout(timer)}
+}
+export async function fetchKodikPostersBatch(animes){
+ const list=[...new Map((animes||[]).filter(Boolean).map(item=>[String(item.id),item])).values()];
+ const byKey=new Map(list.map(item=>[String(item.id),item]));
+ const lookups=list.map(item=>{
+  const shikiId=Number(item?.shikiId||item?.shiki_id||(item?.source==="shikimori"&&Number(item?.id)>1000000000?Number(item.id)-1000000000:0));
+  const titles=[...new Set([item?.n,item?.o,item?.title,item?.originalTitle].map(value=>String(value||"").trim()).filter(value=>value.length>=2))].slice(0,3);
+  return {key:String(item.id),shikimori_id:shikiId>0?shikiId:undefined,titles};
+ });
+ const result={};
+ for(let offset=0;offset<lookups.length;offset+=20){
+  const groups=await requestBatch(lookups.slice(offset,offset+20));
+  for(const group of groups){
+   const key=String(group?.key||""),anime=byKey.get(key);if(!anime)continue;
+   const records=Array.isArray(group?.results)?group.results:[];
+   const exact=records.filter(item=>rank(item,anime)<99);
+   const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
+   const idMatches=shikiId>0?records.filter(item=>Number(item?.shikimori_id)===shikiId):[];
+   const selected=exact.length?exact:idMatches;
+   for(const item of selected){
+    const material=item?.material_data||{};
+    // anime_poster_url is intentionally excluded because it points to Shikimori artwork.
+    const url=normalizeKodikPosterUrl(material.poster_url||item?.poster_url);
+    if(url){result[key]=url;break}
+   }
+  }
  }
- return "";
+ return result;
 }
 
 export function getKodikEpisodeLink(item,episode,seasonNumber){
