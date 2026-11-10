@@ -66,7 +66,8 @@ function normalizeKodikPosterUrl(raw){
  const value=String(raw||"").trim();if(!value)return "";
  try{
   const url=new URL(value.startsWith("//")?"https:"+value:value);
-  if(!/^https?:$/.test(url.protocol)||/(^|\.)shikimori\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))return "";
+  if(url.protocol==="http:")url.protocol="https:";
+  if(url.protocol!=="https:"||/(^|\.)shikimori\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))return "";
   return url.href;
  }catch(error){return ""}
 }
@@ -98,7 +99,7 @@ export async function fetchKodikPostersBatch(animes){
   for(const group of groups){
    const key=String(group?.key||""),anime=byKey.get(key);if(!anime)continue;
    const records=Array.isArray(group?.results)?group.results:[];
-   const exact=records.filter(item=>rank(item,anime)<99);
+   const exact=records.filter(item=>rank(item,anime)===0);
    const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
    const idMatches=shikiId>0?records.filter(item=>Number(item?.shikimori_id)===shikiId):[];
    const selected=exact.length?exact:idMatches;
