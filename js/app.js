@@ -934,18 +934,11 @@ function renderRelated(d,data){
  rel.forEach(x=>{M[x.anime.id]=x.anime});franchiseRelated.forEach(x=>{M[x.anime.id]=x.anime});creatorWorks.forEach(x=>{M[x.id]=x});
  var groups={};
  rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
- // Build a one-click season jump list from direct story relations plus confirmed second-hop story relations.
- // Only PREQUEL / PARENT_STORY / SEQUEL edges qualify; films, OVAs and side stories stay in the extra-relations area.
+ // Build only the directly evidenced story chain. Do not infer canon or missing franchise entries.
  var orderTypes=["PREQUEL","PARENT_STORY","SEQUEL"];
- var directOrder=[];
- orderTypes.forEach(type=>(groups[type]||[]).forEach(anime=>directOrder.push({type:type,anime:anime,direct:true})));
- var directIds=new Set(directOrder.map(x=>String(x.anime.id)).concat([String(d.id)]));
- var jumpItems=directOrder.concat(franchiseRelated.filter(x=>orderTypes.includes(String(x.relation||"").toUpperCase())&&!directIds.has(String(x.anime.id))).map(x=>({type:String(x.relation).toUpperCase(),anime:x.anime,direct:false,viaTitle:x.viaTitle||""})));
- var sortYear=(a,b)=>(Number(a.anime.y)||9999)-(Number(b.anime.y)||9999);
- var beforeItems=jumpItems.filter(x=>x.type==="PREQUEL"||x.type==="PARENT_STORY").sort(sortYear);
- var afterItems=jumpItems.filter(x=>x.type==="SEQUEL").sort(sortYear);
- var seasonCard=x=>'<li><span class="franchise-order-type">'+esc(relationNames[x.type]||"Связанный сезон")+(x.direct?'':' · через '+esc(x.viaTitle||"связанный сезон"))+'</span>'+card(x.anime,null,watchUrl(x.anime.id,1))+'<a class="franchise-jump-link" href="'+watchUrl(x.anime.id,1)+'">Перейти к просмотру <span aria-hidden="true">→</span></a></li>';
- var orderHtml=(beforeItems.length||afterItems.length)?'<section class="franchise-order"><div class="franchise-order-head"><div><h2>Сезоны и быстрый переход</h2><p>Можно сразу открыть любой найденный сезон — переход через предыдущие сезоны не требуется. Включены только связи, обозначенные источником как приквел, основная история или продолжение.</p></div><span>Прямые переходы</span></div><ol class="franchise-order-list">'+beforeItems.map(seasonCard).join("")+'<li class="is-current"><span class="franchise-order-type">Открытый тайтл</span>'+card(d)+'</li>'+afterItems.map(seasonCard).join("")+'</ol></section>':'';
+ var orderItems=[];
+ orderTypes.forEach(type=>(groups[type]||[]).slice().sort((a,b)=>(Number(a.y)||9999)-(Number(b.y)||9999)).forEach(anime=>orderItems.push({type:type,anime:anime})));
+ var orderHtml=orderItems.length?'<section class="franchise-order"><div class="franchise-order-head"><div><h2>Порядок просмотра</h2><p>Показаны только прямые связи, найденные в источнике. Это не полный хронологический или канонический список франшизы.</p></div><span>По связям тайтлов</span></div><ol class="franchise-order-list">'+orderItems.filter(x=>x.type==="PREQUEL"||x.type==="PARENT_STORY").map(x=>'<li><span class="franchise-order-type">Приквел</span>'+card(x.anime)+'</li>').join("")+'<li class="is-current"><span class="franchise-order-type">Выбранное аниме</span>'+card(d)+'</li>'+orderItems.filter(x=>x.type==="SEQUEL").map(x=>'<li><span class="franchise-order-type">'+esc(relationNames[x.type]||"Продолжение")+'</span>'+card(x.anime)+'</li>').join("")+'</ol></section>':'';
  var excludedOrder=new Set(orderTypes);
  var relationHtml=Object.keys(groups).filter(type=>!excludedOrder.has(type)).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные релизы")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
  if(!relationHtml)relationHtml='<p class="related-state">Дополнительных связанных тайтлов нет.</p>';
