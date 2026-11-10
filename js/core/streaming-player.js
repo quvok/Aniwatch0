@@ -55,7 +55,7 @@ async function requestAnimeLibEpisodes(shikiId){
  }
  throw new Error("Список серий недоступен: "+[...new Set(errors)].join("; "));
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onEpisodeChange=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
@@ -101,7 +101,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    }
    case "kodik_player_video_ended":kodikMedia.playing=false;try{onEpisodeEnded()}catch(error){console.warn("[AniWatch] Kodik episode-end callback failed:",error)}break;
    case "kodik_player_speed_change":if(value&&Number(value.speed)>0)kodikMedia.speed=Number(value.speed);break;
-   case "kodik_player_current_episode":if(value&&Number(value.episode)>0)kodikMedia.episode=Number(value.episode);break;
+   case "kodik_player_current_episode":if(value&&Number(value.episode)>0){kodikMedia.episode=Number(value.episode);if(Number(value.episode)!==Number(episode)){try{onEpisodeChange({episode:Number(value.episode),season:Number(value.season)||null})}catch(error){console.warn("[AniWatch] Kodik episode-change callback failed:",error)}}}break;
   }
   if(remoteApplying)return;
   if(["kodik_player_play","kodik_player_video_started","kodik_player_pause","kodik_player_seek","kodik_player_speed_change","kodik_player_current_episode","kodik_player_video_ended"].includes(message.key))emit(true);
