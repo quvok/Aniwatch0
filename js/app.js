@@ -604,11 +604,15 @@ V.mylist=()=>{
   if(!anilibriaSchedule)loadAniLibriaSchedule(false).then(()=>{if(activePage()==="mylist"&&request===myListRenderRequest)V.mylist()}).catch(error=>console.warn("[AniWatch] AniLibria schedule unavailable:",error));
  };
  if(!AUTH_USER||Date.now()-myListCloudAt<15000){render();return}
- app.innerHTML='<section class="personal-list-page"><div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Загружаем актуальные данные из аккаунта…</p></div></div><div class="list-results"><p class="empty">Синхронизируем списки с базой данных.</p></div></section>';
+ render();
+ var syncNotice=app.querySelector(".personal-list-page");
+ if(syncNotice)syncNotice.insertAdjacentHTML("afterbegin",'<p class="empty" role="status">Обновляем списки из аккаунта…</p>');
  refreshMyListFromCloud().then(render).catch(error=>{
   console.error("[AniWatch] My Lists cloud load failed:",error);
   if(request!==myListRenderRequest||activePage()!=="mylist")return;
-  app.innerHTML='<section class="offline-state"><h1>Не удалось загрузить списки</h1><p>Не получилось получить актуальные данные аккаунта. Локальные данные не будут выдаваться за синхронизированные.</p><button class="btn" type="button" data-a="mylist-reload">Повторить загрузку</button></section>';
+  render();
+  var page=app.querySelector(".personal-list-page");
+  if(page)page.insertAdjacentHTML("afterbegin",'<p class="empty" role="status">Не удалось обновить данные из БД. Ниже показан сохранённый локальный снимок. <button class="btn ghost" type="button" data-a="mylist-reload">Повторить загрузку</button></p>');
  });
 };
 V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await loadAniLibriaSchedule(false);if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Calendar load failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание. Попробуй ещё раз."})}};
