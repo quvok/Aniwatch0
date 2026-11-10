@@ -58,7 +58,7 @@ function posterImageUrl(path){
  var value=String(path).trim();if(!value)return "";
  try{
   var parsed=new URL(value.startsWith("//")?"https:"+value:value);
-  if(!/^https?:$/.test(parsed.protocol)||/(^|\\.)shikimori\\.(io|me|one)$/i.test(parsed.hostname)||/\\/missing_original(?:\\.[a-z0-9]+)?$/i.test(parsed.pathname))return "";
+  if(!/^https?:$/.test(parsed.protocol)||/(^|\.)shikimori\.(io|me|one)$/i.test(parsed.hostname)||/\/missing_original(?:\.[a-z0-9]+)?$/i.test(parsed.pathname))return "";
   return parsed.href;
  }catch(e){return ""}
 }
