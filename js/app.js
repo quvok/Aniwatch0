@@ -160,6 +160,63 @@ window.addEventListener("focus",()=>refreshCloudProgress(true));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
+var homeGenrePromise=null,homeGenreLoaded=false;
+var HOME_GENRE_PRESETS=[
+ {label:"Экшен",keys:["экшен","action","боевик"]},
+ {label:"Приключения",keys:["приключения","adventure"]},
+ {label:"Фэнтези",keys:["фэнтези","fantasy"]},
+ {label:"Комедия",keys:["комедия","comedy"]},
+ {label:"Драма",keys:["драма","drama"]},
+ {label:"Романтика",keys:["романтика","romance"]},
+ {label:"Фантастика",keys:["фантастика","sci fi","science fiction"]},
+ {label:"Детектив",keys:["детектив","mystery"]},
+ {label:"Психология",keys:["психология","psychological"]},
+ {label:"Триллер",keys:["триллер","thriller"]},
+ {label:"Ужасы",keys:["ужасы","horror"]},
+ {label:"Повседневность",keys:["повседневность","slice of life"]}
+];
+function homeGenreKey(value){return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,"").trim()}
+function homeGenreLink(label,id){
+ var href=pageUrl("catalog",{g:id||label});
+ return '<a class="genre-tile" href="'+href+'"><span>'+esc(label)+'</span><b>Смотреть подборку <i>↗</i></b></a>';
+}
+function loadHomeGenreTiles(){
+ var host=$("#home-genre-grid");
+ if(!host||homeGenreLoaded||homeGenrePromise)return;
+ homeGenrePromise=fetchAnimeGenres().then(function(raw){
+  if(!Array.isArray(raw))throw new Error("Некорректный список жанров");
+  var genres=raw.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&Number(g.id)>0);
+  var used=new Set(),selected=[];
+  HOME_GENRE_PRESETS.forEach(preset=>{
+   var found=genres.find(g=>[g.russian,g.name].some(name=>preset.keys.includes(homeGenreKey(name))));
+   if(found&&!used.has(String(found.id))){used.add(String(found.id));selected.push({label:preset.label,id:String(found.id)})}
+  });
+  if(selected.length<8){
+   genres.slice().sort((a,b)=>String(a.russian||a.name||"").localeCompare(String(b.russian||b.name||""),"ru")).forEach(g=>{
+    if(selected.length>=12||used.has(String(g.id)))return;
+    used.add(String(g.id));selected.push({label:String(g.russian||g.name||"").trim(),id:String(g.id)});
+   });
+  }
+  if(!selected.length)throw new Error("Не найдено жанров аниме");
+  var current=$("#home-genre-grid");
+  if(current&&activePage()==="home")current.innerHTML=selected.slice(0,12).map(g=>homeGenreLink(g.label,g.id)).join("");
+  homeGenreLoaded=true;
+ }).catch(function(error){console.warn("[AniWatch] Home genres unavailable; keeping fallback:",error)})
+ .finally(function(){homeGenrePromise=null});
+}
+function homeSmartTagTiles(){
+ var tags=[
+  {label:"Высокий рейтинг",hint:"Оценка 8.0+",params:{score:8,sort:"SCORE_DESC"}},
+  {label:"Онгоинги",hint:"Выходят сейчас",params:{status:"RELEASING",sort:"POPULARITY_DESC"}},
+  {label:"Завершённые",hint:"Можно смотреть целиком",params:{status:"FINISHED",sort:"SCORE_DESC"}},
+  {label:"Полнометражные",hint:"Аниме-фильмы",params:{format:"MOVIE",sort:"SCORE_DESC"}},
+  {label:"Скоро выйдут",hint:"Предстоящие релизы",params:{status:"NOT_YET_RELEASED",sort:"START_DATE_DESC"}},
+  {label:"Оценка 9+",hint:"Самые высокие оценки",params:{score:9,sort:"SCORE_DESC"}},
+  {label:"Новые релизы",hint:"Сначала свежие",params:{sort:"START_DATE_DESC"}},
+  {label:"Сериалы",hint:"ТВ-формат",params:{format:"TV",sort:"POPULARITY_DESC"}}
+ ];
+ return tags.map(tag=>'<a class="smart-tag" href="'+pageUrl("catalog",tag.params)+'"><b>'+esc(tag.label)+'</b><span>'+esc(tag.hint)+'</span><i>↗</i></a>').join("");
+}
 V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
@@ -170,8 +227,9 @@ V.home=()=>{
  var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
- var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ var genres=HOME_GENRE_PRESETS.slice(0,8).map(g=>homeGenreLink(g.label,"")).join(""),smartTags=homeSmartTagTiles();
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,smartTagTiles:smartTags,row});
+ loadHomeGenreTiles();
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
