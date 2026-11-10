@@ -58,7 +58,6 @@ function posterImageUrl(path){
  var value=String(path).trim();if(!value)return "";
  try{
   var parsed=new URL(value.startsWith("//")?"https:"+value:value);
-  if(url.protocol==="http:")url.protocol="https:";
   if(parsed.protocol==="http:")parsed.protocol="https:";
   if(parsed.protocol!=="https:"||/(^|\.)shikimori\./i.test(parsed.hostname)||/(missing_original|no[-_]?poster|placeholder)/i.test(parsed.pathname))return "";
   return parsed.href;
