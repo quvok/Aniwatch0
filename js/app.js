@@ -75,7 +75,31 @@ var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.wat
 var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id),available=availableEpCount(d);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n),upcoming=available!==null&&n>available;return '<span class="episode-item'+(done?' is-watched':'')+(upcoming?' is-upcoming':'')+'">'+(upcoming?'<span class="episode-number" aria-label="Серия '+n+' ещё не вышла">'+n+'</span><small class="episode-upcoming-label">Скоро</small>':'<a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>')+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':'Смотреть серию '+n+' здесь')+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>'+(upcoming?'–':done?'✓':'○')+'</button></span>'}).join('')};
 function refreshEpisodeMarks(id){var watched=watchedFor(id),total=epTotal(M[id]||{}),count=watched.length;document.querySelectorAll('.episode-item').forEach(item=>{var b=item.querySelector('[data-a="episode-toggle"]');if(!b||Number(b.dataset.i)!==Number(id))return;var n=Number(b.dataset.v),done=watched.includes(n);item.classList.toggle('is-watched',done);b.classList.toggle('is-watched',done);b.setAttribute('aria-pressed',String(done));b.setAttribute('aria-label',(done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n);b.textContent=done?'✓':'○'});document.querySelectorAll('[data-episode-progress="'+id+'"]').forEach(el=>{el.textContent=count+' / '+(total||'—')+' просмотрено'})}
 function setEpisodeWatched(id,episode,done){var anime=M[Number(id)],available=anime?availableEpCount(anime):null;if(available!==null&&Number(episode)>available){toast("Эта серия ещё не вышла");return}S.watchedEpisodes=S.watchedEpisodes||{};S.episodeProgressPending=S.episodeProgressPending||{};var number=Number(episode),key=Number(id)+":"+number,list=watchedFor(id).filter(n=>n!==number);if(done)list.push(number);list.sort((a,b)=>a-b);if(list.length)S.watchedEpisodes[id]=list;else delete S.watchedEpisodes[id];S.episodeProgressPending[key]=!!done;sv();refreshEpisodeMarks(id);if(AUTH_USER){var userId=AUTH_USER.id;saveEpisodeProgress(id,number,!!done,userId).then(saved=>{if(saved===true&&S.episodeProgressPending&&S.episodeProgressPending[key]===!!done){delete S.episodeProgressPending[key];saveLocalState(S,M)}}).catch(error=>console.warn("[AniWatch] Episode progress save failed; change kept locally:",error))}}
-window.addEventListener("aw-episode-progress-changed",event=>{var detail=event.detail||{};if(!AUTH_USER||detail.userId!==AUTH_USER.id||!Array.isArray(detail.rows))return;var next={};detail.rows.forEach(row=>{var id=String(Number(row.anime_id)),episode=Number(row.episode);if(row.is_watched&&Number.isSafeInteger(Number(id))&&Number(id)>0&&Number.isInteger(episode)&&episode>0){next[id]=next[id]||[];next[id].push(episode)}});Object.values(next).forEach(list=>list.sort((a,b)=>a-b));Object.entries(S.episodeProgressPending||{}).forEach(([key,value])=>{var match=/^(\d+):(\d+)$/.exec(key);if(!match)return;var id=match[1],episode=Number(match[2]);next[id]=(next[id]||[]).filter(n=>n!==episode);if(value){next[id].push(episode);next[id].sort((a,b)=>a-b)}if(!next[id].length)delete next[id]});S.watchedEpisodes=next;saveLocalState(S,M);Object.keys(next).forEach(refreshEpisodeMarks);if(activePage()==="home")refreshContinueShelf()});
+window.addEventListener("aw-episode-progress-changed",event=>{
+ var detail=event.detail||{};if(!AUTH_USER||detail.userId!==AUTH_USER.id)return;
+ var previous=S.watchedEpisodes||{},next={};
+ if(Array.isArray(detail.rows)){
+  detail.rows.forEach(row=>{var id=String(Number(row.anime_id)),episode=Number(row.episode);if(row.is_watched&&Number.isSafeInteger(Number(id))&&Number(id)>0&&Number.isInteger(episode)&&episode>0){next[id]=next[id]||[];next[id].push(episode)}});
+ }else if(detail.row){
+  Object.entries(previous).forEach(([id,list])=>{next[id]=Array.isArray(list)?list.slice():[]});
+  var row=detail.row,id=String(Number(row.anime_id)),episode=Number(row.episode);
+  if(Number.isSafeInteger(Number(id))&&Number(id)>0&&Number.isInteger(episode)&&episode>0){
+   next[id]=(next[id]||[]).filter(n=>n!==episode);
+   if(row.is_watched)next[id].push(episode);
+   if(!next[id].length)delete next[id];
+  }
+ }
+ Object.values(next).forEach(list=>{list.sort((a,b)=>a-b)});
+ Object.entries(S.episodeProgressPending||{}).forEach(([key,value])=>{
+  var match=/^(\d+):(\d+)$/.exec(key);if(!match)return;
+  var id=match[1],episode=Number(match[2]);next[id]=(next[id]||[]).filter(n=>n!==episode);
+  if(value){next[id].push(episode);next[id].sort((a,b)=>a-b)}
+  if(!next[id].length)delete next[id];
+ });
+ var changedIds=new Set([...Object.keys(previous),...Object.keys(next)]);
+ S.watchedEpisodes=next;saveLocalState(S,M);changedIds.forEach(refreshEpisodeMarks);
+ if(activePage()==="home")refreshContinueShelf();
+});
 function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2000)}
 function exportBackup(){
  try{
