@@ -3510,3 +3510,34 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  #continue-shelf .poster>.poster-status{left:auto!important;right:6px!important;top:6px!important;bottom:auto!important;max-width:calc(100% - 12px)!important}
  #continue-shelf .poster>.poster-fav{left:auto!important;right:6px!important;top:auto!important;bottom:6px!important}
 }
+
+
+/* Minimal navigation pictograms: today's date in a square, person for Friends. */
+#site-header .nav-mark-calendar,
+#mobile-bottom-nav .nav-mark-calendar{
+ display:grid!important;place-items:center;
+ background:transparent!important;border:1.5px solid currentColor!important;
+ border-radius:5px!important;color:#c4b5fd;
+}
+#site-header .nav-mark-calendar .nav-date,
+#mobile-bottom-nav .nav-mark-calendar .nav-date{
+ display:block;font-size:11px;font-weight:900;line-height:1;
+ font-variant-numeric:tabular-nums;letter-spacing:-.5px;
+}
+#site-header .nav-mark-friends,
+#mobile-bottom-nav .nav-mark-friends{
+ display:grid!important;place-items:center;background:transparent!important;
+ color:#c4b5fd;
+}
+#site-header .nav-mark-friends svg,
+#mobile-bottom-nav .nav-mark-friends svg{display:block;width:19px;height:19px}
+@media(max-width:700px){
+ #site-header .nav-mark-calendar,
+ #mobile-bottom-nav .nav-mark-calendar{width:21px!important;height:21px!important;flex-basis:21px!important}
+ #site-header .nav-mark-calendar .nav-date,
+ #mobile-bottom-nav .nav-mark-calendar .nav-date{font-size:9px}
+ #site-header .nav-mark-friends,
+ #mobile-bottom-nav .nav-mark-friends{width:21px!important;height:21px!important;flex-basis:21px!important}
+ #site-header .nav-mark-friends svg,
+ #mobile-bottom-nav .nav-mark-friends svg{width:18px;height:18px}
+}
