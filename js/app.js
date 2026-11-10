@@ -4,6 +4,7 @@ import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
 import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
+import { PLOT_TAGS, hasPlotTag } from "./core/plot-tags.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl as routeWatchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
 import { renderFavorites, renderMyList, renderProfile, renderPublicProfile } from "./pages/collection.js";
@@ -160,6 +161,53 @@ window.addEventListener("focus",()=>refreshCloudProgress(true));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
+var homeGenrePromise=null,homeGenreLoaded=false;
+var HOME_GENRE_PRESETS=[
+ {label:"Экшен",keys:["экшен","action","боевик"]},
+ {label:"Приключения",keys:["приключения","adventure"]},
+ {label:"Фэнтези",keys:["фэнтези","fantasy"]},
+ {label:"Комедия",keys:["комедия","comedy"]},
+ {label:"Драма",keys:["драма","drama"]},
+ {label:"Романтика",keys:["романтика","romance"]},
+ {label:"Фантастика",keys:["фантастика","scifi","sciencefiction"]},
+ {label:"Детектив",keys:["детектив","mystery"]},
+ {label:"Психология",keys:["психология","psychological"]},
+ {label:"Триллер",keys:["триллер","thriller"]},
+ {label:"Ужасы",keys:["ужасы","horror"]},
+ {label:"Повседневность",keys:["повседневность","sliceoflife"]}
+];
+function homeGenreKey(value){return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,"").trim()}
+function homeGenreLink(label,id){
+ var href=pageUrl("catalog",{g:id||label});
+ return '<a class="genre-tile" href="'+href+'"><span>'+esc(label)+'</span><b>Смотреть подборку <i>↗</i></b></a>';
+}
+function loadHomeGenreTiles(){
+ var host=$("#home-genre-grid");
+ if(!host||homeGenreLoaded||homeGenrePromise)return;
+ homeGenrePromise=fetchAnimeGenres().then(function(raw){
+  if(!Array.isArray(raw))throw new Error("Некорректный список жанров");
+  var genres=raw.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&Number(g.id)>0);
+  var used=new Set(),selected=[];
+  HOME_GENRE_PRESETS.forEach(preset=>{
+   var found=genres.find(g=>[g.russian,g.name].some(name=>preset.keys.includes(homeGenreKey(name))));
+   if(found&&!used.has(String(found.id))){used.add(String(found.id));selected.push({label:preset.label,id:String(found.id)})}
+  });
+  if(selected.length<8){
+   genres.slice().sort((a,b)=>String(a.russian||a.name||"").localeCompare(String(b.russian||b.name||""),"ru")).forEach(g=>{
+    if(selected.length>=12||used.has(String(g.id)))return;
+    used.add(String(g.id));selected.push({label:String(g.russian||g.name||"").trim(),id:String(g.id)});
+   });
+  }
+  if(!selected.length)throw new Error("Не найдено жанров аниме");
+  var current=$("#home-genre-grid");
+  if(current&&activePage()==="home")current.innerHTML=selected.slice(0,12).map(g=>homeGenreLink(g.label,g.id)).join("");
+  homeGenreLoaded=true;
+ }).catch(function(error){console.warn("[AniWatch] Home genres unavailable; keeping fallback:",error)})
+ .finally(function(){homeGenrePromise=null});
+}
+function homeSmartTagTiles(){
+ return PLOT_TAGS.map(tag=>'<a class="smart-tag" href="'+pageUrl("catalog",{tag:tag.id})+'"><b>'+esc(tag.label)+'</b><span>Сюжетная особенность</span><i>↗</i></a>').join("");
+}
 V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
@@ -170,8 +218,9 @@ V.home=()=>{
  var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
- var genres=GN.slice(0,6).map(g=>'<a class="genre-tile" href="'+pageUrl("catalog",{g:g})+'"><span>'+g+'</span><b>Смотреть подборку <i>↗</i></b></a>').join("");
- renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,row});
+ var genres=HOME_GENRE_PRESETS.slice(0,8).map(g=>homeGenreLink(g.label,"")).join(""),smartTags=homeSmartTagTiles();
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,smartTagTiles:smartTags,row});
+ loadHomeGenreTiles();
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
@@ -1221,7 +1270,7 @@ async function loadHomeCollections(){
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xXC={},xIO=null,xGenrePromise=null,xGenreOptions=null;
+xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",tag:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xXC={},xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -1302,6 +1351,7 @@ V.catalog=()=>{
   seasonOptions:[["winter","Зима"],["spring","Весна"],["summer","Лето"],["fall","Осень"]],
   statusOptions:[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
   formatOptions:[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]],
+  plotTagOptions:PLOT_TAGS.map(tag=>[tag.id,tag.label]),
   sortOptions:[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
   ratingOptions:[["6","6.0+"],["7","7.0+"],["8","8.0+"],["9","9.0+"]]
  });
@@ -1319,7 +1369,7 @@ async function xcq(reset){
  var requestId=++xSearchRequest;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
   var q=xCF.q.trim(),sourcePage=xCF.p;
-  var key="aw-shikimori-catalog-v3:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
+  var key="aw-shikimori-catalog-v3:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore,xCF.tag]);
   var cached=null,raw=null;
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
   if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
@@ -1330,6 +1380,7 @@ async function xcq(reset){
   }
   if(requestId!==xSearchRequest||k!==xCF.k||activePage()!=="catalog")return;
   var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
+  if(xCF.tag)L=L.filter(d=>hasPlotTag(d,xCF.tag));
 
   if(xCF.y)L=L.filter(d=>String(d.y)===String(xCF.y));
   if(xCF.season){
@@ -1369,7 +1420,7 @@ async function xrandom(){
 }
 V.random=()=>{xrandom()};
 listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
-listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();});
+listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";xCF.tag="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();});
 // страница тайтла: таймер следующей серии и трейлер
 // Баннер из AniList: один общий запрос на тайтл (баннер, следующая серия, трейлер), без дублей
 var xXP={};
@@ -1443,7 +1494,7 @@ function renderMissing(){
  document.title="Тайтл не найден — AniWatch";
  app.innerHTML='<section class="offline-state"><div class="eyebrow">404</div><h1>Тайтл не найден</h1><p>Не удалось загрузить это аниме. Ссылка могла устареть или возникла ошибка соединения.</p><a class="btn" href="'+pageUrl("catalog")+'">Открыть каталог</a> <button class="btn ghost" type="button" data-a="reload">Повторить</button></section>'
 }
-var URL_FILTERS={y:"y",season:"season",status:"st",format:"f",sort:"o",score:"minScore"};
+var URL_FILTERS={y:"y",season:"season",status:"st",format:"f",sort:"o",score:"minScore",tag:"tag"};
 function initRouteFilters(){
  if(activePage()!=="catalog")return;
  var p=new URLSearchParams(location.search);
@@ -1452,7 +1503,7 @@ function initRouteFilters(){
 }
 function syncCatalogUrl(){
  if(activePage()!=="catalog"||!window.history||!history.replaceState)return;
- var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore};
+ var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore,tag:xCF.tag};
  try{history.replaceState(null,"",pageUrl("catalog",o))}catch(e){}
 }
 function draw(){renderRoute(V,T,()=>{P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
@@ -1563,8 +1614,8 @@ listen(document,"change",async e=>{if(e.target.id==="profile-avatar-file"){var f
 listen(window,"keydown",e=>{if(e.key==="Escape"){var authModal=document.getElementById("auth-modal");if(authModal){authModal.remove();return}}if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;var video=$("#stream-player video");if(!video)return;
  if(e.code==="Space"){e.preventDefault();if(video.paused)video.play().catch(()=>{});else video.pause()}else if(e.code==="ArrowRight"){video.currentTime=Math.min(video.duration||video.currentTime+10,video.currentTime+10)}else if(e.code==="ArrowLeft"){video.currentTime=Math.max(0,video.currentTime-10)}});
 listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.q=xCF.q;var hq=$("#q");if(hq)hq.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)});
- listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
- listen(document,"click",e=>{if(e.target.closest("[data-xr]")){xcq(false);return}if(e.target.closest("[data-cf-reset]")){xCF.g="";xCF.y="";xCF.season="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.minScore="";xCF.q="";F.q="";F.g="";["cs","cf-g","cf-y","cf-season","cf-st","cf-f","cf-r","cf-o"].forEach(id=>{var el=$("#"+id);if(el)el.value=id==="cf-o"?"POPULARITY_DESC":""});var hq=$("#q");if(hq)hq.value="";xcq(true)}});
+ listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o","cf-tag":"tag"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
+ listen(document,"click",e=>{if(e.target.closest("[data-xr]")){xcq(false);return}if(e.target.closest("[data-cf-reset]")){xCF.g="";xCF.y="";xCF.season="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.minScore="";xCF.tag="";xCF.q="";F.q="";F.g="";["cs","cf-g","cf-y","cf-season","cf-st","cf-f","cf-r","cf-o","cf-tag"].forEach(id=>{var el=$("#"+id);if(el)el.value=id==="cf-o"?"POPULARITY_DESC":""});var hq=$("#q");if(hq)hq.value="";xcq(true)}});
  addEventListener("pagehide",()=>{stashItems();disconnectRoom();if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}});
 idx();boot();
 })();
