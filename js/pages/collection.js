@@ -35,11 +35,11 @@ export function renderMyList({app,state,mediaMap,filters,lists,card}){
  const key=filters.listStatus||"all",watchlist=normalizedWatchlist(state),favorites=[...new Set((state.fav||[]).map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))];
  const isFavorites=key==="favorites";
  const ids=(isFavorites?favorites:Object.keys(watchlist).filter(id=>key==="all"||watchlist[id]===key).map(Number))
-  .filter(id=>savedAnime(state,mediaMap,id))
-  .sort((a,b)=>savedAnime(state,mediaMap,a).n.localeCompare(savedAnime(state,mediaMap,b).n,"ru"));
+  .sort((a,b)=>String(savedAnime(state,mediaMap,a)?.n||("Аниме #"+a)).localeCompare(String(savedAnime(state,mediaMap,b)?.n||("Аниме #"+b)),"ru"));
+ const animeForId=id=>savedAnime(state,mediaMap,id)||{id,n:"Аниме #"+id,o:"",g:["Аниме"],y:0,r:0,e:0,s:"",d:"Метаданные тайтла временно недоступны. Запись сохранена в аккаунте.",c:["#334155","#0f172a"],img:""};
  const tabs=[["all","Все"],...lists],counts={all:Object.keys(watchlist).length};
  lists.forEach(([status])=>{counts[status]=Object.values(watchlist).filter(value=>value===status).length});
- const content=animeCards(ids,state,mediaMap,card);
+ const content=ids.map(id=>card(animeForId(id))).join("");
  const tabButton=(value,label,count,active)=>'<button type="button" data-a="list-filter" data-v="'+value+'" class="'+(active?"on":"")+'" aria-pressed="'+active+'">'+label+(count!==undefined?'<span>'+count+'</span>':"")+'</button>';
  app.innerHTML='<section class="personal-list-page"><div class="list-heading"><div><div class="eyebrow">ТВОЯ КОЛЛЕКЦИЯ</div><h1>Мои списки</h1><p>Управляй просмотренным и тем, что собираешься посмотреть.</p></div><b>'+ids.length+'</b></div>'+
  '<div class="collection-switch" role="group" aria-label="Раздел коллекции">'+tabButton("all","Мои списки",counts.all,!isFavorites)+tabButton("favorites","♥ Избранное",favorites.length,isFavorites)+'</div>'+
