@@ -163,9 +163,6 @@ window.addEventListener("focus",()=>refreshCloudProgress(true));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
-function homeSmartTagTiles(){
- return PLOT_TAGS.map(tag=>'<a class="smart-tag" href="'+pageUrl("catalog",{tag:tag.id})+'"><b>'+esc(tag.label)+'</b><span>Сюжетная особенность</span><i>↗</i></a>').join("");
-}
 V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
