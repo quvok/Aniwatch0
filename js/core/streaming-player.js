@@ -55,7 +55,7 @@ async function requestAnimeLibEpisodes(shikiId){
  }
  throw new Error("Список серий недоступен: "+[...new Set(errors)].join("; "));
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},resumeAt=0,resumeSpeed=1}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
@@ -210,7 +210,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     kodikFrame=null;kodikMedia={time:0,duration:0,playing:false,speed:1};
     stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay *; fullscreen *; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
     kodikFrame=stage.querySelector("iframe");
-    if(kodikFrame)kodikFrame.addEventListener("load",()=>{if(kodikFrame)kodikCommand({method:"get_time"})},{once:true});
+    if(kodikFrame)kodikFrame.addEventListener("load",()=>{if(kodikFrame){kodikCommand({method:"get_time"});try{onReady()}catch(error){console.warn("[AniWatch] Player-ready callback failed:",error)}}},{once:true});
     setStatus("Основной плеер · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
    };
    const render=()=>{
