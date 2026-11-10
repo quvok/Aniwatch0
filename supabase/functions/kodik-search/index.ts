@@ -101,7 +101,7 @@ function hasTitleMatch(results: unknown[], title: string) {
     ];
     return candidates.some(candidate => {
       const actual = normalizeTitle(candidate);
-      return actual && (actual === wanted || actual.includes(wanted) || wanted.includes(actual));
+      return actual === wanted;
     });
   });
 }
