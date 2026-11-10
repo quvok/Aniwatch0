@@ -832,12 +832,12 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===11&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===12&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   var relatedFallbackLimited=false;
   try{
-   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[];
+   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[],similarAnime=[];
    try{
     var query,vars;
     if(d.source==="shikimori"){
@@ -916,9 +916,14 @@ async function loadRelated(d){
     fallbackList.forEach(x=>{M[x.id]=x});
     await xshikiPosters(fallbackList);
    }
-   var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks);
-   await translateRelated(all);
-   var data={v:11,relations:relations,franchiseRelated:franchiseRelated||[],creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var similarShikiId=Number(d.shikiId)||((d.source!=="shikimori"&&Number(d.id)>1000000000)?Number(d.id)-1000000000:0);
+   if(!(similarShikiId>0)&&Number(d.mal)>0){try{var similarMatches=await fetchAnimeByIds([Number(d.mal)]);similarShikiId=Number(similarMatches&&similarMatches[0]&&similarMatches[0].id)||0}catch(similarResolveError){}}
+   if(similarShikiId>0){try{
+    var similarRaw=await fetchAnimeSimilar(similarShikiId),similarSeen={};
+    similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
+   }catch(similarError){console.warn("[AniWatch] Similar anime unavailable:",similarError)}}
+   var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks,similarAnime);await translateRelated(all);
+   var data={v:12,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    if(!relatedFallbackLimited){cached[d.id]=data;sv()}
    renderRelated(d,data);
   }catch(e){
@@ -930,20 +935,21 @@ async function loadRelated(d){
 }
 function renderRelated(d,data){
  var root=$("#related-anime");if(!root||!isRoute("title",d.id))return;
- var rel=(data.relations||[]).filter(x=>x&&x.anime),franchiseRelated=(data.franchiseRelated||[]).filter(x=>x&&x.anime),creatorWorks=(data.creatorWorks||[]).filter(Boolean);
- rel.forEach(x=>{M[x.anime.id]=x.anime});franchiseRelated.forEach(x=>{M[x.anime.id]=x.anime});creatorWorks.forEach(x=>{M[x.id]=x});
+ var rel=(data.relations||[]).filter(x=>x&&x.anime),franchiseRelated=(data.franchiseRelated||[]).filter(x=>x&&x.anime),creatorWorks=(data.creatorWorks||[]).filter(Boolean),similarAnime=(data.similarAnime||[]).filter(Boolean);
+ rel.forEach(x=>{M[x.anime.id]=x.anime});franchiseRelated.forEach(x=>{M[x.anime.id]=x.anime});creatorWorks.forEach(x=>{M[x.id]=x});similarAnime.forEach(x=>{M[x.id]=x});
  var groups={};
  rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
  // Build only the directly evidenced story chain. Do not infer canon or missing franchise entries.
  var orderTypes=["PREQUEL","PARENT_STORY","SEQUEL"];
+ var isMovie=a=>/movie/.test(String(a&&a.kind||"").toLowerCase()),isExtra=a=>/^(ova|ona|special|tv_special)$/.test(String(a&&a.kind||"").toLowerCase());
  var orderItems=[];
- orderTypes.forEach(type=>(groups[type]||[]).slice().sort((a,b)=>(Number(a.y)||9999)-(Number(b.y)||9999)).forEach(anime=>orderItems.push({type:type,anime:anime})));
+ orderTypes.forEach(type=>(groups[type]||[]).filter(anime=>!isMovie(anime)&&!isExtra(anime)).slice().sort((a,b)=>(Number(a.y)||9999)-(Number(b.y)||9999)).forEach(anime=>orderItems.push({type:type,anime:anime})));
  var orderHtml=orderItems.length?'<section class="franchise-order"><div class="franchise-order-head"><div><h2>Порядок просмотра</h2><p>Показаны только прямые связи, найденные в источнике. Это не полный хронологический или канонический список франшизы.</p></div><span>По связям тайтлов</span></div><ol class="franchise-order-list">'+orderItems.filter(x=>x.type==="PREQUEL"||x.type==="PARENT_STORY").map(x=>'<li><span class="franchise-order-type">Приквел</span>'+card(x.anime)+'</li>').join("")+'<li class="is-current"><span class="franchise-order-type">Выбранное аниме</span>'+card(d)+'</li>'+orderItems.filter(x=>x.type==="SEQUEL").map(x=>'<li><span class="franchise-order-type">'+esc(relationNames[x.type]||"Продолжение")+'</span>'+card(x.anime)+'</li>').join("")+'</ol></section>':'';
- var excludedOrder=new Set(orderTypes);
- var relationHtml=Object.keys(groups).filter(type=>!excludedOrder.has(type)).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные релизы")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
- if(!relationHtml)relationHtml='<p class="related-state">Дополнительных связанных тайтлов нет.</p>';
- var franchiseIds=new Set(rel.map(x=>String(x.anime.id)).concat([String(d.id)]));
- var franchiseHtml=franchiseRelated.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Ещё во франшизе</h2><p class="shelf-sub">Релизы, найденные через связанные тайтлы. Это дополнительные связи, а не подтверждённый порядок просмотра.</p></div></div>'+franchiseRelated.filter(x=>!franchiseIds.has(String(x.anime.id))).map(x=>'<div class="franchise-discovered"><div class="franchise-discovered-label">Связано через '+esc(x.viaTitle||"другой релиз")+' · '+esc(relationNames[x.relation]||"Связанный тайтл")+'</div>'+card(x.anime)+'</div>').join("")+'</section>':"";
+ var categorized={films:[],extras:[],spinoffs:[],other:[]},categorySeen=new Set();
+ var candidates=rel.filter(x=>!orderTypes.includes(x.type)||isMovie(x.anime)||isExtra(x.anime)).map(x=>({anime:x.anime,relation:x.type,via:""})).concat(franchiseRelated.map(x=>({anime:x.anime,relation:x.relation,via:x.viaTitle})));
+ candidates.forEach(item=>{var anime=item.anime,key=String(anime.id);if(categorySeen.has(key))return;categorySeen.add(key);if(isMovie(anime))categorized.films.push(item);else if(isExtra(anime))categorized.extras.push(item);else if(item.relation==="SPIN_OFF"||item.relation==="SIDE_STORY")categorized.spinoffs.push(item);else categorized.other.push(item)});
+ var renderCategory=(title,description,items)=>items.length?'<section class="shelf franchise-category"><div class="shelf-head"><div><h2>'+title+'</h2><p class="shelf-sub">'+description+'</p></div></div><div class="franchise-category-grid">'+items.slice(0,18).map(item=>'<article class="franchise-category-item"><small>'+(item.via?'Связано через '+esc(item.via):esc(relationNames[item.relation]||"Релиз франшизы"))+'</small>'+card(item.anime)+'</article>').join("")+'</div></section>':'';
+ var franchiseSections=renderCategory("Фильмы франшизы","Полнометражные релизы, связанные с этой историей",categorized.films)+renderCategory("OVA и специальные выпуски","Дополнительные эпизоды и специальные релизы",categorized.extras)+renderCategory("Спин-оффы и побочные истории","Ответвления франшизы и отдельные сюжетные линии",categorized.spinoffs)+renderCategory("Другие релизы франшизы","Остальные связанные произведения, тип которых не удалось точнее определить",categorized.other);
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
  const extra=$("#anime-extra-meta");
  if(extra){
@@ -952,8 +958,9 @@ function renderRelated(d,data){
   extra.innerHTML=(studios.length?'<div class="anime-meta-line"><span>Студия</span><b>'+studios.map(esc).join(", ")+'</b></div>':'')+(staffHtml?'<div class="anime-meta-staff"><span class="anime-meta-label">Создатели и команда</span>'+staffHtml+'</div>':'');
   extra.hidden=!studios.length&&!staffHtml;
  }
- root.innerHTML=orderHtml+franchiseHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие связанные релизы</h2><p class="shelf-sub">Побочные истории, альтернативные версии и другие связи</p></div></div>'+relationHtml+'</section>'+creatorHtml;
- xshikiPosters(rel.map(x=>x.anime).concat(franchiseRelated.map(x=>x.anime),creatorWorks));
+ var similarHtml=similarAnime.length?'<section class="shelf related-shelf similar-anime-shelf"><div class="shelf-head"><div><h2>Похожие аниме</h2><p class="shelf-sub">Другие произведения с похожей тематикой. Они не являются частью этой франшизы.</p></div></div><div class="row">'+relatedCards(similarAnime)+'</div></section>':'';
+ root.innerHTML=orderHtml+franchiseSections+creatorHtml+similarHtml;
+ xshikiPosters(rel.map(x=>x.anime).concat(franchiseRelated.map(x=>x.anime),creatorWorks,similarAnime));
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
