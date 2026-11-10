@@ -10,7 +10,8 @@ alter table public.profiles
   add constraint profiles_profile_visibility_check
   check (profile_visibility in ('public','friends','private'));
 
-grant select (profile_visibility, show_stats, show_favorites)
+revoke select on public.profiles from authenticated;
+grant select (id, username, avatar_url, created_at)
   on public.profiles to authenticated;
 grant update (profile_visibility, show_stats, show_favorites)
   on public.profiles to authenticated;
