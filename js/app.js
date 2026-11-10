@@ -498,16 +498,30 @@ async function loadTogetherView(){
  try{
   if(!AUTH_USER){var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);saveLocalState(S,M)}}
   if(request!==socialLoadRequest||activePage()!=="together")return;
-  if(!AUTH_USER){if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:null,social:null});return}
+  if(!AUTH_USER){
+   if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+   renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:null,social:null});
+   return;
+  }
+  // Subscribe before reading the snapshot so changes cannot be lost between
+  // the initial query and the Realtime connection.
+  if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+  try{
+   socialChannelCleanup=await subscribeSocialUpdates(AUTH_USER.id,()=>{
+    if(activePage()!=="together"||socialRefreshPending)return;
+    socialRefreshPending=true;
+    setTimeout(()=>{socialRefreshPending=false;if(activePage()==="together")loadTogetherView()},350);
+   });
+  }catch(realtimeError){
+   console.warn("[AniWatch] Social Realtime unavailable; manual refresh remains available:",realtimeError);
+  }
+  if(request!==socialLoadRequest||activePage()!=="together"){
+   if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+   return;
+  }
   var social=await loadSocialHub(AUTH_USER.id);
   if(request!==socialLoadRequest||activePage()!=="together")return;
   renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:AUTH_USER,social});
-  if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
-  socialChannelCleanup=await subscribeSocialUpdates(AUTH_USER.id,()=>{
-   if(activePage()!=="together"||socialRefreshPending)return;
-   socialRefreshPending=true;
-   setTimeout(()=>{socialRefreshPending=false;if(activePage()==="together")loadTogetherView()},350);
-  });
  }catch(error){
   console.error("[AniWatch] Social hub failed:",error);
   if(request===socialLoadRequest&&activePage()==="together")renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:AUTH_USER,social:{friends:[],incomingRequests:[],outgoingRequests:[],incomingInvites:[],outgoingInvites:[]},error:error.message||"Не удалось загрузить друзей."});
