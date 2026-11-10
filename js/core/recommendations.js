@@ -25,7 +25,7 @@ export function normalizeRecommendationGenre(value) {
   return GENRE_ALIASES.get(key) || key;
 }
 
-export function buildTasteProfile(library) {
+export function buildTasteProfile(library, selectedGenres = []) {
   const weights = new Map();
   let usefulSignals = 0;
 
@@ -55,6 +55,12 @@ export function buildTasteProfile(library) {
     const genreShare = strength / Math.max(1, Math.sqrt(genres.length));
     for (const genre of genres) weights.set(genre, (weights.get(genre) || 0) + genreShare);
   }
+
+  for (const value of selectedGenres || []) {
+    const genre = normalizeRecommendationGenre(value);
+    if (genre) weights.set(genre, (weights.get(genre) || 0) + 1.4);
+  }
+  if ((selectedGenres || []).length) usefulSignals++;
 
   const topGenres = [...weights.entries()]
     .filter(([, weight]) => weight > 0.2)
