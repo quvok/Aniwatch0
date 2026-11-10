@@ -1,5 +1,6 @@
 import { query as xgq } from "./api/anilist.js";
 import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
+import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
@@ -162,9 +163,6 @@ window.addEventListener("focus",()=>refreshCloudProgress(true));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
-function homeSmartTagTiles(){
- return PLOT_TAGS.map(tag=>'<a class="smart-tag" href="'+pageUrl("catalog",{tag:tag.id})+'"><b>'+esc(tag.label)+'</b><span>Сюжетная особенность</span><i>↗</i></a>').join("");
-}
 V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
@@ -260,7 +258,7 @@ async function loadHomeRecommendations(){
    }
    // Explore the three strongest preferred genres rather than only the first one.
    try{
-    var genreRows=await fetchAnimeGenres(),wanted=(profile.topGenres||[]).slice(0,3);
+    var genreRows=await fetchShikimoriGenreList(),wanted=(profile.topGenres||[]).slice(0,3);
     var genreIds=wanted.map(preference=>{
      var match=genreRows.find(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>normalizeRecommendationGenre(name)===normalizeRecommendationGenre(preference.name)));
      return match&&String(match.id||"");
@@ -1326,7 +1324,7 @@ V.catalog=()=>{
  xCF.q=F.q||xCF.q||"";xCF.g=F.g||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
  var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;
  var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
- if(!xGenrePromise)xGenrePromise=fetchAnimeGenres().then(list=>{var seenIds=new Set(),seenNames=new Set();xGenreOptions=list.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime").map(g=>({id:String(g.id||"").trim(),ru:String(g.russian||"").trim(),name:String(g.name||"").trim()})).filter(g=>{var id=g.id,keys=[g.ru,g.name].filter(Boolean).map(v=>v.normalize("NFKC").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,""));if(!id||seenIds.has(id)||!keys.length||keys.some(k=>seenNames.has(k)))return false;seenIds.add(id);keys.forEach(k=>seenNames.add(k));return true}).map(g=>[g.id,g.ru||g.name]).sort((a,b)=>a[1].localeCompare(b[1],"ru"));return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
+ if(!xGenrePromise)xGenrePromise=fetchShikimoriGenreList().then(list=>{var seenIds=new Set(),seenNames=new Set();xGenreOptions=list.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime").map(g=>({id:String(g.id||"").trim(),ru:String(g.russian||"").trim(),name:String(g.name||"").trim()})).filter(g=>{var id=g.id,keys=[g.ru,g.name].filter(Boolean).map(v=>v.normalize("NFKC").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,""));if(!id||seenIds.has(id)||!keys.length||keys.some(k=>seenNames.has(k)))return false;seenIds.add(id);keys.forEach(k=>seenNames.add(k));return true}).map(g=>[g.id,g.ru||g.name]).sort((a,b)=>a[1].localeCompare(b[1],"ru"));return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
  var routeKey=xCF.k;
  xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
