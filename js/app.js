@@ -506,8 +506,9 @@ async function loadTogetherView(){
   // Subscribe before reading the snapshot so changes cannot be lost between
   // the initial query and the Realtime connection.
   if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+  var requestCleanup=null;
   try{
-   socialChannelCleanup=await subscribeSocialUpdates(AUTH_USER.id,()=>{
+   requestCleanup=await subscribeSocialUpdates(AUTH_USER.id,()=>{
     if(activePage()!=="together"||socialRefreshPending)return;
     socialRefreshPending=true;
     setTimeout(()=>{socialRefreshPending=false;if(activePage()==="together")loadTogetherView()},350);
@@ -516,9 +517,10 @@ async function loadTogetherView(){
    console.warn("[AniWatch] Social Realtime unavailable; manual refresh remains available:",realtimeError);
   }
   if(request!==socialLoadRequest||activePage()!=="together"){
-   if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}
+   if(requestCleanup)requestCleanup();
    return;
   }
+  socialChannelCleanup=requestCleanup;
   var social=await loadSocialHub(AUTH_USER.id);
   if(request!==socialLoadRequest||activePage()!=="together")return;
   renderTogetherPage({app,state:S,animeList:D,escapeHtml:esc,user:AUTH_USER,social});
