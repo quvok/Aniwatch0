@@ -16,7 +16,8 @@ async function fetchCatalogJSON(url,{signal,ttl=5*60*1000}={}){
   catalogNextAt=Date.now()+650;
   if(response.status===429){
    const raw=response.headers.get("Retry-After"),seconds=Number(raw);
-   const retryMs=raw&&Number.isFinite(seconds)?seconds*1000:raw?Math.max(0,Date.parse(raw)-Date.now()):0;
+   const parsedDate=raw?Date.parse(raw):NaN;
+   const retryMs=raw&&Number.isFinite(seconds)?seconds*1000:Number.isFinite(parsedDate)?Math.max(0,parsedDate-Date.now()):0;
    const cooldown=Math.max(2500,retryMs);
    catalogNextAt=Date.now()+cooldown;
    await waitMs(cooldown);
