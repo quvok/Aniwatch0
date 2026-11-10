@@ -66,7 +66,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
- let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",kodikFrame=null,kodikMedia={time:0,duration:0,playing:false,speed:1};
+ let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",lastKodikCorrectionAt=0,kodikFrame=null,kodikMedia={time:0,duration:0,playing:false,speed:1};
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
@@ -89,13 +89,23 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    case "kodik_player_play":case "kodik_player_video_started":kodikMedia.playing=true;break;
    case "kodik_player_pause":kodikMedia.playing=false;break;
    case "kodik_player_seek":if(value&&Number.isFinite(Number(value.time)))kodikMedia.time=Number(value.time);break;
-   case "kodik_player_time_update":if(Number.isFinite(Number(value)))kodikMedia.time=Number(value);break;
-   case "kodik_player_duration_update":if(Number.isFinite(Number(value)))kodikMedia.duration=Number(value);break;
+   case "kodik_player_time":case "kodik_player_time_update":{
+    const time=typeof value==="number"?value:Number(value?.time);
+    if(Number.isFinite(time))kodikMedia.time=Math.max(0,time);
+    break;
+   }
+   case "kodik_player_duration_update":{
+    const duration=typeof value==="number"?value:Number(value?.duration);
+    if(Number.isFinite(duration))kodikMedia.duration=Math.max(0,duration);
+    break;
+   }
    case "kodik_player_video_ended":kodikMedia.playing=false;try{onEpisodeEnded()}catch(error){console.warn("[AniWatch] Kodik episode-end callback failed:",error)}break;
    case "kodik_player_speed_change":if(value&&Number(value.speed)>0)kodikMedia.speed=Number(value.speed);break;
    case "kodik_player_current_episode":if(value&&Number(value.episode)>0)kodikMedia.episode=Number(value.episode);break;
   }
-  if(!remoteApplying)emit(true);
+  if(remoteApplying)return;
+  if(["kodik_player_play","kodik_player_video_started","kodik_player_pause","kodik_player_seek","kodik_player_speed_change","kodik_player_current_episode","kodik_player_video_ended"].includes(message.key))emit(true);
+  else if(message.key==="kodik_player_time_update"||message.key==="kodik_player_time")emit(false);
  };
  window.addEventListener("message",onKodikMessage);
  const getPlaybackState=()=>{const v=video();if(v)return {time:Number(v.currentTime)||0,duration:Number.isFinite(v.duration)?Math.max(0,v.duration):0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1};return kodikFrame?{time:kodikMedia.time,duration:kodikMedia.duration,playing:kodikMedia.playing,speed:kodikMedia.speed}:null};
@@ -126,7 +136,35 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   if(handled){event.preventDefault();emit(true)}
  };
  root.addEventListener("keydown",handlePlayerKeys);
- const syncPlayback=async state=>{if(!state)return false;if(kodikFrame){remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},1200);const target=Math.max(0,Number(state.time)||0),drift=target-kodikMedia.time,speed=Number(state.speed)>0?Number(state.speed):1;if(Math.abs(drift)>1.25)kodikCommand({method:"seek",seconds:target});if(Math.abs(kodikMedia.speed-speed)>0.02)kodikCommand({method:"speed",speed});if(state.playing&&!kodikMedia.playing)kodikCommand({method:"play"});else if(!state.playing&&kodikMedia.playing)kodikCommand({method:"pause"});return true}const v=video();if(!v)return false;remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},900);const target=Math.max(0,Number(state.time)||0),baseSpeed=Number(state.speed)>0?Number(state.speed):1,drift=target-(Number(v.currentTime)||0),absDrift=Math.abs(drift);try{if(!state.playing){if(absDrift>0.25&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}if(Math.abs(v.playbackRate-baseSpeed)>0.01)v.playbackRate=baseSpeed;if(!v.paused)v.pause()}else{if(absDrift>0.65&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}const correctedSpeed=absDrift>0.12&&absDrift<=0.65?baseSpeed*(drift>0?1.06:0.94):baseSpeed;if(Math.abs(v.playbackRate-correctedSpeed)>0.01)v.playbackRate=correctedSpeed;if(v.paused&&!v.ended)await v.play().catch(()=>{})}}catch(error){console.warn("[AniWatch] Playback sync failed:",error)}return true};
+ const syncPlayback=async state=>{
+  if(!state)return false;
+  if(kodikFrame){
+   remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},1800);
+   const duration=Number(kodikMedia.duration)||Number(state.duration)||0;
+   const rawTarget=Math.max(0,Number(state.time)||0);
+   const target=duration>0?Math.min(rawTarget,Math.max(0,duration-0.5)):rawTarget;
+   const drift=target-(Number(kodikMedia.time)||0),absDrift=Math.abs(drift);
+   const baseSpeed=Math.max(0.25,Math.min(2,Number(state.speed)>0?Number(state.speed):1));
+   const now=Date.now();
+   if(!state.playing){
+    if(absDrift>0.35)kodikCommand({method:"seek",seconds:target});
+    if(Math.abs((Number(kodikMedia.speed)||1)-baseSpeed)>0.02)kodikCommand({method:"speed",speed:baseSpeed});
+    if(kodikMedia.playing)kodikCommand({method:"pause"});
+   }else{
+    if(absDrift>1.15)kodikCommand({method:"seek",seconds:target});
+    else if(absDrift>0.25&&now-lastKodikCorrectionAt>2200){
+     const correction=Math.max(0.25,Math.min(2,baseSpeed*(drift>0?1.05:0.95)));
+     if(Math.abs((Number(kodikMedia.speed)||1)-correction)>0.025){kodikCommand({method:"speed",speed:correction});lastKodikCorrectionAt=now}
+    }else if(absDrift<=0.25&&Math.abs((Number(kodikMedia.speed)||1)-baseSpeed)>0.025&&now-lastKodikCorrectionAt>2200){
+     kodikCommand({method:"speed",speed:baseSpeed});lastKodikCorrectionAt=now;
+    }
+    if(!kodikMedia.playing){
+     kodikCommand({method:"play"});
+     setStatus("Если видео не запустилось, нажми ▶ в плеере — браузер требует действие пользователя");
+    }
+   }
+   return true;
+  }const v=video();if(!v)return false;remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},900);const target=Math.max(0,Number(state.time)||0),baseSpeed=Number(state.speed)>0?Number(state.speed):1,drift=target-(Number(v.currentTime)||0),absDrift=Math.abs(drift);try{if(!state.playing){if(absDrift>0.25&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}if(Math.abs(v.playbackRate-baseSpeed)>0.01)v.playbackRate=baseSpeed;if(!v.paused)v.pause()}else{if(absDrift>0.65&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}const correctedSpeed=absDrift>0.12&&absDrift<=0.65?baseSpeed*(drift>0?1.06:0.94):baseSpeed;if(Math.abs(v.playbackRate-correctedSpeed)>0.01)v.playbackRate=correctedSpeed;if(v.paused&&!v.ended)await v.play().catch(()=>{})}}catch(error){console.warn("[AniWatch] Playback sync failed:",error)}return true};
  const addHlsControls=v=>{const quality=options.querySelector("#liberty-quality"),speed=options.querySelector("#liberty-speed");if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});if(quality)quality.addEventListener("change",()=>{if(hlsInstance)hlsInstance.currentLevel=quality.value==="auto"?-1:Number(quality.value)})};
  const playLiberty=async()=>{
   const eps=Array.isArray(releaseData?.episodes)?releaseData.episodes:[];
