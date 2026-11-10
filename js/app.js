@@ -832,12 +832,50 @@ async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
  var root=$("#related-anime");if(!root)return;
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===13&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
+ if(saved&&saved.v===14&&Date.now()-saved.at<7*864e5){renderRelated(d,saved);return}
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
   var relatedFallbackLimited=false;
   try{
-   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[],similarAnime=[];
+   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[],similarAnime=[],franchiseRelated=[];
+    // Shikimori is the primary source for franchise relations; AniList is fallback only.
+    var shikiId=Number(d.shikiId)||((Number(d.id)>1000000000)?Number(d.id)-1000000000:0);
+    if(!(shikiId>0)&&Number(d.mal)>0){
+     try{var shikiMatches=await fetchAnimeByIds([Number(d.mal)]);shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0}
+     catch(resolveError){relatedFallbackLimited=true;console.warn("[AniWatch] Could not resolve Shikimori ID:",resolveError)}
+    }
+    if(shikiId>0){
+     var rawRelated=[],cooldownKey="aw-related-cooldown-"+shikiId,cooldownUntil=0;
+     try{cooldownUntil=Number(localStorage.getItem(cooldownKey))||0}catch(e){}
+     if(cooldownUntil>Date.now()){
+      relatedFallbackLimited=true;
+      console.info("[AniWatch] Shikimori related lookup paused after rate limit");
+     }else{
+      try{rawRelated=await fetchAnimeRelated(shikiId)}
+      catch(relatedError){
+       relatedFallbackLimited=true;
+       if(/HTTP 429/.test(String(relatedError&&relatedError.message||relatedError))){
+        try{localStorage.setItem(cooldownKey,String(Date.now()+10*60*1000))}catch(e){}
+        console.warn("[AniWatch] Shikimori rate limited related anime; AniList fallback will be used");
+       }else console.warn("[AniWatch] Shikimori primary relations unavailable; AniList fallback will be used:",relatedError);
+      }
+     }
+     var convertShiki=function(a){
+      if(!a||!Number(a.id))return null;
+      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
+      var status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
+      return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
+     };
+     var shikiSeen={};
+     relations=(rawRelated||[]).map(x=>{var anime=convertShiki(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!shikiSeen[x.anime.id]&&(shikiSeen[x.anime.id]=true));
+     var shikiRelatedList=relations.map(x=>x.anime);
+     shikiRelatedList.forEach(x=>{M[x.id]=x});
+     if(shikiRelatedList.length)await xshikiPosters(shikiRelatedList);
+    }else{
+     relatedFallbackLimited=true;
+     console.info("[AniWatch] No Shikimori ID available; AniList relations will be used");
+    }
+    try{
    try{
     var query,vars;
     if(d.source==="shikimori"){
@@ -853,7 +891,7 @@ async function loadRelated(d){
     studioNames=(media.studios&&media.studios.nodes||[]).map(studio=>studio&&studio.name).filter(Boolean);
     var relSeen={},franchiseSeen={},franchiseRelated=[];
     var directEdges=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id));
-    relations=directEdges.map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
+    if(!relations.length)relations=directEdges.map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
      if(!relations.length)throw new Error("AniList не вернул связанных аниме; пробуем Shikimori");
     // One bounded second hop from the already-fetched relation nodes; no per-title API requests.
     directEdges.forEach(edge=>{
@@ -880,48 +918,7 @@ async function loadRelated(d){
      creatorWorks=creatorWorks.slice(0,12);
     }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
    }catch(anilistError){
-    console.warn("[AniWatch] AniList relations unavailable; using Shikimori:",anilistError);
-    // Relations fallback must work for AniList-origin titles too.
-    // MAL IDs and Shikimori IDs are different namespaces: resolve MAL -> Shikimori first.
-    var shikiId=Number(d.shikiId)||((d.source!=="shikimori"&&Number(d.id)>1000000000)?Number(d.id)-1000000000:0);
-    if(!(shikiId>0)&&Number(d.mal)>0){
-     try{
-      var shikiMatches=await fetchAnimeByIds([Number(d.mal)]);
-      shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0;
-     }catch(resolveError){console.warn("[AniWatch] Could not resolve Shikimori ID:",resolveError)}
-    }
-    if(!(shikiId>0)){
-     relatedFallbackLimited=true;
-     console.info("[AniWatch] No Shikimori ID available for related-title fallback");
-    }else{
-     var rawRelated=[];
-     var cooldownKey="aw-related-cooldown-"+shikiId,cooldownUntil=0;
-     try{cooldownUntil=Number(localStorage.getItem(cooldownKey))||0}catch(e){}
-     if(cooldownUntil>Date.now()){
-      relatedFallbackLimited=true;
-      console.info("[AniWatch] Shikimori related lookup paused after rate limit");
-     }else{
-      try{rawRelated=await fetchAnimeRelated(shikiId)}
-      catch(relatedError){
-       relatedFallbackLimited=true;
-       if(/HTTP 429/.test(String(relatedError&&relatedError.message||relatedError))){
-        try{localStorage.setItem(cooldownKey,String(Date.now()+10*60*1000))}catch(e){}
-        console.warn("[AniWatch] Shikimori rate limited related anime; retry will be delayed");
-       }else console.warn("[AniWatch] Shikimori related fallback unavailable:",relatedError);
-      }
-     }
-     var convert=function(a){
-      if(!a||!Number(a.id))return null;
-      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
-      var status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-      return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
-     };
-     var seen={};
-     relations=rawRelated.map(x=>{var anime=convert(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!seen[x.anime.id]&&(seen[x.anime.id]=true));
-     var fallbackList=relations.map(x=>x.anime);
-     fallbackList.forEach(x=>{M[x.id]=x});
-     await xshikiPosters(fallbackList);
-    }
+    console.warn("[AniWatch] AniList fallback/enrichment unavailable; keeping Shikimori relations:",anilistError);
    }
    var similarShikiId=Number(d.shikiId)||((d.source!=="shikimori"&&Number(d.id)>1000000000)?Number(d.id)-1000000000:0);
    if(!(similarShikiId>0)&&Number(d.mal)>0){try{var similarMatches=await fetchAnimeByIds([Number(d.mal)]);similarShikiId=Number(similarMatches&&similarMatches[0]&&similarMatches[0].id)||0}catch(similarResolveError){}}
@@ -930,7 +927,7 @@ async function loadRelated(d){
     similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
    }catch(similarError){console.warn("[AniWatch] Similar anime unavailable:",similarError)}}
    var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks,similarAnime);await translateRelated(all);
-   var data={v:13,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var data={v:14,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    if(!relatedFallbackLimited){cached[d.id]=data;sv()}
    renderRelated(d,data);
   }catch(e){
