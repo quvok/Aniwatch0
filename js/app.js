@@ -898,7 +898,7 @@ async function loadRelated(d){
      var via=mp(edge.node);
      (edge.node.relations&&edge.node.relations.edges||[]).forEach(nested=>{
       var node=nested&&nested.node;
-      if(!node||node.type!=="ANIME"||node.format==="MUSIC"||node.id===(d.aniId||d.id)||relSeen[node.id]||franchiseSeen[node.id])return;
+      if(!node||node.type!=="ANIME"||node.format==="MUSIC"||node.id===(d.aniId||d.id)||relSeen[node.id]||franchiseSeen[node.id]||relations.some(r=>r.anime&&r.anime.mal&&Number(r.anime.mal)===Number(node.idMal)))return;
       franchiseSeen[node.id]=true;
       franchiseRelated.push({anime:mp(node),viaTitle:via.n,viaId:via.id,relation:String(nested.relationType||"OTHER")});
      });
