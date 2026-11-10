@@ -3476,3 +3476,23 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .franchise-category{margin-top:17px}
  .similar-anime-shelf{margin-top:20px}
 }
+
+
+/* Consistent release cards across every anime detail section: films, OVA, spin-offs and similar titles. */
+#related-anime .related-shelf{margin:25px 0 0}
+#related-anime .related-shelf .shelf-head{display:flex;align-items:flex-end;margin-bottom:12px}
+#related-anime .related-shelf .shelf-head h2{margin:0 0 4px;font-size:20px}
+#related-anime .related-shelf .shelf-sub{margin:0 0 12px 14px;font-size:11px;line-height:1.5}
+#related-anime .related-shelf .row{align-items:start}
+#related-anime .related-shelf .row>.card{width:100%;min-width:0}
+#related-anime .related-shelf .row>.card>.poster{width:100%;aspect-ratio:2/3;overflow:hidden}
+#related-anime .related-shelf .row>.card>.poster>.poster-image{display:block;width:100%;height:100%;object-fit:cover}
+#related-anime .poster-status{display:inline-flex;align-items:center;width:max-content;height:auto;min-width:0;max-width:calc(100% - 16px);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#related-anime .related-empty{margin-top:24px}
+@media(max-width:700px){
+ #related-anime .related-shelf{margin-top:20px}
+ #related-anime .related-shelf .shelf-head{margin-bottom:9px}
+ #related-anime .related-shelf .shelf-head h2{font-size:17px}
+ #related-anime .related-shelf .shelf-sub{font-size:9px;margin-bottom:10px}
+ #related-anime .poster-status{left:auto!important;right:6px!important;top:6px!important;bottom:auto!important;width:max-content!important;height:auto!important;max-width:calc(100% - 12px)!important;padding:4px 6px!important;font-size:8px!important;line-height:1.2!important;border-radius:6px!important}
+}
