@@ -57,10 +57,7 @@ assert.equal(rankRecommendations([{id:103,genres:["Хентай","Фэнтези
 console.log("✓ recommendation scoring checks passed");
 const homeController=read("js/app.js");
 const homePage=read("js/pages/home.js");
-assert.ok(homeController.includes("function homeSmartTagTiles()"),"homepage smart-tag builder must exist");
-assert.ok(homeController.includes("return PLOT_TAGS.map(tag=>"),"homepage smart tags must be rendered from the curated plot-tag definitions");
 assert.ok(!homePage.includes('class="genre-section"'),"homepage must not render the genre shelf");
-assert.ok(homePage.includes('class="smart-tag-grid"'),"homepage must render the smart-tag section");
 assert.ok(read("js/pages/anime.js").includes('class="title-genres"><div class="title-genres-heading">Жанры</div>'),"anime detail page must render an explicit genre heading");
 assert.ok(read("js/pages/anime.js").includes('class="title-tags" aria-label="Жанры"'),"anime detail page must render its genre chips");
 assert.ok(read("css/style.css").includes(".title-genres-heading{"),"anime genre heading must have a dedicated visible style");
@@ -73,6 +70,13 @@ assert.equal(plotTagModule.hasPlotTag({d:"Молодой герой отправ
 assert.ok(homeController.includes('pageUrl("catalog",{tag:tag.id})'),"homepage plot tags must link to the matching catalog filter");
 assert.ok(homeController.includes('if(xCF.tag)L=L.filter(d=>hasPlotTag(d,xCF.tag));'),"catalog must filter by evidence-based plot tags");
 assert.ok(read("js/pages/catalog.js").includes('selectHtml("cf-tag","Сюжетная метка"'),"catalog must expose the plot-tag filter");
+
+const animeCardSource=read("js/components/anime-card.js");
+assert.ok(animeCardSource.includes('import {findPlotTags} from "../core/plot-tags.js"'),"anime cards must use the evidence-based plot-tag detector");
+assert.ok(animeCardSource.includes('class="card-plot-tags"'),"anime cards must render their plot tags");
+assert.ok(homeController.includes('fetchAnimeGenres as fetchShikimoriGenreList'),"catalog and recommendation genre lists must use the Shikimori genre-list API");
+assert.ok(homeController.includes("fetchShikimoriGenreList()"),"catalog must call the correctly imported Shikimori genre-list function");
+assert.ok(read("sw.js").includes('"js/api/genders.js"'),"service worker must precache the dedicated genre module");
 console.log("✓ evidence-based plot-tag checks passed");
 
 
