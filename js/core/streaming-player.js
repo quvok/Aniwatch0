@@ -1,4 +1,5 @@
 import {searchKodikAnime,getKodikEpisodeLink} from "../api/kodik.js";
+import {resolveKodikDomain} from "../api/kodik-replacer.js";
 const LIBERTY_BASES=["https://api.anilibria.app/api/v1","https://aniliberty.top/api/v1"];
 let hlsLoader=null,hlsInstance=null;
 const textOf=v=>typeof v==="string"?v:v&&typeof v==="object"?(v.main||v.english||v.russian||""):"";
@@ -66,7 +67,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
- let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",lastKodikCorrectionAt=0,kodikFrame=null,kodikTranslationSync=null,kodikTranslation={id:null,title:""},kodikMedia={time:0,duration:0,playing:false,speed:1};
+ let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",lastKodikCorrectionAt=0,kodikLoadSequence=0,kodikFrame=null,kodikTranslationSync=null,kodikTranslation={id:null,title:""},kodikMedia={time:0,duration:0,playing:false,speed:1};
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
@@ -247,11 +248,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     }
     return [...new Map(all.map(x=>[x.number,x])).values()].sort((a,b)=>a.number-b.number);
    };
-   const playSelected=(restoreState=null,onLoaded=null)=>{
-    const link=getKodikEpisodeLink(selected,episode);
+   const playSelected=async(restoreState=null,onLoaded=null)=>{
+    const current=selected,requestId=++kodikLoadSequence;
+    setStatus("Проверяем актуальный домен Kodik…");
+    const link=await resolveKodikDomain(getKodikEpisodeLink(current,episode));
+    if(requestId!==kodikLoadSequence||!root.querySelector('[data-provider="kodik"]')?.classList.contains("on")){if(typeof onLoaded==="function")onLoaded(false);return;}
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
-    kodikFrame=null;kodikTranslation={id:selected.translation?.id??null,title:String(selected.translation?.title||"")};kodikMedia={time:0,duration:0,playing:false,speed:1};
+    kodikFrame=null;kodikTranslation={id:current.translation?.id??null,title:String(current.translation?.title||"")};kodikMedia={time:0,duration:0,playing:false,speed:1};
     stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay *; fullscreen *; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
     kodikFrame=stage.querySelector("iframe");
     if(kodikFrame)kodikFrame.addEventListener("load",()=>{
@@ -268,7 +272,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
       if(typeof onLoaded==="function")onLoaded(true);
      }
     },{once:true});
-    setStatus("Основной плеер · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
+    setStatus("Основной плеер · "+esc(current.translation?.title||"озвучка")+" · серия "+episode);
    };
    const render=()=>{
     const eps=episodesOf(selected);
@@ -429,7 +433,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   }
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
-  if(button.dataset.provider!=="kodik")kodikFrame=null;
+  if(button.dataset.provider!=="kodik"){kodikLoadSequence++;kodikFrame=null;}
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
   if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));

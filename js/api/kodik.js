@@ -1,3 +1,4 @@
+import {warmKodikDomainRules} from "./kodik-replacer.js";
 const API_BASE="https://kodik-api.com";
 const clean=value=>String(value||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim();
 const FUNCTION_URL="https://oikuyhdgcobuuesbuygl.supabase.co/functions/v1/kodik-search";
@@ -27,6 +28,7 @@ function rank(item,anime){
 }
 const searchCache=new Map();
 export async function searchKodikAnime(anime){
+ warmKodikDomainRules();
  const cacheKey=String(anime?.shikiId||anime?.shiki_id||anime?.id||anime?.n||anime?.o||"unknown");
  if(searchCache.has(cacheKey))return searchCache.get(cacheKey);
  const pending=(async()=>{
