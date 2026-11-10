@@ -66,7 +66,7 @@ function normalizeKodikPosterUrl(raw){
  const value=String(raw||"").trim();if(!value)return "";
  try{
   const url=new URL(value.startsWith("//")?"https:"+value:value);
-  if(!/^https?:$/.test(url.protocol)||/(^|\\.)shikimori\\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))return "";
+  if(!/^https?:$/.test(url.protocol)||/(^|\.)shikimori\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))return "";
   return url.href;
  }catch(error){return ""}
 }
