@@ -152,7 +152,7 @@ V.home=()=>{
 };
 
 
-var recommendationRequest=0;
+var recommendationRequest=0,recommendationLoading=false;
 function recommendationLibrary(){
  var ids=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),S.fav||[]).map(Number));
  return [...ids].map(id=>{
@@ -169,7 +169,8 @@ function recommendationExcludedIds(){
 }
 async function loadHomeRecommendations(){
  var host=$("#recommendation-cards");
- if(!host)return;
+ if(!host||recommendationLoading)return;
+ recommendationLoading=true;
  var request=++recommendationRequest;
  host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
  try{
@@ -180,7 +181,7 @@ async function loadHomeRecommendations(){
   if(profile.hasTaste){
    try{
     var genreRows=await fetchAnimeGenres(),wanted=new Set(profile.topGenres.map(item=>item.name));
-    var genreIds=genreRows.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>wanted.has(normalizeRecommendationGenre(name)))).map(g=>String(g.id||"")).filter(Boolean).slice(0,3);
+    var genreIds=genreRows.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>wanted.has(normalizeRecommendationGenre(name)))).map(g=>String(g.id||"")).filter(Boolean).slice(0,1);
     for(var genreId of genreIds){
      try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"popularity",genre:genreId}))}catch(error){console.warn("[AniWatch] Recommendation genre request failed:",error)}
     }
@@ -210,7 +211,7 @@ async function loadHomeRecommendations(){
  }catch(error){
   console.warn("[AniWatch] Recommendations unavailable:",error);
   if(request===recommendationRequest&&activePage()==="home")host.innerHTML='<p class="m">Не удалось загрузить рекомендации. Попробуй обновить главную позже.</p>';
- }
+ }finally{recommendationLoading=false}
 }
 
 var rc;
