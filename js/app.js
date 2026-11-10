@@ -185,7 +185,8 @@ function recommendationLibrary(){
  return [...ids].map(id=>{
   var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
   if(!anime)return null;
-  return {id:id,mal:Number(anime.mal)||0,genres:anime.g||[],rating:S.rate&&S.rate[id],favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
+  var stars=Number(S.rate&&S.rate[id])||0;
+  return {id:id,shikiId:Number(anime.shikiId)||(anime.source==="shikimori"&&id>=1000000000?id-1000000000:0),mal:Number(anime.mal)||0,title:un(anime.n||anime.russian||anime.name||"аниме"),genres:anime.g||[],rating:stars>0?stars*2:null,ratingStars:stars,favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
  }).filter(Boolean);
 }
 function recommendationExcludedIds(){
@@ -194,6 +195,35 @@ function recommendationExcludedIds(){
  ["recent","ongoing","popular","recommended"].forEach(key=>(homeCollections&&homeCollections[key]||[]).forEach(item=>{if(Number(item.id)>0)excluded.add(Number(item.id));if(Number(item.mal)>0)excluded.add("mal:"+Number(item.mal));if(Number(item.shikiId)>0)excluded.add(1000000000+Number(item.shikiId))}));
  return excluded;
 }
+function recommendationSeeds(library){
+ return library.filter(item=>item.shikiId>0&&(item.ratingStars>=4||item.favorite||item.watchedCount>0||item.status==="completed"||item.status==="watching"))
+  .map(item=>({item:item,priority:(item.ratingStars>=4?item.ratingStars*2:0)+(item.favorite?3:0)+(item.status==="completed"?1.5:0)+(item.status==="watching"?1:0)+Math.min(2,item.watchedCount*0.15)}))
+  .sort((a,b)=>b.priority-a.priority).slice(0,3).map(entry=>entry.item);
+}
+function renderRecommendationStarter(host,selected){
+ if(!host)return;
+ var choices=Array.isArray(selected)?selected:[];
+ host.innerHTML='<div class="recommendation-starter"><p>Пока мало данных о твоём вкусе. Выбери до трёх любимых жанров — по ним начнём подборку.</p><div class="recommendation-starter-genres">'+GN.map(genre=>'<button type="button" class="btn ghost'+(choices.includes(genre)?' active':'')+'" data-a="recommendation-genre" data-v="'+esc(genre)+'" aria-pressed="'+choices.includes(genre)+'">'+esc(genre)+'</button>').join("")+'</div><button type="button" class="btn" data-a="recommendation-start" '+(choices.length?'':'disabled')+'>Подобрать аниме</button></div>';
+}
+function recommendationCacheKey(profile,seeds){
+ return (profile.topGenres||[]).slice(0,3).map(item=>item.name).join(",")+"|"+seeds.map(item=>item.shikiId).join(",");
+}
+function readRecommendationPool(key){
+ try{
+  var cached=JSON.parse(localStorage.getItem("aw.recommendation.pool.v1")||"null");
+  if(cached&&cached.key===key&&Date.now()-Number(cached.at)<6*60*60*1000&&Array.isArray(cached.items))return cached.items;
+ }catch(error){}
+ return null;
+}
+function writeRecommendationPool(key,items){
+ try{
+  var compact=items.slice(0,180).map(entry=>{
+   var a=entry.anime||{};
+   return {sourceType:entry.sourceType||"catalog",sourceTitle:entry.sourceTitle||"",anime:{id:Number(a.id),name:a.name||"",russian:a.russian||"",myanimelist_id:Number(a.myanimelist_id)||null,score:Number(a.score)||0,status:a.status||"",genres:Array.isArray(a.genres)?a.genres.map(g=>({name:g.name||"",russian:g.russian||""})):[],aired_on:a.aired_on||null,episodes:Number(a.episodes)||0,description:String(a.description||"").slice(0,500),kind:a.kind||""}};
+  }).filter(entry=>entry.anime.id>0);
+  localStorage.setItem("aw.recommendation.pool.v1",JSON.stringify({key:key,at:Date.now(),items:compact}));
+ }catch(error){console.warn("[AniWatch] Recommendation pool cache unavailable:",error)}
+}
 async function loadHomeRecommendations(){
  var host=$("#recommendation-cards");
  if(!host||recommendationLoading)return;
@@ -201,36 +231,59 @@ async function loadHomeRecommendations(){
  var request=++recommendationRequest;
  host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
  try{
-  var profile=buildTasteProfile(recommendationLibrary()),raw=[];
+  var library=recommendationLibrary(),profile=buildTasteProfile(library,S.recommendationGenres||[]),raw=[],seeds=recommendationSeeds(library);
   var shelf=host.closest(".shelf");
   if(shelf)shelf.hidden=false;
-  if(profile.usefulSignals<1||profile.topGenres.length<1){if(shelf)shelf.hidden=true;return;}
-  if(profile.hasTaste){
+  if(profile.usefulSignals<1||profile.topGenres.length<1){renderRecommendationStarter(host,S.recommendationGenres||[]);if(shelf)shelf.hidden=false;return}
+  var cacheKey=recommendationCacheKey(profile,seeds),cached=readRecommendationPool(cacheKey);
+  if(cached)raw=cached;
+  else{
+   var seen=new Map();
+   function addCandidate(value,sourceType,sourceTitle){
+    var anime=value&&value.anime?value.anime:value;
+    var id=Number(anime&&anime.id);if(!Number.isInteger(id)||id<=0)return;
+    var previous=seen.get(id);
+    if(previous){if(previous.sourceType!=="similar"&&sourceType==="similar")seen.set(id,{anime:anime,sourceType:sourceType,sourceTitle:sourceTitle||""});return}
+    var entry={anime:anime,sourceType:sourceType||"catalog",sourceTitle:sourceTitle||""};seen.set(id,entry);raw.push(entry);
+   }
+   // Similarity calls are bounded to the three strongest positive library signals.
+   for(var seed of seeds){
+    try{
+     var similar=await fetchAnimeSimilar(seed.shikiId);
+     (similar||[]).forEach(item=>addCandidate(item,"similar",seed.title));
+    }catch(error){console.warn("[AniWatch] Similar-title recommendation request failed:",error)}
+   }
+   // Explore the three strongest preferred genres rather than only the first one.
    try{
-    var genreRows=await fetchAnimeGenres(),wanted=new Set(profile.topGenres.map(item=>item.name));
-    var genreIds=genreRows.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>wanted.has(normalizeRecommendationGenre(name)))).map(g=>String(g.id||"")).filter(Boolean).slice(0,1);
+    var genreRows=await fetchAnimeGenres(),wanted=(profile.topGenres||[]).slice(0,3);
+    var genreIds=wanted.map(preference=>{
+     var match=genreRows.find(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&[g.russian,g.name].some(name=>normalizeRecommendationGenre(name)===normalizeRecommendationGenre(preference.name)));
+     return match&&String(match.id||"");
+    }).filter(Boolean);
     for(var genreId of genreIds){
-     try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"popularity",genre:genreId}))}catch(error){console.warn("[AniWatch] Recommendation genre request failed:",error)}
+     try{var genreItems=await fetchCatalogPage({page:1,limit:35,order:"popularity",genre:genreId});(genreItems||[]).forEach(item=>addCandidate(item,"genre",""))}
+     catch(error){console.warn("[AniWatch] Recommendation genre request failed:",error)}
     }
    }catch(error){console.warn("[AniWatch] Recommendation genres unavailable:",error)}
-  }
-  var usedRankedFallback=false;
-  if(raw.length<15){
-   try{raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}));usedRankedFallback=true}catch(error){if(!raw.length)throw error}
+   if(raw.length<30){
+    try{var popularItems=await fetchCatalogPage({page:1,limit:50,order:"popularity"});(popularItems||[]).forEach(item=>addCandidate(item,"catalog",""))}
+    catch(error){console.warn("[AniWatch] Recommendation popularity fallback failed:",error)}
+   }
+   if(raw.length<18){
+    try{var rankedItems=await fetchCatalogPage({page:1,limit:50,order:"ranked"});(rankedItems||[]).forEach(item=>addCandidate(item,"catalog",""))}
+    catch(error){console.warn("[AniWatch] Recommendation ranking fallback failed:",error)}
+   }
+   if(raw.length)writeRecommendationPool(cacheKey,raw);
   }
   if(request!==recommendationRequest||activePage()!=="home")return;
-  var candidates=raw.map(shikiToItem),excluded=recommendationExcludedIds(),ranked=rankRecommendations(candidates,profile,excluded,12).filter(item=>item.reason.startsWith("Похоже на твой вкус:"));
-  if(ranked.length<8&&!usedRankedFallback){
-   try{
-    raw.push(...await fetchCatalogPage({page:1,limit:50,order:"ranked"}));
-    candidates=raw.map(shikiToItem);
-    ranked=rankRecommendations(candidates,profile,excluded,12).filter(item=>item.reason.startsWith("Похоже на твой вкус:"));
-   }catch(error){console.warn("[AniWatch] Recommendation fallback failed:",error)}
-  }
-  if(!ranked.length){
-   if(shelf)shelf.hidden=true;
-   return;
-  }
+  var candidates=raw.map(entry=>{
+   var anime=shikiToItem(entry.anime||entry);
+   anime.recommendationSourceType=entry.sourceType||"catalog";
+   anime.recommendationSourceTitle=entry.sourceTitle||"";
+   return anime;
+  }),excluded=recommendationExcludedIds();
+  var ranked=rankRecommendations(candidates,profile,excluded,12);
+  if(!ranked.length){if(shelf)shelf.hidden=true;return}
   ranked.forEach(item=>{M[item.anime.id]=item.anime;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[item.anime.id]=item.anime});
   host.innerHTML=ranked.map(item=>'<div class="recommendation-item">'+card(item.anime)+'<p class="recommendation-reason">'+esc(item.reason)+'</p><button class="recommendation-dismiss" type="button" data-a="recommendation-dismiss" data-i="'+item.anime.id+'">Не интересно</button></div>').join("");
   xshikiPosters(ranked.map(item=>item.anime)).catch(error=>console.warn("[AniWatch] Recommendation poster lookup failed:",error));
@@ -240,7 +293,6 @@ async function loadHomeRecommendations(){
   if(request===recommendationRequest&&activePage()==="home")host.innerHTML='<p class="m">Не удалось загрузить рекомендации. Попробуй обновить главную позже.</p>';
  }finally{recommendationLoading=false}
 }
-
 var rc;
 
 function startInlineWatch(anime,episode){
@@ -1410,6 +1462,8 @@ var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw 
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
  if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
  else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove()}
+ else if(a==="recommendation-genre"){e.preventDefault();e.stopPropagation();S.recommendationGenres=Array.isArray(S.recommendationGenres)?S.recommendationGenres.slice():[];var genreName=String(v||"");var genreIndex=S.recommendationGenres.indexOf(genreName);if(genreIndex>=0)S.recommendationGenres.splice(genreIndex,1);else if(S.recommendationGenres.length<3)S.recommendationGenres.push(genreName);else{toast("Можно выбрать не больше трёх жанров");return}sv();renderRecommendationStarter($("#recommendation-cards"),S.recommendationGenres)}
+ else if(a==="recommendation-start"){e.preventDefault();e.stopPropagation();if(!(S.recommendationGenres||[]).length){toast("Выбери хотя бы один жанр");return}loadHomeRecommendations()}
  else if(a==="recommendation-dismiss"){e.preventDefault();e.stopPropagation();S.recommendationDismissed=S.recommendationDismissed||{};S.recommendationDismissed[i]="not_interested";sv();if(AUTH_USER)saveRecommendationFeedback(AUTH_USER.id,i).catch(error=>console.warn("[AniWatch] Recommendation feedback sync failed:",error));var item=t.closest(".recommendation-item");if(item)item.remove();if(!$("#recommendation-cards")?.children.length)$("#recommendation-cards").innerHTML='<p class="m">На сегодня подборка закончилась. Новые варианты появятся после обновления каталога.</p>';toast("Убрали тайтл из рекомендаций")}
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-range"){e.preventDefault();e.stopPropagation();applyEpisodeRange(Number(t.dataset.from),Number(t.dataset.to))}

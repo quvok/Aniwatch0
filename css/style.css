@@ -3541,3 +3541,10 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  #site-header .nav-mark-friends svg,
  #mobile-bottom-nav .nav-mark-friends svg{width:18px;height:18px}
 }
+
+.recommendation-starter{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:14px 0;color:var(--mt);font-size:13px;line-height:1.5}
+.recommendation-starter p{margin:0;max-width:620px}
+.recommendation-starter-genres{display:flex;flex-wrap:wrap;gap:7px}
+.recommendation-starter-genres .btn{min-height:34px;padding:6px 11px;font-size:12px}
+.recommendation-starter-genres .btn.active{border-color:rgba(167,139,250,.7);background:rgba(167,139,250,.16);color:var(--tx)}
+.recommendation-starter>.btn:disabled{opacity:.45;cursor:not-allowed}
