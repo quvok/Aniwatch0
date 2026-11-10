@@ -594,6 +594,8 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(167,139,250,.1
 .title-info h1{font-size:clamp(30px,4.4vw,54px);line-height:1.04;letter-spacing:-.045em;text-wrap:balance;overflow-wrap:anywhere}
 .title-original{margin:-8px 0 0;color:#a7a9bb;font-size:13px}
 .title-tags{display:flex;flex-wrap:wrap;gap:7px}
+.title-tags:before{content:"ЖАНРЫ";flex:0 0 100%;font-size:9px;font-weight:850;letter-spacing:.16em;color:#9699ad;margin-bottom:1px}
+.title-tags .genre-empty{background:transparent;border-style:dashed;color:#9295a9}
 .title-tags span{padding:6px 11px;border-radius:999px;border:1px solid rgba(196,181,253,.2);background:rgba(139,92,246,.13);color:#e3d9ff;font-size:10px;font-weight:700}
 .title-metrics{display:flex;flex-wrap:wrap;gap:0;border-block:1px solid rgba(255,255,255,.11);width:100%;padding:13px 0}
 .title-metrics div{display:grid;gap:4px;padding:0 22px;border-left:1px solid rgba(255,255,255,.1)}
