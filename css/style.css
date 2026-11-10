@@ -3568,9 +3568,3 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 @media(max-width:640px){.smart-tags-section{margin-top:26px}.smart-tag-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.smart-tag{min-height:70px;padding:11px 28px 11px 11px}.smart-tag b{font-size:12px}.smart-tag span{font-size:10px}.genre-section{margin-top:26px}.genre-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.genre-tile{min-height:76px;padding:12px}.genre-tile span{font-size:14px}}
 
 .catalog-tag-note{margin:10px 2px 0;color:var(--mt);font-size:11px;line-height:1.5}
-
-
-/* Evidence-backed plot labels displayed directly on anime poster cards. */
-.card-plot-tags{position:absolute;z-index:3;left:8px;top:39px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:calc(100% - 16px);pointer-events:none}
-.card-plot-tag{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 7px;border:1px solid rgba(196,181,253,.28);border-radius:6px;background:rgba(20,16,34,.86);color:#e5d9ff;font-size:9px;font-weight:800;line-height:1.15;box-shadow:0 2px 8px rgba(0,0,0,.22);backdrop-filter:blur(7px)}
-@media(max-width:640px){.card-plot-tags{left:5px;top:32px;gap:4px;max-width:calc(100% - 10px)}.card-plot-tag{padding:4px 5px;font-size:7px;border-radius:5px}}
