@@ -8,6 +8,7 @@ const NAV=[
  ["calendar","Календарь","▣"],
  ["mylist","Мои списки","♡"],
  ["collections","Коллекции","▤"],
+ ["together","Друзья","♧"],
 ];
 
 function navLinks(){
