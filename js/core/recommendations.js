@@ -7,26 +7,17 @@ const normalize = value => String(value || "")
 
 const GENRE_ALIASES = new Map([
   ["action", "экшен"], ["боевик", "экшен"], ["боевые искусства", "экшен"],
-  ["adventure", "приключения"],
-  ["comedy", "комедия"],
-  ["drama", "драма"],
+  ["adventure", "приключения"], ["comedy", "комедия"], ["drama", "драма"],
   ["fantasy", "фэнтези"], ["магия", "фэнтези"],
   ["romance", "романтика"], ["любовь", "романтика"],
   ["sci fi", "фантастика"], ["science fiction", "фантастика"], ["научная фантастика", "фантастика"], ["sci-fi", "фантастика"],
-  ["mystery", "детектив"], ["мистика", "детектив"],
-  ["thriller", "триллер"],
+  ["mystery", "детектив"], ["мистика", "детектив"], ["thriller", "триллер"],
   ["psychological", "психология"], ["психологическое", "психология"],
-  ["supernatural", "сверхъестественное"],
-  ["slice of life", "повседневность"], ["повседневная жизнь", "повседневность"],
-  ["horror", "ужасы"],
-  ["sports", "спорт"],
-  ["music", "музыка"],
-  ["historical", "история"], ["исторический", "история"],
-  ["military", "военное"], ["военный", "военное"],
-  ["space", "космос"],
-  ["demons", "демоны"], ["vampire", "вампиры"],
-  ["game", "игры"], ["school", "школа"],
-  ["isekai", "исэкай"], ["иcэкай", "исэкай"]
+  ["supernatural", "сверхъестественное"], ["slice of life", "повседневность"], ["повседневная жизнь", "повседневность"],
+  ["horror", "ужасы"], ["sports", "спорт"], ["music", "музыка"],
+  ["historical", "история"], ["исторический", "история"], ["military", "военное"], ["военный", "военное"],
+  ["space", "космос"], ["demons", "демоны"], ["vampire", "вампиры"],
+  ["game", "игры"], ["school", "школа"], ["isekai", "исэкай"], ["иcэкай", "исэкай"]
 ]);
 
 export function normalizeRecommendationGenre(value) {
@@ -43,7 +34,8 @@ export function buildTasteProfile(library) {
       .map(normalizeRecommendationGenre).filter(Boolean))];
     if (!genres.length) continue;
 
-    const rating = Math.max(0, Math.min(10, Number(anime.rating) || 0));
+    const rawRating = Number(anime.rating);
+    const rating = Number.isFinite(rawRating) ? Math.max(0, Math.min(10, rawRating)) : 0;
     let strength = 0;
 
     if (rating >= 9) strength += 2.5 + (rating - 9) * 1.5;
@@ -59,7 +51,9 @@ export function buildTasteProfile(library) {
 
     if (strength === 0) continue;
     usefulSignals++;
-    for (const genre of genres) weights.set(genre, (weights.get(genre) || 0) + strength);
+    // A title with many genres must not outweigh a focused title simply by having more tags.
+    const genreShare = strength / Math.max(1, Math.sqrt(genres.length));
+    for (const genre of genres) weights.set(genre, (weights.get(genre) || 0) + genreShare);
   }
 
   const topGenres = [...weights.entries()]
@@ -86,6 +80,10 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
   const ranked = [];
   const seenIds = new Set();
   const seenMal = new Set();
+  const positive = profile?.topGenres || [];
+  const avoided = profile?.avoidedGenres || [];
+  const positiveTotal = positive.reduce((sum, item) => sum + Math.max(0, Number(item.weight) || 0), 0) || 1;
+  const avoidedTotal = avoided.reduce((sum, item) => sum + Math.abs(Number(item.weight) || 0), 0) || 1;
 
   for (const anime of candidates || []) {
     const id = Number(anime && anime.id);
@@ -100,27 +98,32 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
     seenIds.add(id);
     if (mal > 0) seenMal.add(mal);
 
-    const matches = (profile?.topGenres || [])
-      .filter(item => genres.includes(normalizeRecommendationGenre(item.name)))
+    const matches = positive.filter(item => genres.includes(normalizeRecommendationGenre(item.name)))
       .sort((a, b) => b.weight - a.weight);
-    const avoidedMatches = (profile?.avoidedGenres || [])
-      .filter(item => genres.includes(normalizeRecommendationGenre(item.name)));
+    const avoidedMatches = avoided.filter(item => genres.includes(normalizeRecommendationGenre(item.name)));
+    if (!matches.length || (avoidedMatches.length && avoidedMatches.length >= matches.length + 2)) continue;
 
-    const genreScore = matches.reduce((sum, item) => sum + Math.min(5, item.weight) * 22, 0);
-    const avoidedPenalty = avoidedMatches.reduce((sum, item) => sum + Math.min(4, Math.abs(item.weight)) * 24, 0);
-    const catalogScore = Math.max(0, Math.min(10, Number(anime.score ?? anime.r) || 0)) * 1.2;
+    const matchedWeight = matches.reduce((sum, item) => sum + Math.max(0, Number(item.weight) || 0), 0);
+    const avoidedWeight = avoidedMatches.reduce((sum, item) => sum + Math.abs(Number(item.weight) || 0), 0);
+    const genreCoverage = matchedWeight / positiveTotal;
+    const genreScore = Math.min(52, genreCoverage * 52 + Math.min(10, matchedWeight * 1.5));
+    const avoidedPenalty = Math.min(42, (avoidedWeight / avoidedTotal) * 42 + avoidedMatches.length * 2);
+
+    const catalogRating = Math.max(0, Math.min(10, Number(anime.score ?? anime.r) || 0));
+    const catalogScore = catalogRating * 3.1;
+    const qualityAdjustment = catalogRating > 0 && catalogRating < 6.5 ? -10 :
+      catalogRating >= 8 ? 4 : catalogRating >= 7 ? 2 : 0;
     const year = Number(anime.aired_on || anime.y) || 0;
     const recencyScore = year >= new Date().getFullYear() - 1 ? 2 : 0;
-    const score = genreScore - avoidedPenalty + catalogScore + recencyScore;
+    const similarityBonus = anime.recommendationSourceType === "similar" ? 18 : 0;
+    const score = genreScore - avoidedPenalty + catalogScore + qualityAdjustment + recencyScore + similarityBonus;
 
-    if (!matches.length || (avoidedMatches.length && avoidedPenalty >= genreScore)) continue;
+    const reason = anime.recommendationSourceType === "similar" && anime.recommendationSourceTitle
+      ? "Потому что тебе понравилось «" + anime.recommendationSourceTitle + "»: похожее аниме"
+      : "Подходит по жанрам: " + matches.slice(0, 3).map(item => item.name).join(", ") +
+        (avoidedMatches.length ? " · учтены низкие оценки жанров" : "");
 
-    ranked.push({
-      anime,
-      score,
-      reason: "Похоже на твой вкус: " + matches.slice(0, 3).map(item => item.name).join(", ") +
-        (avoidedMatches.length ? " · учтены низкие оценки жанров" : "")
-    });
+    ranked.push({ anime, score, reason });
   }
 
   return ranked.sort((a, b) => b.score - a.score).slice(0, limit);
