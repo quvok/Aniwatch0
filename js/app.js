@@ -922,8 +922,14 @@ function renderRelated(d,data){
  rel.forEach(x=>{M[x.anime.id]=x.anime});creatorWorks.forEach(x=>{M[x.id]=x});
  var groups={};
  rel.forEach(x=>(groups[x.type]=groups[x.type]||[]).push(x.anime));
- var relationHtml=Object.keys(groups).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные релизы")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
- if(!relationHtml)relationHtml='<p class="related-state">Для этого аниме пока нет связанных тайтлов.</p>';
+ // Build only the directly evidenced story chain. Do not infer canon or missing franchise entries.
+ var orderTypes=["PREQUEL","PARENT_STORY","SEQUEL"];
+ var orderItems=[];
+ orderTypes.forEach(type=>(groups[type]||[]).slice().sort((a,b)=>(Number(a.y)||9999)-(Number(b.y)||9999)).forEach(anime=>orderItems.push({type:type,anime:anime})));
+ var orderHtml=orderItems.length?'<section class="franchise-order"><div class="franchise-order-head"><div><h2>Порядок просмотра</h2><p>Показаны только прямые связи, найденные в источнике. Это не полный хронологический или канонический список франшизы.</p></div><span>По связям тайтлов</span></div><ol class="franchise-order-list">'+orderItems.filter(x=>x.type==="PREQUEL").map(x=>'<li><span class="franchise-order-type">Приквел</span>'+card(x.anime)+'</li>').join("")+'<li class="is-current"><span class="franchise-order-type">Выбранное аниме</span>'+card(d)+'</li>'+orderItems.filter(x=>x.type!=="PREQUEL").map(x=>'<li><span class="franchise-order-type">'+esc(relationNames[x.type]||"Продолжение")+'</span>'+card(x.anime)+'</li>').join("")+'</ol></section>':'';
+ var excludedOrder=new Set(orderTypes);
+ var relationHtml=Object.keys(groups).filter(type=>!excludedOrder.has(type)).map(type=>'<div class="relation-group"><div class="relation-group-head"><h3>'+esc(relationNames[type]||"Связанный тайтл")+'</h3><span>'+groups[type].length+' '+(groups[type].length===1?'тайтл':'тайтла')+'</span></div><div class="row relation-track" aria-label="'+esc(relationNames[type]||"Связанные релизы")+'">'+relatedCards(groups[type].slice(0,8))+'</div></div>').join("");
+ if(!relationHtml)relationHtml='<p class="related-state">Дополнительных связанных тайтлов нет.</p>';
  var creatorHtml=creatorWorks.length?'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие работы автора</h2><p class="shelf-sub">'+(data.creatorName?'Ещё аниме '+esc(data.creatorName):'Другие аниме того же автора')+'. Не связаны сюжетом — их объединяет автор.</p></div></div><div class="row">'+relatedCards(creatorWorks)+'</div></section>':"";
  const extra=$("#anime-extra-meta");
  if(extra){
@@ -932,7 +938,7 @@ function renderRelated(d,data){
   extra.innerHTML=(studios.length?'<div class="anime-meta-line"><span>Студия</span><b>'+studios.map(esc).join(", ")+'</b></div>':'')+(staffHtml?'<div class="anime-meta-staff"><span class="anime-meta-label">Создатели и команда</span>'+staffHtml+'</div>':'');
   extra.hidden=!studios.length&&!staffHtml;
  }
- root.innerHTML='<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Связанные релизы</h2><p class="shelf-sub">Продолжения, приквелы и дополнительные истории</p></div></div>'+relationHtml+'</section>'+creatorHtml;
+ root.innerHTML=orderHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие связанные релизы</h2><p class="shelf-sub">Побочные истории, альтернативные версии и другие связи</p></div></div>'+relationHtml+'</section>'+creatorHtml;
  xshikiPosters(rel.map(x=>x.anime).concat(creatorWorks));
 }
 function refreshEpCount(d){
