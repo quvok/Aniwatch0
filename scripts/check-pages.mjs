@@ -56,6 +56,7 @@ assert.equal(rankRecommendations([{id:102,mal:9002,genres:["Фэнтези"],sco
 assert.equal(rankRecommendations([{id:103,genres:["Хентай","Фэнтези"],score:9}],fourStar,new Set(),5).length,0,"adult genre candidates must remain excluded");
 console.log("✓ recommendation scoring checks passed");
 const homeController=read("js/app.js");
+assert.ok(!homeController.includes("homeSmartTagTiles"),"homepage must not call the removed standalone smart-tag shelf");
 const homePage=read("js/pages/home.js");
 assert.ok(!homePage.includes('class="genre-section"'),"homepage must not render the genre shelf");
 assert.ok(read("js/pages/anime.js").includes('class="title-genres"><div class="title-genres-heading">Жанры</div>'),"anime detail page must render an explicit genre heading");
