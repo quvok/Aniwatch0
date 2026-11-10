@@ -47,7 +47,7 @@ function normalizeParams(input: unknown) {
   params.set("types", "anime-serial,anime");
   const requestedLimit = Number(raw.limit);
   params.set("limit", String(Number.isInteger(requestedLimit) ? Math.max(1, Math.min(50, requestedLimit)) : 50));
-  params.set("with_material_data", "true");
+  if (raw.with_material_data !== false) params.set("with_material_data", "true");
   if (raw.with_episodes_data !== false) params.set("with_episodes_data", "true");
 
   if (raw.shikimori_id !== undefined && raw.shikimori_id !== null && raw.shikimori_id !== "") {
