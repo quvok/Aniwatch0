@@ -63,19 +63,11 @@ assert.ok(read("js/pages/anime.js").includes('class="title-genres"><div class="t
 assert.ok(read("js/pages/anime.js").includes('class="title-tags" aria-label="Жанры"'),"anime detail page must render its genre chips");
 assert.ok(read("css/style.css").includes(".title-genres-heading{"),"anime genre heading must have a dedicated visible style");
 console.log("✓ genre placement and homepage smart-tag checks passed");
-const plotTagSource=read("js/core/plot-tags.js");
-const plotTagModule=await import("data:text/javascript;base64,"+Buffer.from(plotTagSource).toString("base64"));
-const reincarnation=plotTagModule.findPlotTags({d:"После смерти герой перерождается в другом мире и начинает новую жизнь."});
-assert.ok(reincarnation.some(tag=>tag.id==="reincarnation"&&tag.confidence==="high"&&tag.source==="Shikimori synopsis"),"explicit synopsis evidence must produce a high-confidence plot tag with provenance");
-assert.equal(plotTagModule.hasPlotTag({d:"Молодой герой отправляется в путешествие."},"hidden-power"),false,"unsupported plot traits must not be inferred");
-
 const animeCardSource=read("js/components/anime-card.js");
-assert.ok(animeCardSource.includes('import {findPlotTags} from "../core/plot-tags.js"'),"anime cards must use the evidence-based plot-tag detector");
-assert.ok(animeCardSource.includes('class="card-plot-tags"'),"anime cards must render their plot tags");
-assert.ok(homeController.includes('fetchAnimeGenres as fetchShikimoriGenreList'),"catalog and recommendation genre lists must use the Shikimori genre-list API");
-assert.ok(homeController.includes("fetchShikimoriGenreList()"),"catalog must call the correctly imported Shikimori genre-list function");
-assert.ok(read("sw.js").includes('"js/api/genders.js"'),"service worker must precache the dedicated genre module");
-console.log("✓ evidence-based plot-tag checks passed");
+assert.ok(!animeCardSource.includes("plot-tags.js"),"anime cards must not import the removed plot-tag detector");
+assert.ok(!animeCardSource.includes("card-plot-tag"),"anime cards must not render plot labels");
+assert.ok(!read("css/style.css").includes(".card-plot-tags"),"plot-label styles must be removed");
+console.log("✓ removed plot-tag UI checks passed");
 
 
 
