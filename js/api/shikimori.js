@@ -115,7 +115,8 @@ export async function fetchAnimeRelated(id,{signal}={}){
 }
 export async function fetchAnimeSimilar(id,{signal}={}){
  const numeric=Number(id);if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный идентификатор аниме");
- const response=await fetch(API_ROOT+"/animes/"+numeric+"/similar",{signal,headers:{Accept:"application/json"}});
- if(!response.ok)throw new Error("Ошибка загрузки похожих тайтлов (HTTP "+response.status);
- const result=await response.json();if(!Array.isArray(result))throw new Error("Некорректный ответ similar");return result;
+ const url=API_ROOT+"/animes/"+numeric+"/similar";
+ const result=await fetchCatalogJSON(url,{signal,ttl:5*60*1000});
+ if(!Array.isArray(result))throw new Error("Некорректный ответ similar");
+ return result;
 }
