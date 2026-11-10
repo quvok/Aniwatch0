@@ -227,7 +227,7 @@ export async function restoreCloudState(localState, userId) {
   const pending = merged.episodeProgressPending && typeof merged.episodeProgressPending === "object"
     ? merged.episodeProgressPending : {};
   const pendingRows = Object.entries(pending).map(([key, isWatched]) => {
-    const match = /^(\\d+):(\\d+)$/.exec(key);
+    const match = /^(\d+):(\d+)$/.exec(key);
     if (!match) return null;
     const animeId = Number(match[1]), episode = Number(match[2]);
     if (!Number.isSafeInteger(animeId) || animeId <= 0 || !Number.isInteger(episode) || episode <= 0) return null;
