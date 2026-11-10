@@ -17,7 +17,7 @@ async function request(params){
   throw error;
  }finally{clearTimeout(timer)}
 }
-const titlesOf=item=>[item?.title,item?.title_orig,item?.other_title].flatMap(x=>String(x||"").split(/[\/|;]/)).map(clean).filter(Boolean);
+const titlesOf=item=>{const m=item?.material_data||{};return [item?.title,item?.title_orig,item?.other_title,m.title,m.anime_title,m.title_en,...(m.other_titles||[]),...(m.other_titles_en||[]),...(m.other_titles_jp||[])].flatMap(x=>String(x||"").split(/[\\/|;]/)).map(clean).filter(Boolean)};
 function rank(item,anime){
  const wanted=[anime?.n,anime?.o,anime?.title,anime?.originalTitle].map(clean).filter(Boolean);
  const candidates=titlesOf(item);
@@ -27,38 +27,57 @@ function rank(item,anime){
  return 99;
 }
 const searchCache=new Map();
-export async function searchKodikAnime(anime){
+export async function searchKodikAnime(anime,{includeEpisodes=true}={}){
  warmKodikDomainRules();
- const cacheKey=String(anime?.shikiId||anime?.shiki_id||anime?.id||anime?.n||anime?.o||"unknown");
+ const cacheKey=String(anime?.shikiId||anime?.shiki_id||anime?.id||anime?.n||anime?.o||"unknown")+(includeEpisodes?":episodes":":material");
  if(searchCache.has(cacheKey))return searchCache.get(cacheKey);
  const pending=(async()=>{
- const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
- const common={types:"anime-serial,anime",limit:50,with_episodes_data:true};
- let results=[];
- if(shikiId>0)results=await request({...common,shikimori_id:shikiId});
- if(!results.length){
-  const title=String(anime?.n||anime?.o||anime?.title||"").trim();
-  if(title.length<2)throw new Error("Не удалось определить название аниме");
-  results=await request({...common,title});
- }
- const exact=results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.score<99);
- const idMatches=shikiId>0?results.filter(item=>Number(item?.shikimori_id)===shikiId):[];
- const selected=exact.length?exact:idMatches.map(item=>({item,score:0}));
- const list=selected.map(x=>x.item).filter(item=>item?.link&&item?.translation);
- const unique=new Map();
- for(const item of list){
-  const key=[item.id,item.translation?.id,item.translation?.type].join(":");
-  if(!unique.has(key))unique.set(key,item);
- }
- return [...unique.values()].sort((a,b)=>{
-  const at=a.type==="anime-serial"?0:1,bt=b.type==="anime-serial"?0:1;
-  return at-bt||String(a.translation?.title||"").localeCompare(String(b.translation?.title||""),"ru");
- });
-
+  const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
+  const common={types:"anime-serial,anime",limit:50,with_material_data:true};
+  if(includeEpisodes)common.with_episodes_data=true;
+  let results=[];
+  if(shikiId>0)results=await request({...common,shikimori_id:shikiId});
+  if(!results.length||!results.some(item=>rank(item,anime)<99)){
+   const titles=[...new Set([anime?.n,anime?.o,anime?.title,anime?.originalTitle].map(x=>String(x||"").trim()).filter(x=>x.length>=2))].slice(0,3);
+   for(const title of titles){
+    const found=await request({...common,title});
+    if(found.some(item=>rank(item,anime)<99)){results=found;break}
+    if(!results.length)results=found;
+   }
+  }
+  const exact=results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.score<99);
+  const idMatches=shikiId>0?results.filter(item=>Number(item?.shikimori_id)===shikiId):[];
+  const selected=exact.length?exact:idMatches.map(item=>({item,score:0}));
+  const list=selected.map(x=>x.item).filter(item=>item?.link&&item?.translation);
+  const unique=new Map();
+  for(const item of list){
+   const key=[item.id,item.translation?.id,item.translation?.type].join(":");
+   if(!unique.has(key))unique.set(key,item);
+  }
+  return [...unique.values()].sort((a,b)=>{
+   const at=a.type==="anime-serial"?0:1,bt=b.type==="anime-serial"?0:1;
+   return at-bt||String(a.translation?.title||"").localeCompare(String(b.translation?.title||""),"ru");
+  });
  })();
  searchCache.set(cacheKey,pending);
  try{return await pending}catch(error){searchCache.delete(cacheKey);throw error}
 }
+export async function getKodikPosterUrl(anime){
+ const releases=await searchKodikAnime(anime,{includeEpisodes:false});
+ for(const item of releases){
+  const material=item?.material_data||{};
+  // Deliberately exclude anime_poster_url: Kodik documents it as Shikimori artwork.
+  const raw=material.poster_url||item?.poster_url||"";
+  const value=String(raw||"").trim();if(!value)continue;
+  try{
+   const url=new URL(value.startsWith("//")?"https:"+value:value);
+   if(!/^https?:$/.test(url.protocol)||/(^|\\.)shikimori\\./i.test(url.hostname)||/(no[-_]?poster|placeholder|missing_original)/i.test(url.pathname))continue;
+   return url.href;
+  }catch(error){}
+ }
+ return "";
+}
+
 export function getKodikEpisodeLink(item,episode,seasonNumber){
  const seasons=item?.seasons||{};
  const entries=Object.entries(seasons);
