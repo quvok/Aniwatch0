@@ -3388,3 +3388,5 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .public-profile-page .profile-avatar img{width:100%;height:100%;object-fit:cover}
 .public-profile-page .profile-account-inline a{margin-left:auto}
 @media(max-width:760px){.profile-edit-form{grid-template-columns:1fr}.profile-privacy-form select{max-width:none}}
+
+.profile-privacy-form>label>small{color:#9291a8;font-size:9px;line-height:1.5}
