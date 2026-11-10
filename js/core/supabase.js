@@ -82,7 +82,8 @@ export async function signInWithEmail(login, password) {
     data = sessionResult.data;
   }
   activeUserId = data.user?.id || data.session?.user?.id || null;
-  if (data.user || data.session?.user) await ensureProfile(data.user || data.session.user, undefined, client);
+  // Existing accounts already have a profile (created during registration).
+  // Do not add a network round-trip to every successful login.
   return { ...data, user: data.user || data.session?.user || null, session: data.session || null };
 }
 
@@ -173,35 +174,34 @@ function mergeCloudState(local, rows, username) {
 export async function restoreCloudState(localState, userId) {
   const client = await getSupabaseClient();
   activeUserId = userId;
-  const { data: rows, error } = await client
-    .from("user_library")
-    .select("anime_id,is_favorite,status,rating,history")
-    .eq("user_id", userId);
-  if (error) throw error;
 
-  const { data: authData, error: authError } = await client.auth.getUser();
-  if (authError) throw authError;
-  const { data: profile, error: profileError } = await client
-    .from("profiles").select("id,username").eq("id", userId).maybeSingle();
-  if (profileError) throw profileError;
-
-  const metadataName = authData.user?.user_metadata?.username;
-  await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним", client);
-
-  const { data: savedProfile, error: savedProfileError } = await client
-    .rpc("get_public_profile", { target_user: userId });
-  if (savedProfileError) throw savedProfileError;
+  // The library and profile are independent reads. Fetch them together instead
+  // of serializing several round-trips (getUser -> profiles -> RPC).
+  const [libraryResult, profileResult] = await Promise.all([
+    client.from("user_library")
+      .select("anime_id,is_favorite,status,rating,history")
+      .eq("user_id", userId),
+    client.rpc("get_public_profile", { target_user: userId })
+  ]);
+  if (libraryResult.error) throw libraryResult.error;
+  if (profileResult.error) throw profileResult.error;
+  const savedProfile = profileResult.data;
   if (!savedProfile) throw new Error("Не удалось восстановить настройки профиля.");
 
-  const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
-  if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
-  merged.bio = savedProfile?.bio || "";
-  merged.banner = savedProfile?.banner_url || "";
-  merged.profileVisibility = savedProfile?.profile_visibility || "friends";
-  merged.showStats = savedProfile?.show_stats !== false;
-  merged.showFavorites = savedProfile?.show_favorites !== false;
+  const merged = mergeCloudState(localState, libraryResult.data || [], savedProfile.username || "");
+  if (savedProfile.avatar_url) merged.avatar = savedProfile.avatar_url;
+  merged.bio = savedProfile.bio || "";
+  merged.banner = savedProfile.banner_url || "";
+  merged.profileVisibility = savedProfile.profile_visibility || "friends";
+  merged.showStats = savedProfile.show_stats !== false;
+  merged.showFavorites = savedProfile.show_favorites !== false;
   cloudLibraryReadyUserId = userId;
-  await syncCloudState(merged, userId);
+
+  // The snapshot is ready for the UI now. Reconciliation/migration writes must
+  // not keep the user waiting after a successful sign-in.
+  syncCloudState(merged, userId).catch(error =>
+    console.warn("[AniWatch] Background cloud reconciliation failed:", error)
+  );
   return merged;
 }
 
