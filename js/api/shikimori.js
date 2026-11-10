@@ -1,5 +1,40 @@
 // Shikimori HTTP client. UI and anime-model normalization stay outside this module.
 const API_ROOT="https://shikimori.io/api";
+// Catalog requests are shared, cached in memory and serialized to respect Shikimori limits.
+const catalogCache=new Map(),catalogPending=new Map();
+let catalogQueue=Promise.resolve(),catalogNextAt=0;
+function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function fetchCatalogJSON(url,{signal,ttl=5*60*1000}={}){
+ const key=String(url),cached=catalogCache.get(key);
+ if(cached&&cached.expires>Date.now())return JSON.parse(JSON.stringify(cached.data));
+ if(catalogPending.has(key))return JSON.parse(JSON.stringify(await catalogPending.get(key)));
+ const task=catalogQueue.then(async()=>{
+  const pause=Math.max(catalogNextAt-Date.now(),0);
+  if(pause)await waitMs(pause);
+  if(signal&&signal.aborted)throw new DOMException("The operation was aborted","AbortError");
+  let response=await fetch(key,{signal,headers:{Accept:"application/json"}});
+  catalogNextAt=Date.now()+650;
+  if(response.status===429){
+   const raw=response.headers.get("Retry-After"),seconds=Number(raw);
+   const retryMs=raw&&Number.isFinite(seconds)?seconds*1000:raw?Math.max(0,Date.parse(raw)-Date.now()):0;
+   const cooldown=Math.max(2500,retryMs);
+   catalogNextAt=Date.now()+cooldown;
+   await waitMs(cooldown);
+   if(signal&&signal.aborted)throw new DOMException("The operation was aborted","AbortError");
+   response=await fetch(key,{signal,headers:{Accept:"application/json"}});
+   catalogNextAt=Date.now()+650;
+  }
+  if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status+")");
+  const data=await response.json();
+  catalogCache.set(key,{data,expires:Date.now()+ttl});
+  return data;
+ });
+ catalogPending.set(key,task);
+ catalogQueue=task.catch(()=>{});
+ try{return JSON.parse(JSON.stringify(await task))}
+ finally{catalogPending.delete(key)}
+}
+
 
 export async function fetchRandomAnime(){
  const response=await fetch(API_ROOT+"/animes?limit=1&order=random",{headers:{Accept:"application/json"}});
@@ -29,9 +64,7 @@ export async function fetchCatalogPage({query="",page=1,limit=50,order="populari
  if(season)url.searchParams.set("season",String(season));
  if(status)url.searchParams.set("status",({RELEASING:"ongoing",FINISHED:"released",NOT_YET_RELEASED:"anons"})[status]||status);
  if(genre)url.searchParams.set("genre_v2",String(genre));
- const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
- if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);
- const result=await response.json();
+ const result=await fetchCatalogJSON(url.toString(),{signal,ttl:5*60*1000});
  if(!Array.isArray(result))throw new Error("Некорректный ответ");
  return result;
 }
@@ -44,9 +77,7 @@ export async function fetchAnimeByIds(ids,{signal}={}){
   const url=new URL(API_ROOT+"/animes");
   url.searchParams.set("limit",String(Math.min(50,unique.length-i)));
   url.searchParams.set("ids",unique.slice(i,i+50).join(","));
-  const response=await fetch(url.toString(),{signal,headers:{Accept:"application/json"}});
-  if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);
-  const batch=await response.json();
+  const batch=await fetchCatalogJSON(url.toString(),{signal,ttl:15*60*1000});
   if(!Array.isArray(batch))throw new Error("Некорректный ответ");
   result.push(...batch);
  }
