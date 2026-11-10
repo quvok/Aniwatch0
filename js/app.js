@@ -1,5 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeGenres, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
@@ -161,50 +161,6 @@ window.addEventListener("focus",()=>refreshCloudProgress(true));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshCloudProgress(true)});
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
-var homeGenrePromise=null,homeGenreLoaded=false;
-var HOME_GENRE_PRESETS=[
- {label:"Экшен",keys:["экшен","action","боевик"]},
- {label:"Приключения",keys:["приключения","adventure"]},
- {label:"Фэнтези",keys:["фэнтези","fantasy"]},
- {label:"Комедия",keys:["комедия","comedy"]},
- {label:"Драма",keys:["драма","drama"]},
- {label:"Романтика",keys:["романтика","romance"]},
- {label:"Фантастика",keys:["фантастика","scifi","sciencefiction"]},
- {label:"Детектив",keys:["детектив","mystery"]},
- {label:"Психология",keys:["психология","psychological"]},
- {label:"Триллер",keys:["триллер","thriller"]},
- {label:"Ужасы",keys:["ужасы","horror"]},
- {label:"Повседневность",keys:["повседневность","sliceoflife"]}
-];
-function homeGenreKey(value){return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,"").trim()}
-function homeGenreLink(label,id){
- var href=pageUrl("catalog",{g:id||label});
- return '<a class="genre-tile" href="'+href+'"><span>'+esc(label)+'</span><b>Смотреть подборку <i>↗</i></b></a>';
-}
-function loadHomeGenreTiles(){
- var host=$("#home-genre-grid");
- if(!host||homeGenreLoaded||homeGenrePromise)return;
- homeGenrePromise=fetchAnimeGenres().then(function(raw){
-  if(!Array.isArray(raw))throw new Error("Некорректный список жанров");
-  var genres=raw.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&Number(g.id)>0);
-  var used=new Set(),selected=[];
-  HOME_GENRE_PRESETS.forEach(preset=>{
-   var found=genres.find(g=>[g.russian,g.name].some(name=>preset.keys.includes(homeGenreKey(name))));
-   if(found&&!used.has(String(found.id))){used.add(String(found.id));selected.push({label:preset.label,id:String(found.id)})}
-  });
-  if(selected.length<8){
-   genres.slice().sort((a,b)=>String(a.russian||a.name||"").localeCompare(String(b.russian||b.name||""),"ru")).forEach(g=>{
-    if(selected.length>=12||used.has(String(g.id)))return;
-    used.add(String(g.id));selected.push({label:String(g.russian||g.name||"").trim(),id:String(g.id)});
-   });
-  }
-  if(!selected.length)throw new Error("Не найдено жанров аниме");
-  var current=$("#home-genre-grid");
-  if(current&&activePage()==="home")current.innerHTML=selected.slice(0,12).map(g=>homeGenreLink(g.label,g.id)).join("");
-  homeGenreLoaded=true;
- }).catch(function(error){console.warn("[AniWatch] Home genres unavailable; keeping fallback:",error)})
- .finally(function(){homeGenrePromise=null});
-}
 function homeSmartTagTiles(){
  return PLOT_TAGS.map(tag=>'<a class="smart-tag" href="'+pageUrl("catalog",{tag:tag.id})+'"><b>'+esc(tag.label)+'</b><span>Сюжетная особенность</span><i>↗</i></a>').join("");
 }
@@ -218,9 +174,8 @@ V.home=()=>{
  var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
- var genres=HOME_GENRE_PRESETS.slice(0,8).map(g=>homeGenreLink(g.label,"")).join(""),smartTags=homeSmartTagTiles();
- renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,genreTiles:genres,smartTagTiles:smartTags,row});
- loadHomeGenreTiles();
+ var smartTags=homeSmartTagTiles();
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,smartTagTiles:smartTags,row});
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
