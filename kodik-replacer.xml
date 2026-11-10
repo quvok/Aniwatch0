@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<dleplugin>
+	<name>Kodik Replacer</name>
+	<description>Защита от блокировки плеера</description>
+	<icon>public/adminpanel/images/kodik-replacer.png</icon>
+	<version>1.3.0</version>
+	<dleversion>19.0</dleversion>
+	<versioncompare>greater</versioncompare>
+	<upgradeurl>https://storage.kodikres.com/replacer-dle/last_version_modern.json</upgradeurl>
+	<filedelete>0</filedelete>
+	<needplugin></needplugin>
+	<mnotice>0</mnotice>
+	<mysqlinstall><![CDATA[]]></mysqlinstall>
+	<mysqlupgrade><![CDATA[]]></mysqlupgrade>
+	<mysqlenable><![CDATA[]]></mysqlenable>
+	<mysqldisable><![CDATA[]]></mysqldisable>
+	<mysqldelete><![CDATA[]]></mysqldelete>
+	<phpinstall><![CDATA[]]></phpinstall>
+	<phpupgrade><![CDATA[]]></phpupgrade>
+	<phpenable><![CDATA[]]></phpenable>
+	<phpdisable><![CDATA[]]></phpdisable>
+	<phpdelete><![CDATA[]]></phpdelete>
+	<notice><![CDATA[]]></notice>
+	<file name="engine/modules/main.php">
+		<operation action="before">
+			<searchcode><![CDATA[echo $tpl->result['main'];]]></searchcode>
+			<replacecode><![CDATA[// kodik process
+$kodik_file = ENGINE_DIR . '/data/kodik_replace.txt';
+$kodik_raw_data = @file_get_contents($kodik_file);
+$kodik_update_interval = 10;
+$kodik_last_list = false;
+
+if( $kodik_raw_data !== false ) {
+	$kodik_last_list = @filemtime($kodik_file);
+	$kodik_data = @json_decode($kodik_raw_data, true);
+
+	if( is_array($kodik_data) && isset($kodik_data['replace']) && is_array($kodik_data['replace']) ) {
+		$kodik_replace = $kodik_data['replace'];
+
+		if( isset($kodik_replace['interval']) && intval($kodik_replace['interval']) > 0 ) {
+			$kodik_update_interval = intval($kodik_replace['interval']);
+		}
+
+		$kodik_from = isset($kodik_replace['from']) && is_array($kodik_replace['from']) ? array_values($kodik_replace['from']) : array();
+		$kodik_to = isset($kodik_replace['to']) && is_array($kodik_replace['to']) ? array_values($kodik_replace['to']) : array();
+
+		if( count($kodik_from) === count($kodik_to) && count($kodik_from) > 0 ) {
+			$kodik_safe_from = array();
+			$kodik_safe_to = array();
+
+			foreach( $kodik_from as $kodik_index => $kodik_search ) {
+				if( !is_scalar($kodik_search) ) {
+					continue;
+				}
+
+				$kodik_search = (string)$kodik_search;
+
+				if( $kodik_search === '' ) {
+					continue;
+				}
+
+				$kodik_safe_from[] = $kodik_search;
+				$kodik_safe_to[] = isset($kodik_to[$kodik_index]) && is_scalar($kodik_to[$kodik_index]) ? (string)$kodik_to[$kodik_index] : '';
+			}
+
+			if( count($kodik_safe_from) > 0 ) {
+				$tpl->result['main'] = str_replace($kodik_safe_from, $kodik_safe_to, $tpl->result['main']);
+			}
+		}
+	}
+}
+
+if( $dle_module == 'showfull' ) {
+	if( !$kodik_last_list || ($kodik_last_list + ($kodik_update_interval * 60)) < time() ) {
+		$kodik_prefetch_url = $config['http_home_url'] . 'index.php?controller=ajax&amp;mod=kodik_replacer&amp;v=' . time();
+		$kodik_prefetch = '<link rel="prefetch" href="' . $kodik_prefetch_url . '">';
+		$tpl->result['main'] = preg_replace('#</head\s*>#i', $kodik_prefetch . '</head>', $tpl->result['main'], 1);
+	}
+}
+//]]></replacecode>
+			<searchcount>1</searchcount>
+		</operation>
+	</file>
+	<file name="engine/modules/cron.php">
+		<operation action="before">
+			<searchcode><![CDATA[if( $cron == 1 ) {]]></searchcode>
+			<replacecode><![CDATA[@unlink( ENGINE_DIR . "/data/kodik_processing.txt" );
+]]></replacecode>
+			<searchcount>1</searchcount>
+		</operation>
+	</file>
+</dleplugin>
