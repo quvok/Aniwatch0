@@ -29,6 +29,7 @@ let syncTimer = null;
 let syncChain = Promise.resolve();
 let episodeProgressChannel = null;
 let episodeProgressChannelUserId = null;
+let episodeProgressWrites = new Map();
 
 export async function initializeSupabaseAuth() {
   const client = await getSupabaseClient();
@@ -311,14 +312,25 @@ export async function saveEpisodeProgress(animeId, episode, isWatched, userId = 
   if (!userId || !Number.isSafeInteger(anime) || anime <= 0 || !Number.isInteger(number) || number <= 0) return false;
   if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return false;
   const client = await getSupabaseClient();
-  const { error } = await client.from("user_episode_progress").upsert({
-    user_id: userId,
-    anime_id: anime,
-    episode: number,
-    is_watched: !!isWatched
-  }, { onConflict: "user_id,anime_id,episode" });
-  if (error) throw error;
-  return true;
+  const key = userId + ":" + anime + ":" + number;
+  const previous = episodeProgressWrites.get(key) || Promise.resolve();
+  const write = previous.catch(() => {}).then(async () => {
+    if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return false;
+    const { error } = await client.from("user_episode_progress").upsert({
+      user_id: userId,
+      anime_id: anime,
+      episode: number,
+      is_watched: !!isWatched
+    }, { onConflict: "user_id,anime_id,episode" });
+    if (error) throw error;
+    return true;
+  });
+  episodeProgressWrites.set(key, write);
+  try {
+    return await write;
+  } finally {
+    if (episodeProgressWrites.get(key) === write) episodeProgressWrites.delete(key);
+  }
 }
 
 export async function syncCloudState(state, userId = activeUserId) {
