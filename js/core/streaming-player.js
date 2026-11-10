@@ -252,7 +252,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const current=selected,requestId=++kodikLoadSequence;
     setStatus("Проверяем актуальный домен Kodik…");
     const link=await resolveKodikDomain(getKodikEpisodeLink(current,episode));
-    if(requestId!==kodikLoadSequence||!root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))return;
+    if(requestId!==kodikLoadSequence||!root.querySelector('[data-provider="kodik"]')?.classList.contains("on")){if(typeof onLoaded==="function")onLoaded(false);return;}
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
     kodikFrame=null;kodikTranslation={id:current.translation?.id??null,title:String(current.translation?.title||"")};kodikMedia={time:0,duration:0,playing:false,speed:1};
