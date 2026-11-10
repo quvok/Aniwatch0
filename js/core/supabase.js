@@ -182,15 +182,16 @@ export async function restoreCloudState(localState, userId) {
   const { data: authData, error: authError } = await client.auth.getUser();
   if (authError) throw authError;
   const { data: profile, error: profileError } = await client
-    .from("profiles").select("id,username,avatar_url,bio,banner_url,profile_visibility,show_stats,show_favorites").eq("id", userId).maybeSingle();
+    .from("profiles").select("id,username").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
 
   const metadataName = authData.user?.user_metadata?.username;
   await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним", client);
 
   const { data: savedProfile, error: savedProfileError } = await client
-    .from("profiles").select("username,avatar_url,bio,banner_url,profile_visibility,show_stats,show_favorites").eq("id", userId).maybeSingle();
+    .rpc("get_public_profile", { target_user: userId });
   if (savedProfileError) throw savedProfileError;
+  if (!savedProfile) throw new Error("Не удалось восстановить настройки профиля.");
 
   const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
   if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
@@ -295,28 +296,25 @@ export async function saveProfileDetails({ bio }, userId = activeUserId) {
   const cleanBio = String(bio || "").trim();
   if (cleanBio.length > 280) throw new Error("Описание не должно превышать 280 символов.");
   const client = await getSupabaseClient();
-  const { data, error } = await client.from("profiles")
+  const { error } = await client.from("profiles")
     .update({ bio: cleanBio })
-    .eq("id", userId)
-    .select("id,bio")
-    .maybeSingle();
+    .eq("id", userId);
   if (error) throw error;
-  if (!data) throw new Error("Не удалось сохранить описание профиля.");
-  return data;
+  return { bio: cleanBio };
 }
 
 export async function saveProfilePrivacy({ profile_visibility, show_stats, show_favorites }, userId = activeUserId) {
   if (!userId) throw new Error("Сначала войди в аккаунт.");
   if (!["public","friends","private"].includes(profile_visibility)) throw new Error("Некорректная настройка видимости.");
   const client = await getSupabaseClient();
-  const { data, error } = await client.from("profiles")
+  const { error } = await client.from("profiles")
     .update({ profile_visibility, show_stats: !!show_stats, show_favorites: !!show_favorites })
-    .eq("id", userId)
-    .select("profile_visibility,show_stats,show_favorites")
-    .maybeSingle();
+    .eq("id", userId);
   if (error) throw error;
-  if (!data) throw new Error("Не удалось сохранить настройки приватности.");
-  return data;
+  const { data, error: readError } = await client.rpc("get_public_profile", { target_user: userId });
+  if (readError) throw readError;
+  if (!data) throw new Error("Не удалось проверить сохранённые настройки приватности.");
+  return { profile_visibility: data.profile_visibility, show_stats: data.show_stats, show_favorites: data.show_favorites };
 }
 
 export async function fetchPublicProfile(userId) {
@@ -338,9 +336,11 @@ export async function uploadProfileBanner(file, userId) {
   if (uploadError) throw uploadError;
   const { data } = client.storage.from("avatars").getPublicUrl(path);
   const bannerUrl = data.publicUrl + "?v=" + Date.now();
-  const { data: saved, error: profileError } = await client.from("profiles").update({banner_url:bannerUrl}).eq("id",userId).select("banner_url").maybeSingle();
+  const { error: profileError } = await client.from("profiles").update({banner_url:bannerUrl}).eq("id",userId);
   if (profileError) throw profileError;
-  if (!saved) throw new Error("Обложка загружена, но профиль не обновился.");
+  const { data: saved, error: verifyError } = await client.rpc("get_public_profile", { target_user: userId });
+  if (verifyError) throw verifyError;
+  if (!saved || saved.banner_url !== bannerUrl) throw new Error("Обложка загружена, но профиль не обновился.");
   return bannerUrl;
 }
 
