@@ -33,7 +33,7 @@ export async function searchKodikAnime(anime,{includeEpisodes=true}={}){
  if(searchCache.has(cacheKey))return searchCache.get(cacheKey);
  const pending=(async()=>{
   const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
-  const common={types:"anime-serial,anime",limit:50,with_material_data:true};
+  const common={types:"anime-serial,anime",limit:50,with_material_data:false};
   if(includeEpisodes)common.with_episodes_data=true;
   let results=[];
   if(shikiId>0)results=await request({...common,shikimori_id:shikiId});
