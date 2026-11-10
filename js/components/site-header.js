@@ -12,7 +12,18 @@ const NAV=[
 ];
 
 function navLinks(){
- return NAV.map(([page,label,mark])=>'<a href="'+PAGES[page]+'" data-page="'+page+'"><span class="nav-mark" aria-hidden="true">'+mark+'</span><span>'+label+'</span></a>').join("");
+ return NAV.map(([page,label,mark])=>{
+  let icon=mark;
+  if(page==="calendar"){
+   const day=new Date().getDate();
+   icon='<span class="nav-mark nav-mark-calendar"><span class="nav-date">'+day+'</span></span>';
+  }else if(page==="together"){
+   icon='<span class="nav-mark nav-mark-friends"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7.5" r="3.2" fill="currentColor"></circle><path d="M5 20c.45-4 2.8-6.2 7-6.2s6.55 2.2 7 6.2" fill="currentColor"></path></svg></span>';
+  }else{
+   icon='<span class="nav-mark" aria-hidden="true">'+mark+'</span>';
+  }
+  return '<a href="'+PAGES[page]+'" data-page="'+page+'">'+icon+'<span>'+label+'</span></a>';
+ }).join("");
 }
 
 export function renderSiteHeader(){
