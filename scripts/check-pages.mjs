@@ -68,6 +68,11 @@ assert.ok(!animeCardSource.includes("plot-tags.js"),"anime cards must not import
 assert.ok(!animeCardSource.includes("card-plot-tag"),"anime cards must not render plot labels");
 assert.ok(!read("css/style.css").includes(".card-plot-tags"),"plot-label styles must be removed");
 console.log("✓ removed plot-tag UI checks passed");
+const catalogPageSource=read("js/pages/catalog.js");
+assert.ok(!catalogPageSource.includes("Сюжетная метка")&&!catalogPageSource.includes("cf-tag"),"catalog must not render a plot-tag filter");
+assert.ok(!read("js/app.js").includes("hasPlotTag")&&!read("js/app.js").includes("cf-tag"),"catalog controller must not filter by plot tags");
+assert.ok(!read("css/style.css").includes(".catalog-tag-note"),"catalog plot-tag explanatory note styles must be removed");
+console.log("✓ catalog plot-tag removal checks passed");
 
 
 
