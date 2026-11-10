@@ -81,3 +81,4 @@ console.log("✓ evidence-based plot-tag checks passed");
 
 if(problems.length){console.error(problems.map(p=>"✗ "+p).join("\n"));process.exit(1)}
 console.log("✓ "+pages.length+" pages OK: "+pages.map(p=>p.file).join(", "));
+\nconst genreLoader=read("js/api/genders.js");\nassert.ok(genreLoader.includes("fetchAnimeGenres"),"dedicated genders.js module must export the genre loader");\nassert.ok(genreLoader.includes("?fields=genres"),"dedicated genre loader must request only genre data from Shikimori");\nassert.ok(read("js/app.js").includes("loadAnimeGenres(d)"),"anime detail route must call the dedicated genre loader");\n
