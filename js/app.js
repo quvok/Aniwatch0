@@ -200,6 +200,11 @@ function recommendationSeeds(library){
   .map(item=>({item:item,priority:(item.ratingStars>=4?item.ratingStars*2:0)+(item.favorite?3:0)+(item.status==="completed"?1.5:0)+(item.status==="watching"?1:0)+Math.min(2,item.watchedCount*0.15)}))
   .sort((a,b)=>b.priority-a.priority).slice(0,3).map(entry=>entry.item);
 }
+function renderRecommendationStarter(host,selected){
+ if(!host)return;
+ var choices=Array.isArray(selected)?selected:[];
+ host.innerHTML='<div class="recommendation-starter"><p>Пока мало данных о твоём вкусе. Выбери до трёх любимых жанров — по ним начнём подборку.</p><div class="recommendation-starter-genres">'+GN.map(genre=>'<button type="button" class="btn ghost'+(choices.includes(genre)?' active':'')+'" data-a="recommendation-genre" data-v="'+esc(genre)+'" aria-pressed="'+choices.includes(genre)+'">'+esc(genre)+'</button>').join("")+'</div><button type="button" class="btn" data-a="recommendation-start" '+(choices.length?'':'disabled')+'>Подобрать аниме</button></div>';
+}
 function recommendationCacheKey(profile,seeds){
  return (profile.topGenres||[]).slice(0,3).map(item=>item.name).join(",")+"|"+seeds.map(item=>item.shikiId).join(",");
 }
@@ -226,10 +231,10 @@ async function loadHomeRecommendations(){
  var request=++recommendationRequest;
  host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
  try{
-  var library=recommendationLibrary(),profile=buildTasteProfile(library),raw=[],seeds=recommendationSeeds(library);
+  var library=recommendationLibrary(),profile=buildTasteProfile(library,S.recommendationGenres||[]),raw=[],seeds=recommendationSeeds(library);
   var shelf=host.closest(".shelf");
   if(shelf)shelf.hidden=false;
-  if(profile.usefulSignals<1||profile.topGenres.length<1){if(shelf)shelf.hidden=true;return}
+  if(profile.usefulSignals<1||profile.topGenres.length<1){renderRecommendationStarter(host,S.recommendationGenres||[]);if(shelf)shelf.hidden=false;return}
   var cacheKey=recommendationCacheKey(profile,seeds),cached=readRecommendationPool(cacheKey);
   if(cached)raw=cached;
   else{
@@ -1457,6 +1462,8 @@ var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw 
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
  if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
  else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove()}
+ else if(a==="recommendation-genre"){e.preventDefault();e.stopPropagation();S.recommendationGenres=Array.isArray(S.recommendationGenres)?S.recommendationGenres.slice():[];var genreName=String(v||"");var genreIndex=S.recommendationGenres.indexOf(genreName);if(genreIndex>=0)S.recommendationGenres.splice(genreIndex,1);else if(S.recommendationGenres.length<3)S.recommendationGenres.push(genreName);else{toast("Можно выбрать не больше трёх жанров");return}sv();renderRecommendationStarter($("#recommendation-cards"),S.recommendationGenres)}
+ else if(a==="recommendation-start"){e.preventDefault();e.stopPropagation();if(!(S.recommendationGenres||[]).length){toast("Выбери хотя бы один жанр");return}loadHomeRecommendations()}
  else if(a==="recommendation-dismiss"){e.preventDefault();e.stopPropagation();S.recommendationDismissed=S.recommendationDismissed||{};S.recommendationDismissed[i]="not_interested";sv();if(AUTH_USER)saveRecommendationFeedback(AUTH_USER.id,i).catch(error=>console.warn("[AniWatch] Recommendation feedback sync failed:",error));var item=t.closest(".recommendation-item");if(item)item.remove();if(!$("#recommendation-cards")?.children.length)$("#recommendation-cards").innerHTML='<p class="m">На сегодня подборка закончилась. Новые варианты появятся после обновления каталога.</p>';toast("Убрали тайтл из рекомендаций")}
  else if(a=="fav"){e.preventDefault();e.stopPropagation();var k=S.fav.indexOf(i),active=k<0;if(active)S.fav.push(i);else S.fav.splice(k,1);sv();document.querySelectorAll('[data-a="fav"][data-i="'+i+'"]').forEach(b=>{b.classList.toggle("active",active);b.classList.toggle("is-favorite",active);b.setAttribute("aria-pressed",String(active));b.setAttribute("aria-label",active?"Убрать из избранного":"Добавить в избранное");if(b.classList.contains("title-fav-btn"))b.innerHTML=active?"♥ В избранном":"♡ В избранное";else b.textContent=active?"♥":"♡"});toast(active?"Добавлено в избранное":"Убрано из избранного")}
  else if(a==="episode-range"){e.preventDefault();e.stopPropagation();applyEpisodeRange(Number(t.dataset.from),Number(t.dataset.to))}
