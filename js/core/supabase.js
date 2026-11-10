@@ -188,17 +188,14 @@ export async function restoreCloudState(localState, userId) {
       .select("anime_id,is_favorite,status,rating,history")
       .eq("user_id", userId),
     client.rpc("get_public_profile", { target_user: userId }),
-    client.from("user_episode_progress")
-      .select("anime_id,episode,is_watched,updated_at")
-      .eq("user_id", userId)
+    fetchEpisodeProgressRows(client, userId)
   ]);
   if (libraryResult.error) throw libraryResult.error;
   if (profileResult.error) throw profileResult.error;
-  if (progressResult.error) throw progressResult.error;
   const savedProfile = profileResult.data;
   if (!savedProfile) throw new Error("Не удалось восстановить настройки профиля.");
 
-  const progressRows = progressResult.data || [];
+  const progressRows = progressResult;
   const merged = mergeCloudState(localState, libraryResult.data || [], savedProfile.username || "");
   const watched = {};
   const addMark = (animeId, episode, value) => {
@@ -270,11 +267,20 @@ export async function restoreCloudState(localState, userId) {
 }
 
 async function fetchEpisodeProgressRows(client, userId) {
-  const { data, error } = await client.from("user_episode_progress")
-    .select("anime_id,episode,is_watched,updated_at")
-    .eq("user_id", userId);
-  if (error) throw error;
-  return data || [];
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client.from("user_episode_progress")
+      .select("anime_id,episode,is_watched,updated_at")
+      .eq("user_id", userId)
+      .order("anime_id", { ascending: true })
+      .order("episode", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
 }
 
 function ensureEpisodeProgressRealtime(client, userId) {
@@ -288,13 +294,11 @@ function ensureEpisodeProgressRealtime(client, userId) {
       schema: "public",
       table: "user_episode_progress",
       filter: "user_id=eq." + userId
-    }, () => {
-      fetchEpisodeProgressRows(client, userId).then(rows => {
-        if (activeUserId !== userId) return;
-        window.dispatchEvent(new CustomEvent("aw-episode-progress-changed", {
-          detail: { userId, rows }
-        }));
-      }).catch(error => console.warn("[AniWatch] Episode progress refresh failed:", error));
+    }, payload => {
+      if (activeUserId !== userId || !payload?.new) return;
+      window.dispatchEvent(new CustomEvent("aw-episode-progress-changed", {
+        detail: { userId, row: payload.new }
+      }));
     })
     .subscribe(status => {
       if (status !== "SUBSCRIBED") return;
