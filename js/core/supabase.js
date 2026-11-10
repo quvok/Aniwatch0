@@ -207,32 +207,43 @@ export async function restoreCloudState(localState, userId) {
     if (value) watched[id].push(number);
     if (!watched[id].length) delete watched[id];
   };
+  const localProgressBelongsToUser = !localState?.episodeProgressOwner || localState.episodeProgressOwner === userId;
   if (progressRows.length) {
     progressRows.forEach(row => addMark(row.anime_id, row.episode, row.is_watched));
     merged.watchedEpisodes = watched;
   } else {
     // First-time migration fallback: retain local and legacy marks only while the
-    // dedicated table has no rows. Once tombstones exist, the cloud table is authoritative.
-    Object.entries(merged.watchedEpisodes || {}).forEach(([id, episodes]) =>
-      (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
-    );
-    Object.entries(localState?.watchedEpisodes || {}).forEach(([id, episodes]) =>
-      (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
-    );
+    // dedicated table has no rows, and never carry a prior account's local marks into another account.
+    if (libraryResult.data?.length || localProgressBelongsToUser) {
+      Object.entries(merged.watchedEpisodes || {}).forEach(([id, episodes]) =>
+        (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
+      );
+    }
+    if (localProgressBelongsToUser) {
+      Object.entries(localState?.watchedEpisodes || {}).forEach(([id, episodes]) =>
+        (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
+      );
+    }
     merged.watchedEpisodes = watched;
   }
 
-  const pending = merged.episodeProgressPending && typeof merged.episodeProgressPending === "object"
+  const allPending = merged.episodeProgressPending && typeof merged.episodeProgressPending === "object"
     ? merged.episodeProgressPending : {};
-  const pendingRows = Object.entries(pending).map(([key, isWatched]) => {
-    const match = /^(\d+):(\d+)$/.exec(key);
-    if (!match) return null;
-    const animeId = Number(match[1]), episode = Number(match[2]);
-    if (!Number.isSafeInteger(animeId) || animeId <= 0 || !Number.isInteger(episode) || episode <= 0) return null;
+  const pendingEntries = [];
+  Object.entries(allPending).forEach(([key, isWatched]) => {
+    const match = /^(?:(guest|[0-9a-f-]+)\|)?(\d+):(\d+)$/i.exec(key);
+    if (!match) return;
+    const owner = match[1] || "guest";
+    if (owner !== "guest" && owner !== userId) return;
+    const animeId = Number(match[2]), episode = Number(match[3]);
+    if (!Number.isSafeInteger(animeId) || animeId <= 0 || !Number.isInteger(episode) || episode <= 0) return;
     addMark(animeId, episode, !!isWatched);
-    return { user_id: userId, anime_id: animeId, episode, is_watched: !!isWatched };
-  }).filter(Boolean);
-
+    pendingEntries.push({
+      key,
+      row: { user_id: userId, anime_id: animeId, episode, is_watched: !!isWatched }
+    });
+  });
+  const pendingRows = pendingEntries.map(entry => entry.row);
   const seedRows = !progressRows.length
     ? Object.entries(watched).flatMap(([animeId, episodes]) => episodes.map(episode => ({
         user_id: userId, anime_id: Number(animeId), episode, is_watched: true
@@ -245,7 +256,10 @@ export async function restoreCloudState(localState, userId) {
     const { error: initialError } = await client.from("user_episode_progress")
       .upsert([...initialRows.values()], { onConflict: "user_id,anime_id,episode" });
     if (initialError) console.warn("[AniWatch] Legacy or pending episode progress migration will retry:", initialError);
-    else if (pendingRows.length) merged.episodeProgressPending = {};
+    else if (pendingRows.length) {
+      pendingEntries.forEach(entry => delete merged.episodeProgressPending[entry.key]);
+      if (!Object.keys(merged.episodeProgressPending || {}).length) delete merged.episodeProgressPending;
+    }
   }
   if (savedProfile.avatar_url) merged.avatar = savedProfile.avatar_url;
   merged.bio = savedProfile.bio || "";
@@ -253,6 +267,7 @@ export async function restoreCloudState(localState, userId) {
   merged.profileVisibility = savedProfile.profile_visibility || "friends";
   merged.showStats = savedProfile.show_stats !== false;
   merged.showFavorites = savedProfile.show_favorites !== false;
+  merged.episodeProgressOwner = userId;
   cloudLibraryReadyUserId = userId;
   ensureEpisodeProgressRealtime(client, userId);
 
