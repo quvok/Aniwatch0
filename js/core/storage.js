@@ -65,7 +65,7 @@ function pruneState(state,mediaMap){
 function stripCachedArtwork(value){
  if(!value||typeof value!=="object")return;
  if(Array.isArray(value)){value.forEach(stripCachedArtwork);return}
- ["img","ban","poster","posterFallback","posterSource","coverImage","bannerImage"].forEach(key=>{if(key in value)delete value[key]});
+ ["img","ban","poster","coverImage","bannerImage"].forEach(key=>{if(key in value)delete value[key]});
  Object.keys(value).forEach(key=>stripCachedArtwork(value[key]));
 }
 

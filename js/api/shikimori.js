@@ -85,6 +85,18 @@ export async function fetchAnimeByIds(ids,{signal}={}){
  return result;
 }
 
+export async function fetchAnimePostersByIds(ids,{signal}={}) {
+ const unique=[...new Set((ids||[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))];
+ if(!unique.length)return [];
+ const response=await fetch("https://shikimori.io/api/graphql",{method:"POST",signal,headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({query:"query($ids: String) { animes(ids: $ids, limit: 50) { id poster { originalUrl mainUrl } } }",variables:{ids:unique.join(",")}})});
+ if(!response.ok)throw new Error("Ошибка GraphQL Shikimori (HTTP "+response.status+")");
+ const payload=await response.json();
+ if(payload.errors&&payload.errors.length)throw new Error(payload.errors.map(e=>e.message).join("; "));
+ const result=payload.data&&payload.data.animes;
+ if(!Array.isArray(result))throw new Error("Некорректный ответ GraphQL Shikimori");
+ return result;
+}
+
 export async function fetchAnimeById(id,{signal}={}){
  const numeric=Number(id);
  if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный идентификатор аниме");
