@@ -26,12 +26,12 @@ begin
     end;
 
     old_progress_at := case
-      when old_history->>'at' ~ '^-?[0-9]+(\\.[0-9]+)?$'
+      when old_history->>'at' ~ '^-?[0-9]+([.][0-9]+)?$'
         then (old_history->>'at')::numeric
       else null
     end;
     new_progress_at := case
-      when new_history->>'at' ~ '^-?[0-9]+(\\.[0-9]+)?$'
+      when new_history->>'at' ~ '^-?[0-9]+([.][0-9]+)?$'
         then (new_history->>'at')::numeric
       else null
     end;
