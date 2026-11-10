@@ -66,7 +66,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
- let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="";
+ let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",kodikFrame=null,kodikMedia={time:0,duration:0,playing:false,speed:1};
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
@@ -78,7 +78,27 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   const target=Number.isFinite(el.duration)&&el.duration>0?Math.min(savedTime,Math.max(0,el.duration-3)):savedTime;
   try{el.currentTime=target;el.playbackRate=savedSpeed;setStatus("Продолжение с "+Math.floor(target/60)+":"+String(Math.floor(target%60)).padStart(2,"0"))}catch(error){console.warn("[AniWatch] Resume position could not be restored:",error)}
  };
- const getPlaybackState=()=>{const v=video();return v?{time:Number(v.currentTime)||0,duration:Number.isFinite(v.duration)?Math.max(0,v.duration):0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1}:null};
+ const kodikCommand=value=>{if(!kodikFrame?.contentWindow)return false;try{kodikFrame.contentWindow.postMessage({key:"kodik_player_api",value},"*");return true}catch(error){console.warn("[AniWatch] Kodik command failed:",error);return false}};
+ const onKodikMessage=event=>{
+  if(!kodikFrame||event.source!==kodikFrame.contentWindow)return;
+  let message=event.data;
+  if(typeof message==="string"){try{message=JSON.parse(message)}catch{return}}
+  if(!message||typeof message!=="object"||typeof message.key!=="string"||!message.key.startsWith("kodik_player_"))return;
+  const value=message.value;
+  switch(message.key){
+   case "kodik_player_play":case "kodik_player_video_started":kodikMedia.playing=true;break;
+   case "kodik_player_pause":kodikMedia.playing=false;break;
+   case "kodik_player_seek":if(value&&Number.isFinite(Number(value.time)))kodikMedia.time=Number(value.time);break;
+   case "kodik_player_time_update":if(Number.isFinite(Number(value)))kodikMedia.time=Number(value);break;
+   case "kodik_player_duration_update":if(Number.isFinite(Number(value)))kodikMedia.duration=Number(value);break;
+   case "kodik_player_video_ended":kodikMedia.playing=false;try{onEpisodeEnded()}catch(error){console.warn("[AniWatch] Kodik episode-end callback failed:",error)}break;
+   case "kodik_player_speed_change":if(value&&Number(value.speed)>0)kodikMedia.speed=Number(value.speed);break;
+   case "kodik_player_current_episode":if(value&&Number(value.episode)>0)kodikMedia.episode=Number(value.episode);break;
+  }
+  if(!remoteApplying)emit(true);
+ };
+ window.addEventListener("message",onKodikMessage);
+ const getPlaybackState=()=>{const v=video();if(v)return {time:Number(v.currentTime)||0,duration:Number.isFinite(v.duration)?Math.max(0,v.duration):0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1};return kodikFrame?{time:kodikMedia.time,duration:kodikMedia.duration,playing:kodikMedia.playing,speed:kodikMedia.speed}:null};
  const emit=force=>{const state=getPlaybackState();if(!state||remoteApplying)return;const now=Date.now();if(!force&&now-lastEmit<2500)return;if(force){clearTimeout(emitTimer);emitTimer=setTimeout(()=>{if(remoteApplying)return;const latest=getPlaybackState();if(!latest)return;const key=[latest.time.toFixed(1),latest.playing,latest.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=Date.now();onPlayback(latest)},100);return}const key=[state.time.toFixed(1),state.playing,state.speed].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=now;onPlayback(state)};
  const bindVideo=el=>{
   el.playbackRate=savedSpeed;
@@ -106,7 +126,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   if(handled){event.preventDefault();emit(true)}
  };
  root.addEventListener("keydown",handlePlayerKeys);
- const syncPlayback=async state=>{const v=video();if(!v||!state)return false;remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},900);const target=Math.max(0,Number(state.time)||0),baseSpeed=Number(state.speed)>0?Number(state.speed):1,drift=target-(Number(v.currentTime)||0),absDrift=Math.abs(drift);try{if(!state.playing){if(absDrift>0.25&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}if(Math.abs(v.playbackRate-baseSpeed)>0.01)v.playbackRate=baseSpeed;if(!v.paused)v.pause()}else{if(absDrift>0.65&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}const correctedSpeed=absDrift>0.12&&absDrift<=0.65?baseSpeed*(drift>0?1.06:0.94):baseSpeed;if(Math.abs(v.playbackRate-correctedSpeed)>0.01)v.playbackRate=correctedSpeed;if(v.paused&&!v.ended)await v.play().catch(()=>{})}}catch(error){console.warn("[AniWatch] Playback sync failed:",error)}return true};
+ const syncPlayback=async state=>{if(!state)return false;if(kodikFrame){remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},1200);const target=Math.max(0,Number(state.time)||0),drift=target-kodikMedia.time,speed=Number(state.speed)>0?Number(state.speed):1;if(Math.abs(drift)>1.25)kodikCommand({method:"seek",seconds:target});if(Math.abs(kodikMedia.speed-speed)>0.02)kodikCommand({method:"speed",speed});if(state.playing&&!kodikMedia.playing)kodikCommand({method:"play"});else if(!state.playing&&kodikMedia.playing)kodikCommand({method:"pause"});return true}const v=video();if(!v)return false;remoteApplying=true;clearTimeout(remoteApplyTimer);remoteApplyTimer=setTimeout(()=>{remoteApplying=false},900);const target=Math.max(0,Number(state.time)||0),baseSpeed=Number(state.speed)>0?Number(state.speed):1,drift=target-(Number(v.currentTime)||0),absDrift=Math.abs(drift);try{if(!state.playing){if(absDrift>0.25&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}if(Math.abs(v.playbackRate-baseSpeed)>0.01)v.playbackRate=baseSpeed;if(!v.paused)v.pause()}else{if(absDrift>0.65&&!v.seeking&&v.readyState>=1){try{v.currentTime=target}catch{}}const correctedSpeed=absDrift>0.12&&absDrift<=0.65?baseSpeed*(drift>0?1.06:0.94):baseSpeed;if(Math.abs(v.playbackRate-correctedSpeed)>0.01)v.playbackRate=correctedSpeed;if(v.paused&&!v.ended)await v.play().catch(()=>{})}}catch(error){console.warn("[AniWatch] Playback sync failed:",error)}return true};
  const addHlsControls=v=>{const quality=options.querySelector("#liberty-quality"),speed=options.querySelector("#liberty-speed");if(speed)speed.addEventListener("change",()=>{v.playbackRate=Number(speed.value)||1;emit(true)});if(quality)quality.addEventListener("change",()=>{if(hlsInstance)hlsInstance.currentLevel=quality.value==="auto"?-1:Number(quality.value)})};
  const playLiberty=async()=>{
   const eps=Array.isArray(releaseData?.episodes)?releaseData.episodes:[];
@@ -187,7 +207,10 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const link=getKodikEpisodeLink(selected,episode);
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
-    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    kodikFrame=null;kodikMedia={time:0,duration:0,playing:false,speed:1};
+    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay *; fullscreen *; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    kodikFrame=stage.querySelector("iframe");
+    if(kodikFrame)kodikFrame.addEventListener("load",()=>{if(kodikFrame)kodikCommand({method:"get_time"})},{once:true});
     setStatus("Основной плеер · "+esc(selected.translation?.title||"озвучка")+" · серия "+episode);
    };
    const render=()=>{
@@ -340,10 +363,11 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   }
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
+  if(button.dataset.provider!=="kodik")kodikFrame=null;
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
   if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));
  reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
  showKodik()
- return {getPlaybackState,syncPlayback,destroy(){destroyHls();clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
+ return {getPlaybackState,syncPlayback,destroy(){destroyHls();kodikFrame=null;window.removeEventListener("message",onKodikMessage);clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
