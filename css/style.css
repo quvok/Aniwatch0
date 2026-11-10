@@ -3548,3 +3548,18 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .recommendation-starter-genres .btn{min-height:34px;padding:6px 11px;font-size:12px}
 .recommendation-starter-genres .btn.active{border-color:rgba(167,139,250,.7);background:rgba(167,139,250,.16);color:var(--tx)}
 .recommendation-starter>.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Homepage discovery: data-backed quick filters and a broader genre grid. */
+.smart-tags-section{margin-top:34px}
+.smart-tags-section .shelf-head,.genre-section .shelf-head{margin-bottom:13px}
+.smart-tag-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.smart-tag{position:relative;display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:76px;padding:13px 34px 13px 14px;border:1px solid var(--ln);border-radius:12px;background:linear-gradient(135deg,rgba(35,32,57,.82),rgba(17,20,32,.94));transition:transform .18s,border-color .18s,background .18s}
+.smart-tag:hover{transform:translateY(-2px);border-color:rgba(167,139,250,.48);background:linear-gradient(135deg,rgba(55,43,83,.88),rgba(20,22,35,.96))}
+.smart-tag b{font-size:13px;color:var(--tx);font-weight:800}
+.smart-tag span{font-size:11px;color:var(--mt)}
+.smart-tag i{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-style:normal;color:#c4b5fd;font-size:16px}
+.genre-section{margin-top:30px}
+.genre-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.genre-tile{min-height:82px}
+@media(max-width:1050px){.smart-tag-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.genre-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.smart-tags-section{margin-top:26px}.smart-tag-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.smart-tag{min-height:70px;padding:11px 28px 11px 11px}.smart-tag b{font-size:12px}.smart-tag span{font-size:10px}.genre-section{margin-top:26px}.genre-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.genre-tile{min-height:76px;padding:12px}.genre-tile span{font-size:14px}}
