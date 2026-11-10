@@ -1,4 +1,5 @@
 import { query as xgq } from "./api/anilist.js";
+import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
@@ -474,12 +475,24 @@ function loadAnimeExtras(d){
   renderAnimeExtras(d,data);
  })().catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[cacheId]});
 }
+async function loadAnimeGenres(anime){
+ const shikiId=Number(anime&&anime.shikiId)||0;
+ const container=app.querySelector(".title-tags");
+ if(!shikiId||!container)return;
+ try{
+  const genres=await fetchDedicatedAnimeGenres(shikiId);
+  if(!isRoute("title",anime.id)||!app.querySelector(".title-tags"))return;
+  anime.g=genres;
+  const target=app.querySelector(".title-tags");
+  target.innerHTML=genres.length?genres.map(genre=>"<span>"+esc(genre)+"</span>").join(""):'<span class="genre-empty">Жанры не указаны</span>';
+ }catch(error){console.warn("[AniWatch] Dedicated genre lookup failed:",error)}
+}
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
  setupEpisodeNavigator(d);
- loadNextEpisode(d);loadAnimeExtras(d);loadKodikEpisodes(d);ru(d);loadRelated(d)
+ loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);ru(d);loadRelated(d)
 };
 
 
