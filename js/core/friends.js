@@ -136,10 +136,24 @@ export async function respondWatchInvite(inviteId, userId, accept) {
 }
 
 export async function subscribeSocialUpdates(userId, onChange) {
+  if (!userId) throw new Error("Не удалось определить аккаунт для обновлений.");
   const client = await getSupabaseClient();
   const channel = client.channel("aw-social-" + userId)
     .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "watch_party_invites" }, onChange);
-  channel.subscribe();
-  return () => client.removeChannel(channel);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => client.removeChannel(channel);
+    channel.subscribe(status => {
+      if (status === "SUBSCRIBED" && !settled) {
+        settled = true;
+        resolve(cleanup);
+      } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status) && !settled) {
+        settled = true;
+        cleanup();
+        reject(new Error("Не удалось подключить обновления друзей."));
+      }
+    });
+  });
 }
