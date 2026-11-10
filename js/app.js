@@ -168,12 +168,12 @@ var HOME_GENRE_PRESETS=[
  {label:"Комедия",keys:["комедия","comedy"]},
  {label:"Драма",keys:["драма","drama"]},
  {label:"Романтика",keys:["романтика","romance"]},
- {label:"Фантастика",keys:["фантастика","sci fi","science fiction"]},
+ {label:"Фантастика",keys:["фантастика","scifi","sciencefiction"]},
  {label:"Детектив",keys:["детектив","mystery"]},
  {label:"Психология",keys:["психология","psychological"]},
  {label:"Триллер",keys:["триллер","thriller"]},
  {label:"Ужасы",keys:["ужасы","horror"]},
- {label:"Повседневность",keys:["повседневность","slice of life"]}
+ {label:"Повседневность",keys:["повседневность","sliceoflife"]}
 ];
 function homeGenreKey(value){return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,"").trim()}
 function homeGenreLink(label,id){
