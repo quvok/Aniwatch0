@@ -186,7 +186,7 @@ function recommendationLibrary(){
   var anime=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
   if(!anime)return null;
   var stars=Number(S.rate&&S.rate[id])||0;
-  return {id:id,shikiId:Number(anime.shikiId)||(anime.source==="shikimori"&&id>=1000000000?id-1000000000:0),mal:Number(anime.mal)||0,title:anime.n||anime.russian||anime.name||"аниме",genres:anime.g||[],rating:stars>0?stars*2:null,ratingStars:stars,favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
+  return {id:id,shikiId:Number(anime.shikiId)||(anime.source==="shikimori"&&id>=1000000000?id-1000000000:0),mal:Number(anime.mal)||0,title:un(anime.n||anime.russian||anime.name||"аниме"),genres:anime.g||[],rating:stars>0?stars*2:null,ratingStars:stars,favorite:(S.fav||[]).map(Number).includes(id),status:S.watchlist&&S.watchlist[id],watchedCount:Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].length:0};
  }).filter(Boolean);
 }
 function recommendationExcludedIds(){
