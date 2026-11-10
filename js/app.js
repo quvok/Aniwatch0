@@ -891,7 +891,6 @@ async function loadRelated(d){
     var relSeen={},franchiseSeen={},franchiseRelated=[];
     var directEdges=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id));
     if(!relations.length)relations=directEdges.map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
-     if(!relations.length)throw new Error("AniList не вернул связанных аниме; пробуем Shikimori");
     // One bounded second hop from the already-fetched relation nodes; no per-title API requests.
     directEdges.forEach(edge=>{
      var via=mp(edge.node);
