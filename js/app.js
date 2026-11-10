@@ -876,7 +876,6 @@ async function loadRelated(d){
      console.info("[AniWatch] No Shikimori ID available; AniList relations will be used");
     }
     try{
-   try{
     var query,vars;
     if(d.source==="shikimori"){
      if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
