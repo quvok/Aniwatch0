@@ -916,7 +916,7 @@ async function loadRelated(d){
     fallbackList.forEach(x=>{M[x.id]=x});
     await xshikiPosters(fallbackList);
    }
-   var all=relations.map(x=>x.anime).concat(creatorWorks);
+   var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks);
    await translateRelated(all);
    var data={v:11,relations:relations,franchiseRelated:franchiseRelated||[],creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    if(!relatedFallbackLimited){cached[d.id]=data;sv()}
@@ -953,7 +953,7 @@ function renderRelated(d,data){
   extra.hidden=!studios.length&&!staffHtml;
  }
  root.innerHTML=orderHtml+franchiseHtml+'<section class="shelf related-shelf"><div class="shelf-head"><div><h2>Другие связанные релизы</h2><p class="shelf-sub">Побочные истории, альтернативные версии и другие связи</p></div></div>'+relationHtml+'</section>'+creatorHtml;
- xshikiPosters(rel.map(x=>x.anime).concat(creatorWorks));
+ xshikiPosters(rel.map(x=>x.anime).concat(franchiseRelated.map(x=>x.anime),creatorWorks));
 }
 function refreshEpCount(d){
  var ef=$("#featured-count"),et=$("#title-count");
