@@ -65,6 +65,17 @@ assert.ok(homeController.includes('pageUrl("catalog",{g:id||label})'),"genre til
 assert.ok(homePage.includes('class="smart-tag-grid"'),"homepage must render the smart-tag section");
 assert.ok(homePage.includes('id="home-genre-grid"'),"homepage must render the dynamic genre grid");
 console.log("✓ homepage genres and smart-tag checks passed");
+const plotTagSource=read("js/core/plot-tags.js");
+const plotTagModule=await import("data:text/javascript;base64,"+Buffer.from(plotTagSource).toString("base64"));
+const reincarnation=plotTagModule.findPlotTags({d:"После смерти герой перерождается в другом мире и начинает новую жизнь."});
+assert.ok(reincarnation.some(tag=>tag.id==="reincarnation"&&tag.confidence==="high"&&tag.source==="Shikimori synopsis"),"explicit synopsis evidence must produce a high-confidence plot tag with provenance");
+assert.equal(plotTagModule.hasPlotTag({d:"Молодой герой отправляется в путешествие."},"hidden-power"),false,"unsupported plot traits must not be inferred");
+assert.ok(homeController.includes('pageUrl("catalog",{tag:tag.id})'),"homepage plot tags must link to the matching catalog filter");
+assert.ok(homeController.includes('if(xCF.tag)L=L.filter(d=>hasPlotTag(d,xCF.tag));'),"catalog must filter by evidence-based plot tags");
+assert.ok(read("js/pages/catalog.js").includes('selectHtml("cf-tag","Сюжетная метка"'),"catalog must expose the plot-tag filter");
+console.log("✓ evidence-based plot-tag checks passed");
+
+
 
 
 
