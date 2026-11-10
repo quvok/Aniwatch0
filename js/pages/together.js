@@ -44,6 +44,5 @@ export function renderTogetherPage({ app, state, animeList, escapeHtml, user, so
   (error ? '<p class="social-error">' + escapeHtml(error) + '</p>' : '') +
   '</section>' +
   '<section class="together-grid"><div class="panel together-panel"><span class="eyebrow">НОВАЯ КОМНАТА</span><h2>Стань ведущим</h2><p>Создай комнату, затем выбери аниме на главной странице или в каталоге. Друзья смогут присоединиться по приглашению.</p><button class="btn" type="button" data-a="room">Создать комнату и выбрать аниме</button></div>' +
-  '<div class="panel together-panel"><span class="eyebrow">УЖЕ ЕСТЬ КОД?</span><h2>Присоединиться</h2><p>Введи код активной комнаты. Ведущий должен уже находиться на странице просмотра — тогда AniWatch получит от него аниме и текущую серию.</p><form id="jf"><label for="jc">Код комнаты</label><input id="jc" placeholder="Например, 8K4M2P9Q" maxlength="12" autocomplete="off" required><button class="btn ghost" type="submit">Войти в комнату</button></form></div></section>' +
-
+  '<div class="panel together-panel"><span class="eyebrow">УЖЕ ЕСТЬ КОД?</span><h2>Присоединиться</h2><p>Введи код активной комнаты. Ведущий должен уже находиться на странице просмотра — тогда AniWatch получит от него аниме и текущую серию.</p><form id="jf"><label for="jc">Код комнаты</label><input id="jc" placeholder="Например, 8K4M2P9Q" maxlength="12" autocomplete="off" required><button class="btn ghost" type="submit">Войти в комнату</button></form></div></section>';
 }
