@@ -3454,12 +3454,3 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .franchise-discovered-label{min-height:30px;color:#aaa5bd;font-size:9px;line-height:1.4}
 .franchise-discovered .card{width:100%;min-width:0}
 @media(max-width:700px){.franchise-discovered{width:108px;margin-right:9px}.franchise-discovered-label{font-size:8px;min-height:34px}}
-
-
-/* One-click navigation to any source-confirmed franchise season */
-.franchise-order-list>li{min-width:0}
-.franchise-jump-link{display:flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 9px;border:1px solid rgba(167,139,250,.25);border-radius:9px;background:rgba(139,92,246,.09);color:#d8c9ff;font-size:10px;font-weight:750;text-decoration:none;transition:background .18s,border-color .18s}
-.franchise-jump-link:hover{background:rgba(139,92,246,.18);border-color:rgba(167,139,250,.48)}
-.franchise-jump-link:focus-visible{outline:2px solid #bba4ff;outline-offset:3px}
-.franchise-order-list>li.is-current .franchise-jump-link{display:none}
-@media(max-width:700px){.franchise-jump-link{min-height:32px;padding:6px;font-size:9px}}
