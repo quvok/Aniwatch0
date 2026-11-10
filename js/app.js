@@ -476,11 +476,14 @@ function loadAnimeExtras(d){
  })().catch(error=>console.warn("[AniWatch] Anime media metadata unavailable:",error)).finally(()=>{delete animeExtraPending[cacheId]});
 }
 async function loadAnimeGenres(anime){
- const shikiId=Number(anime&&anime.shikiId)||0;
+ const shikiId=Number(anime&&anime.shikiId)||(anime&&anime.source==="shikimori"&&Number(anime.id)>=1000000000?Number(anime.id)-1000000000:0);
+ const malId=Number(anime&&anime.mal)||0;
  const container=app.querySelector(".title-tags");
- if(!shikiId||!container)return;
+ if(!container){console.warn("[AniWatch] Genre container is missing on anime detail page");return}
+ if(!shikiId&&!malId){console.warn("[AniWatch] Genre lookup skipped: anime has neither Shikimori ID nor MAL ID",anime&&anime.id);return}
  try{
-  const genres=await fetchDedicatedAnimeGenres(shikiId);
+  const searchTitles=[un(anime&&anime.o),un(anime&&anime.n)].filter(Boolean);
+  const genres=await fetchDedicatedAnimeGenres(shikiId,{malId,searchTitles});
   if(!isRoute("title",anime.id)||!app.querySelector(".title-tags"))return;
   anime.g=genres;
   const target=app.querySelector(".title-tags");
