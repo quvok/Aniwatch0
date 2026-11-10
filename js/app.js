@@ -930,7 +930,7 @@ async function loadRelated(d){
     similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
    }catch(similarError){console.warn("[AniWatch] Similar anime unavailable:",similarError)}}
    var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks,similarAnime);await translateRelated(all);
-   var data={v:12,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
+   var data={v:13,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
    if(!relatedFallbackLimited){cached[d.id]=data;sv()}
    renderRelated(d,data);
   }catch(e){
