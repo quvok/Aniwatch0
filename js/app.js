@@ -45,6 +45,7 @@ var D=[
 var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,anilibriaSchedule=null,anilibriaSchedulePending=null,socialChannelCleanup=null,socialLoadRequest=0,socialRefreshPending=false;
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
+function recordWatchEntry(anime,episode){if(!anime||!Number(anime.id)||!Number(episode))return;S.hist=S.hist||{};var previous=S.hist[anime.id],same=previous&&Number(previous.ep)===Number(episode);S.hist[anime.id]={ep:Number(episode),t:same?Math.max(0,Number(previous.t)||0):0,duration:same?Math.max(0,Number(previous.duration)||0):0,at:Date.now(),speed:same&&Number(previous.speed)>0?Number(previous.speed):1};sv()}
 function df(){S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 function watchUrl(id,episode){var url=routeWatchUrl(id,episode);if(S&&S.room)url+=(url.indexOf("?")>=0?"&":"?")+"room="+encodeURIComponent(S.room);return url}
@@ -222,6 +223,7 @@ function startInlineWatch(anime,episode){
  var title=$("#inline-watch-title");if(title)title.textContent=anime.n+" · серия "+episode;var full=$("#inline-open-full");if(full)full.href=watchUrl(anime.id,episode);
  document.querySelectorAll(".episode-inline-play").forEach(b=>{b.classList.toggle("on",Number(b.dataset.v)===Number(episode));b.textContent=Number(b.dataset.v)===Number(episode)?"Ⅱ":"▶"});
  var inlineHistory=S.hist[anime.id],inlineResume=inlineHistory&&Number(inlineHistory.ep)===Number(episode)?inlineHistory:{};
+ recordWatchEntry(anime,episode);
  INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,resumeAt:Number(inlineResume.t)||0,resumeSpeed:Number(inlineResume.speed)||1,onEpisodeEnded:()=>{
   setEpisodeWatched(anime.id,episode,true);
   var nextAvailable=availableEpCount(anime);
@@ -476,6 +478,8 @@ V.watch=p=>{
  var n=Math.max(p[1]||1,1),h=S.hist[d.id],available=availableEpCount(d);if(epTotal(d)>0)n=Math.min(n,epTotal(d));if(available!==null&&n>available){document.title=htmlText(d.n)+" · серия ещё не вышла — AniWatch";app.innerHTML='<section class="offline-state"><div class="eyebrow">СКОРО</div><h1>Эта серия ещё не вышла</h1><p>Сейчас доступно '+available+' серий. Вернись позже, когда выйдет серия '+n+'.</p><a class="btn" href="'+titleUrl(d.id)+'">Вернуться к аниме</a></section>';return}document.title=htmlText(d.n)+" · серия "+n+" — AniWatch";
  var inRoom=!!S.room;if(inRoom){S.roomAnime=d.id;S.roomEpisode=n;sv()}
  P={d:d,n:n,t:h&&h.ep==n?h.t:0,on:readAutoplay(),sp:h&&h.ep==n&&Number(h.speed)>0?Number(h.speed):1};
+ // External iframe players cannot expose playback events; save the selected title/episode without inventing a time or percentage.
+ recordWatchEntry(d,n);
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
  STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextAvailable=availableEpCount(d);if(nextAvailable!==null&&n<nextAvailable){S.hist[d.id]={ep:n+1,t:0,at:Date.now(),speed:P.sp||1};sv();setTimeout(()=>{location.href=watchUrl(d.id,n+1)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{delete S.hist[d.id];sv();toast("Серия завершена")}},onPlayback:media=>{
