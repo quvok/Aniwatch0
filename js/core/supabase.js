@@ -234,7 +234,7 @@ export async function restoreCloudState(localState, userId) {
     const match = /^(?:(guest|[0-9a-f-]+)\|)?(\d+):(\d+)$/i.exec(key);
     if (!match) return;
     const owner = match[1] || "guest";
-    if (owner !== "guest" && owner !== userId) return;
+    if ((owner !== "guest" && owner !== userId) || (owner === "guest" && !localProgressBelongsToUser)) return;
     const animeId = Number(match[2]), episode = Number(match[3]);
     if (!Number.isSafeInteger(animeId) || animeId <= 0 || !Number.isInteger(episode) || episode <= 0) return;
     addMark(animeId, episode, !!isWatched);
