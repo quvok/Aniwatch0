@@ -82,6 +82,29 @@ async function fetchKodikResults(params: URLSearchParams, token: string) {
   if (!data || !Array.isArray(data.results)) throw new Error(String(data?.error || "Kodik вернул неожиданный ответ"));
   return data.results;
 }
+function normalizeTitle(value: unknown) {
+  return String(value || "").toLocaleLowerCase("ru").replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/gi, "");
+}
+function hasTitleMatch(results: unknown[], title: string) {
+  const wanted = normalizeTitle(title);
+  if (!wanted) return false;
+  return results.some(value => {
+    if (!value || typeof value !== "object") return false;
+    const item = value as Record<string, unknown>;
+    const material = (item.material_data && typeof item.material_data === "object" ? item.material_data : {}) as Record<string, unknown>;
+    const candidates = [
+      item.title, item.title_orig, item.other_title,
+      material.title, material.anime_title, material.title_en,
+      ...(Array.isArray(material.other_titles) ? material.other_titles : []),
+      ...(Array.isArray(material.other_titles_en) ? material.other_titles_en : []),
+      ...(Array.isArray(material.other_titles_jp) ? material.other_titles_jp : []),
+    ];
+    return candidates.some(candidate => {
+      const actual = normalizeTitle(candidate);
+      return actual && (actual === wanted || actual.includes(wanted) || wanted.includes(actual));
+    });
+  });
+}
 async function lookupBatchItem(input: unknown, token: string) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Некорректный элемент пакета");
   const raw = input as Record<string, unknown>;
@@ -96,8 +119,12 @@ async function lookupBatchItem(input: unknown, token: string) {
     for (const value of titles.slice(0, 3)) {
       const title = String(value || "").trim().slice(0, 120);
       if (title.length < 2) continue;
-      results = await fetchKodikResults(normalizeParams({ title, limit, with_episodes_data: false }), token);
-      if (results.length) break;
+      const found = await fetchKodikResults(normalizeParams({ title, limit, with_episodes_data: false }), token);
+      if (!results.length) results = found;
+      if (hasTitleMatch(found, title)) {
+        results = found;
+        break;
+      }
     }
   }
   return { key, results };
