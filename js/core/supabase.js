@@ -223,19 +223,17 @@ export async function syncCloudState(state, userId = activeUserId) {
   })).filter(row => row.is_favorite || row.status || row.rating !== null || Object.keys(row.history).length);
 
   syncChain = syncChain.catch(() => {}).then(async () => {
-    if (activeUserId !== userId) return;
-    // Only reconcile deletions after a complete cloud snapshot has been read.
-    // This prevents an early local snapshot during app startup from wiping cloud data.
-    if (cloudLibraryReadyUserId === userId) {
-      const { data: existingRows, error: readError } = await client.from("user_library")
-        .select("anime_id").eq("user_id", userId);
-      if (readError) throw readError;
-      const staleIds = (existingRows || []).map(row => Number(row.anime_id)).filter(id => !ids.has(id));
-      for (let offset = 0; offset < staleIds.length; offset += 100) {
-        const { error: deleteError } = await client.from("user_library").delete()
-          .eq("user_id", userId).in("anime_id", staleIds.slice(offset, offset + 100));
-        if (deleteError) throw deleteError;
-      }
+    if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return;
+    // Reconcile deletions only after a complete cloud snapshot has been read.
+    // This prevents an early local snapshot during app startup from overwriting or wiping cloud data.
+    const { data: existingRows, error: readError } = await client.from("user_library")
+      .select("anime_id").eq("user_id", userId);
+    if (readError) throw readError;
+    const staleIds = (existingRows || []).map(row => Number(row.anime_id)).filter(id => !ids.has(id));
+    for (let offset = 0; offset < staleIds.length; offset += 100) {
+      const { error: deleteError } = await client.from("user_library").delete()
+        .eq("user_id", userId).in("anime_id", staleIds.slice(offset, offset + 100));
+      if (deleteError) throw deleteError;
     }
     if (rows.length) {
       const { error: upsertError } = await client.from("user_library")
