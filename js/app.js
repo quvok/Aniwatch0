@@ -20,7 +20,7 @@ import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./co
 import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
 import { fetchAniLibriaWeek, fetchAniLibriaHomeCollections } from "./api/anilibria.js";
-import { searchKodikAnime, getKodikPosterUrl } from "./api/kodik.js";
+import { searchKodikAnime, fetchKodikPostersBatch } from "./api/kodik.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 (function(){
 if(legacyRedirect())return;
@@ -58,7 +58,7 @@ function posterImageUrl(path){
  var value=String(path).trim();if(!value)return "";
  try{
   var parsed=new URL(value.startsWith("//")?"https:"+value:value);
-  if(!/^https?:$/.test(parsed.protocol)||/(^|\\.)shikimori\\./i.test(parsed.hostname)||/(missing_original|no[-_]?poster|placeholder)/i.test(parsed.pathname))return "";
+  if(!/^https?:$/.test(parsed.protocol)||/(^|\.)shikimori\./i.test(parsed.hostname)||/(missing_original|no[-_]?poster|placeholder)/i.test(parsed.pathname))return "";
   return parsed.href;
  }catch(e){return ""}
 }
@@ -1205,33 +1205,6 @@ async function hydrateKodikPosters(L){
  L=[...new Map((L||[]).filter(Boolean).map(d=>[d.id,d])).values()];
  if(!L.length)return;
  function cacheKey(d){return d.shikiId?"shiki:"+Number(d.shikiId):d.mal?"mal:"+Number(d.mal):String(d.source||"anime")+":"+Number(d.id)}
- async function lookup(d){
-  var key=cacheKey(d),fallback=posterImageUrl(d.posterFallback)||posterImageUrl(d.img);
-  if(fallback&&!posterImageUrl(d.posterFallback))d.posterFallback=fallback;
-  var cached=kodikPosterMemory[key];
-  if(cached&&Date.now()-cached.at<6*60*60*1000){
-   if(cached.url){d.img=cached.url;d.posterSource="kodik"}
-   else if(!posterImageUrl(d.img)&&cached.fallback)d.img=cached.fallback;
-   return;
-  }
-  if(kodikPosterPending[key]){
-   var pendingUrl=await kodikPosterPending[key];
-   if(pendingUrl){d.img=pendingUrl;d.posterSource="kodik"}
-   else if(!posterImageUrl(d.img)&&fallback)d.img=fallback;
-   return;
-  }
-  kodikPosterPending[key]=getKodikPosterUrl(d).then(url=>{
-   kodikPosterMemory[key]={url:url||"",fallback:fallback||"",at:Date.now()};
-   return url||"";
-  }).catch(error=>{
-   console.warn("[AniWatch] Kodik poster lookup unavailable for",d.n,error);
-   kodikPosterMemory[key]={url:"",fallback:fallback||"",at:Date.now()};
-   return "";
-  }).finally(()=>{delete kodikPosterPending[key]});
-  var url=await kodikPosterPending[key];
-  if(url){d.img=url;d.posterSource="kodik"}
-  else if(!posterImageUrl(d.img)&&fallback)d.img=fallback;
- }
  function paint(d){
   var image=posterImageUrl(d.img);if(!image)return;
   document.querySelectorAll("[data-anime-id]").forEach(el=>{
@@ -1254,13 +1227,41 @@ async function hydrateKodikPosters(L){
    }
   });
  }
- var cursor=0;
- async function worker(){
-  while(cursor<L.length){
-   var d=L[cursor++];await lookup(d);M[d.id]=d;paint(d);
+ function apply(d,url,fallback){
+  if(url){d.img=url;d.posterSource="kodik"}
+  else if(!posterImageUrl(d.img)&&fallback)d.img=fallback;
+  M[d.id]=d;paint(d);
+ }
+ var waiting=[],fresh=[];
+ for(var d of L){
+  var key=cacheKey(d),fallback=posterImageUrl(d.posterFallback)||posterImageUrl(d.img);
+  if(fallback&&!posterImageUrl(d.posterFallback))d.posterFallback=fallback;
+  var cached=kodikPosterMemory[key],ttl=cached&&cached.url?6*60*60*1000:10*60*1000;
+  if(cached&&Date.now()-cached.at<ttl){apply(d,cached.url,fallback||cached.fallback);continue}
+  if(kodikPosterPending[key]){
+   waiting.push(kodikPosterPending[key].then(url=>apply(d,url,fallback)));
+   continue;
+  }
+  fresh.push(d);
+ }
+ for(var offset=0;offset<fresh.length;offset+=20){
+  var batch=fresh.slice(offset,offset+20);
+  var batchPromise=fetchKodikPostersBatch(batch).catch(error=>{
+   console.warn("[AniWatch] Kodik poster batch unavailable:",error);return {};
+  });
+  for(var item of batch){
+   var key=cacheKey(item),fallback=posterImageUrl(item.posterFallback)||posterImageUrl(item.img);
+   var pending=batchPromise.then(result=>String(result&&result[String(item.id)]||"")).then(url=>{
+    kodikPosterMemory[key]={url:url||"",fallback:fallback||"",at:Date.now()};
+    apply(item,url,fallback);return url;
+   }).catch(error=>{
+    kodikPosterMemory[key]={url:"",fallback:fallback||"",at:Date.now()};
+    apply(item,"",fallback);console.warn("[AniWatch] Kodik poster lookup failed:",error);return "";
+   }).finally(()=>{delete kodikPosterPending[key]});
+   kodikPosterPending[key]=pending;waiting.push(pending);
   }
  }
- await Promise.all(Array.from({length:Math.min(3,L.length)},()=>worker()));
+ await Promise.all(waiting);
  // Shikimori-derived records have no poster fallback. Resolve missing artwork via AniList by MAL ID.
  var missing=L.filter(d=>!posterImageUrl(d.img)&&Number(d.mal)>0);
  var malIds=[...new Set(missing.map(d=>Number(d.mal)))];
