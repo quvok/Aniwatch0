@@ -3456,19 +3456,23 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 @media(max-width:700px){.franchise-discovered{width:108px;margin-right:9px}.franchise-discovered-label{font-size:8px;min-height:34px}}
 
 
-/* Franchise sections: separate films, extras and spin-offs without mixing them into the main watch order. */
+/* Franchise shelves reuse the site's standard related-anime card grid. */
 .franchise-category{margin-top:22px}
-.franchise-category-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:15px}
-.franchise-category-item{display:grid;align-content:start;gap:8px;min-width:0}
-.franchise-category-item>small{min-height:25px;color:#aaa5bd;font-size:9px;line-height:1.4}
-.franchise-category-item .card{width:100%;min-width:0}
 .similar-anime-shelf{margin-top:26px}
-@media(max-width:900px){.franchise-category-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}}
+
+/* Keep status pills compact in the similar-anime shelf on narrow screens. */
 @media(max-width:700px){
+ .similar-anime-shelf .row>.card>.poster>.poster-status{
+  position:absolute!important;display:inline-flex!important;align-items:center!important;
+  left:6px!important;right:auto!important;top:auto!important;bottom:6px!important;
+  width:max-content!important;height:auto!important;min-width:0!important;
+  max-width:calc(100% - 12px)!important;margin:0!important;padding:4px 6px!important;
+  border-radius:6px!important;background:rgba(9,10,17,.84)!important;
+  border:1px solid rgba(255,255,255,.13)!important;color:#e5e0f3!important;
+  font-size:8px!important;line-height:1.2!important;font-weight:800!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+ }
  .franchise-category{margin-top:17px}
- .franchise-category-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
- .franchise-category-item{gap:6px}
- .franchise-category-item>small{font-size:8px;min-height:29px}
  .similar-anime-shelf{margin-top:20px}
 }
-@media(max-width:420px){.franchise-category-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}}
