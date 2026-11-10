@@ -24,6 +24,7 @@ export function getSupabaseClient() {
 }
 
 let activeUserId = null;
+let cloudLibraryReadyUserId = null;
 let syncTimer = null;
 let syncChain = Promise.resolve();
 
@@ -105,8 +106,31 @@ export async function signOut() {
   const { error } = await client.auth.signOut();
   if (error) throw error;
   activeUserId = null;
+  cloudLibraryReadyUserId = null;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = null;
+}
+
+function normalizeCloudWatchlist(raw) {
+  const aliases = { watching: "watching", planned: "planned", planning: "planned", completed: "completed", complete: "completed", dropped: "dropped" };
+  const result = {};
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const id = Number(item.id ?? item.anime_id ?? item.animeId);
+      const status = aliases[String(item.status ?? item.listStatus ?? "").toLowerCase()];
+      if (Number.isSafeInteger(id) && id > 0 && status) result[id] = status;
+    }
+    return result;
+  }
+  if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw)) {
+      const id = Number(key);
+      const status = aliases[String(typeof value === "string" ? value : (value?.status ?? value?.listStatus ?? "")).toLowerCase()];
+      if (Number.isSafeInteger(id) && id > 0 && status) result[id] = status;
+    }
+  }
+  return result;
 }
 
 function mergeCloudState(local, rows, username) {
@@ -118,7 +142,7 @@ function mergeCloudState(local, rows, username) {
     state.fav = [...new Set((local.fav || []).map(Number).filter(id => Number.isSafeInteger(id) && id > 0))];
     state.hist = { ...(local.hist || {}) };
     state.rate = { ...(local.rate || {}) };
-    state.watchlist = { ...(local.watchlist || {}) };
+    state.watchlist = normalizeCloudWatchlist(local.watchlist);
     state.watchedEpisodes = { ...(local.watchedEpisodes || {}) };
   } else {
     state.fav = [];
@@ -170,6 +194,7 @@ export async function restoreCloudState(localState, userId) {
 
   const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
   if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
+  cloudLibraryReadyUserId = userId;
   await syncCloudState(merged, userId);
   return merged;
 }
@@ -177,19 +202,21 @@ export async function restoreCloudState(localState, userId) {
 export async function syncCloudState(state, userId = activeUserId) {
   if (!userId) return;
   const client = await getSupabaseClient();
+  const watchlist = normalizeCloudWatchlist(state.watchlist);
+  const favorites = new Set((state.fav || []).map(Number).filter(id => Number.isSafeInteger(id) && id > 0));
   const ids = new Set([
-    ...(state.fav || []).map(Number),
+    ...favorites,
     ...Object.keys(state.hist || {}).map(Number),
     ...Object.keys(state.rate || {}).map(Number),
-    ...Object.keys(state.watchlist || {}).map(Number),
+    ...Object.keys(watchlist).map(Number),
     ...Object.keys(state.watchedEpisodes || {}).map(Number)
-  ].filter(id => Number.isFinite(id) && id > 0));
+  ].filter(id => Number.isSafeInteger(id) && id > 0));
 
   const rows = [...ids].map(id => ({
     user_id: userId,
     anime_id: id,
-    is_favorite: (state.fav || []).map(Number).includes(id),
-    status: (state.watchlist || {})[id] || null,
+    is_favorite: favorites.has(id),
+    status: watchlist[id] || null,
     rating: (state.rate || {})[id] == null ? null : Number((state.rate || {})[id]),
     history: { ...((state.hist || {})[id] || {}), ...((state.watchedEpisodes || {})[id] ? { watchedEpisodes: (state.watchedEpisodes || {})[id] } : {}) },
     updated_at: new Date().toISOString()
@@ -197,7 +224,19 @@ export async function syncCloudState(state, userId = activeUserId) {
 
   syncChain = syncChain.catch(() => {}).then(async () => {
     if (activeUserId !== userId) return;
-    // Keep existing cloud rows when the local snapshot is incomplete.
+    // Only reconcile deletions after a complete cloud snapshot has been read.
+    // This prevents an early local snapshot during app startup from wiping cloud data.
+    if (cloudLibraryReadyUserId === userId) {
+      const { data: existingRows, error: readError } = await client.from("user_library")
+        .select("anime_id").eq("user_id", userId);
+      if (readError) throw readError;
+      const staleIds = (existingRows || []).map(row => Number(row.anime_id)).filter(id => !ids.has(id));
+      for (let offset = 0; offset < staleIds.length; offset += 100) {
+        const { error: deleteError } = await client.from("user_library").delete()
+          .eq("user_id", userId).in("anime_id", staleIds.slice(offset, offset + 100));
+        if (deleteError) throw deleteError;
+      }
+    }
     if (rows.length) {
       const { error: upsertError } = await client.from("user_library")
         .upsert(rows, { onConflict: "user_id,anime_id" });
