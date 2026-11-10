@@ -483,7 +483,7 @@ V.watch=p=>{
  recordWatchEntry(d,n);
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
- STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextAvailable=availableEpCount(d);if(nextAvailable!==null&&n<nextAvailable){S.hist[d.id]={ep:n+1,t:0,at:Date.now(),speed:P.sp||1};sv();setTimeout(()=>{location.href=watchUrl(d.id,n+1)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{delete S.hist[d.id];sv();toast("Серия завершена")}},onPlayback:media=>{
+ STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,onReady:()=>{if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextAvailable=availableEpCount(d);if(nextAvailable!==null&&n<nextAvailable){S.hist[d.id]={ep:n+1,t:0,at:Date.now(),speed:P.sp||1};sv();setTimeout(()=>{location.href=watchUrl(d.id,n+1)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{delete S.hist[d.id];sv();toast("Серия завершена")}},onPlayback:media=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
