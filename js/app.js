@@ -107,7 +107,9 @@ function animeProgress(d){
  var watched=watchedFor(d.id).filter(n=>n>0&&n<=total).length;
  return Math.min(100,Math.round(watched/total*100));
 }
-function refreshContinueShelf(){var host=$("#continue-shelf");if(!host)return;var keys=Object.keys(S.hist||{}).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6);var cards=keys.map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));host.outerHTML=row("Продолжить просмотр",cards.length?cards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf")}
+function continueWatchingEntries(){return Object.keys(S.hist||{}).filter(k=>Number(k)>0&&M[k]&&S.hist[k]&&Number(S.hist[k].ep)>0).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6)}
+function continueWatchingCards(){return continueWatchingEntries().map(k=>{var h=S.hist[k],time=Math.max(0,Number(h.t)||0),duration=Math.max(0,Number(h.duration)||0),progress=duration>0?Math.min(100,Math.round(time/duration*100)):null;return card(M[k],progress,watchUrl(k,Number(h.ep)||1),"Серия "+Number(h.ep))})}
+function refreshContinueShelf(){var host=$("#continue-shelf");if(!host)return;var cards=continueWatchingCards();host.outerHTML=row("Продолжить просмотр",cards.length?cards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf")}
 
 var cloudRefreshPromise=null,cloudRefreshAt=0;
 async function refreshCloudProgress(force=false){
@@ -134,7 +136,7 @@ V.home=()=>{
  if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
  featuredIndex=0;
- var cont=Object.keys(S.hist).filter(k=>M[k]&&S.hist[k]).sort((a,b)=>Number(S.hist[b].at||0)-Number(S.hist[a].at||0)).slice(0,6).map(k=>card(M[k],Math.round((Number(S.hist[k].t)||0)/DUR*100),watchUrl(k,S.hist[k].ep||1)));
+ var cont=continueWatchingCards();
  var source=homeCollections||{popular:D,recommended:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
  var popular=source.popular.map(d=>{M[d.id]=d;return card(d)});
  var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
@@ -233,7 +235,7 @@ function startInlineWatch(anime,episode){
   }
  },onPlayback:media=>{
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
-  if(time>0){S.hist[anime.id]={ep:episode,t:time,at:now,speed:Number(media.speed)||1};if(!startInlineWatch.lastSave||now-startInlineWatch.lastSave>=5000||!media.playing){startInlineWatch.lastSave=now;sv()}}
+  if(time>0){S.hist[anime.id]={ep:episode,t:time,duration:Math.max(0,Number(media.duration)||0),at:now,speed:Number(media.speed)||1};if(!startInlineWatch.lastSave||now-startInlineWatch.lastSave>=5000||!media.playing){startInlineWatch.lastSave=now;sv()}}
  }});
  section.scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -480,7 +482,7 @@ V.watch=p=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
-   S.hist[d.id]={ep:n,t:time,at:now,speed:Number(media.speed)||1};
+   S.hist[d.id]={ep:n,t:time,duration:Math.max(0,Number(media.duration)||0),at:now,speed:Number(media.speed)||1};
    P.t=time;P.on=!!media.playing;P.sp=Number(media.speed)||1;
    if(now-historySaveAt>=5000||!media.playing){historySaveAt=now;sv()}
   }
