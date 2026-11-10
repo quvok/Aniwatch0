@@ -238,16 +238,14 @@ export async function restoreCloudState(localState, userId) {
         user_id: userId, anime_id: Number(animeId), episode, is_watched: true
       })))
     : [];
-  if (seedRows.length) {
-    const { error: seedError } = await client.from("user_episode_progress")
-      .upsert(seedRows, { onConflict: "user_id,anime_id,episode" });
-    if (seedError) console.warn("[AniWatch] Legacy episode progress migration will retry:", seedError);
-  }
-  if (pendingRows.length) {
-    const { error: pendingError } = await client.from("user_episode_progress")
-      .upsert(pendingRows, { onConflict: "user_id,anime_id,episode" });
-    if (pendingError) console.warn("[AniWatch] Pending episode progress will retry:", pendingError);
-    else merged.episodeProgressPending = {};
+  const initialRows = new Map();
+  seedRows.forEach(row => initialRows.set(row.anime_id + ":" + row.episode, row));
+  pendingRows.forEach(row => initialRows.set(row.anime_id + ":" + row.episode, row));
+  if (initialRows.size) {
+    const { error: initialError } = await client.from("user_episode_progress")
+      .upsert([...initialRows.values()], { onConflict: "user_id,anime_id,episode" });
+    if (initialError) console.warn("[AniWatch] Legacy or pending episode progress migration will retry:", initialError);
+    else if (pendingRows.length) merged.episodeProgressPending = {};
   }
   if (savedProfile.avatar_url) merged.avatar = savedProfile.avatar_url;
   merged.bio = savedProfile.bio || "";
