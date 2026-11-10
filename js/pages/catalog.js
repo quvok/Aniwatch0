@@ -10,7 +10,8 @@ export function renderCatalogPage({app,filters,escapeHtml,genreOptions,genreLabe
  selectHtml("cf-season","Сезон",filters.season,seasonOptions,"Любой сезон")+
  selectHtml("cf-st","Статус",filters.st,statusOptions,"Любой статус")+
  selectHtml("cf-f","Формат",filters.f,formatOptions,"Любой формат")+
- selectHtml("cf-r","Рейтинг от",filters.minScore,ratingOptions,"Любой рейтинг")+\n selectHtml("cf-tag","Сюжетная метка",filters.tag,plotTagOptions,"Все метки")+
+ selectHtml("cf-r","Рейтинг от",filters.minScore,ratingOptions ,"Любой рейтинг")+
+ selectHtml("cf-tag","Сюжетная метка",filters.tag,plotTagOptions,"Все метки")+
  selectHtml("cf-o","Сортировка",filters.o,sortOptions)+'</div></div>'+
  '<p class="catalog-tag-note">Сюжетные метки ставятся только при явном совпадении с текстом описания Shikimori. Неподтверждённые догадки не используются.</p><div class="results-line"><b id="cc">Загрузка каталога…</b><button class="text-link" type="button" data-cf-reset>Сбросить фильтры</button></div>'+
  '<div class="row" id="cr"></div><button id="more" class="btn ghost" type="button" data-xr="1">Загрузить каталог</button>';
