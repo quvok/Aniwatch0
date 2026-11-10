@@ -647,7 +647,37 @@ async function handleAuthSubmit(form){
   // there is no authenticated JWT and RLS must reject library writes.
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
-   S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var cloudFeedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};Object.keys(S.recommendationDismissed).forEach(id=>{if(!cloudFeedback[id])saveRecommendationFeedback(AUTH_USER.id,id).catch(error=>console.warn("[AniWatch] Guest recommendation feedback sync failed:",error))});if(mode==="signup"&&username)S.name=username.slice(0,20);saveLocalState(S,M);hd();if(activePage()==="home")loadHomeRecommendations();toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();if(activePage()==="profile")V.profile();else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="together")loadTogetherView();
+   var signedInUserId=AUTH_USER.id;
+   var initialName=mode==="signup"?username:AUTH_USER.user_metadata?.username;
+   if(initialName&&(!S.name||S.name==="Гость"||S.name==="Аноним"))S.name=String(initialName).slice(0,20);
+   saveLocalState(S,M);hd();
+   var authModal=document.getElementById("auth-modal");if(authModal)authModal.remove();
+   toast(mode==="signup"?"Аккаунт создан":"Вход выполнен");
+
+   // Authentication is complete. Load cloud data after closing the modal so
+   // slow library/profile hydration never blocks the sign-in interaction.
+   (async()=>{
+    try{
+     var restored=await restoreCloudState(S,signedInUserId);
+     if(!AUTH_USER||AUTH_USER.id!==signedInUserId)return;
+     S=restored;saveLocalState(S,M);
+     await xhyd();myListCloudAt=Date.now();
+     var cloudFeedback=await loadRecommendationFeedback(signedInUserId);
+     S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};
+     Object.keys(S.recommendationDismissed).forEach(id=>{
+      if(!cloudFeedback[id])saveRecommendationFeedback(signedInUserId,id).catch(error=>console.warn("[AniWatch] Recommendation feedback sync failed:",error));
+     });
+     saveLocalState(S,M);hd();
+     if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}
+     else if(activePage()==="profile")V.profile();
+     else if(activePage()==="mylist")V.mylist();
+     else if(activePage()==="favorites")V.favorites();
+     else if(activePage()==="together")loadTogetherView();
+    }catch(error){
+     console.error("[AniWatch] Background account sync failed:",error);
+     if(AUTH_USER&&AUTH_USER.id===signedInUserId)toast("Вход выполнен, но синхронизация данных не завершилась");
+    }
+   })();
   }else if(status){status.textContent=mode==="signup"?"Регистрация завершена. Теперь войди в аккаунт.":"Не удалось получить активную сессию. Попробуй войти ещё раз."}
  }catch(error){console.error("[AniWatch] Auth error:",error);if(status)status.textContent=authErrorText(error)}
  finally{AUTH_BUSY=false;if(button){button.disabled=false;button.textContent=mode==="signup"?"Создать аккаунт":"Войти"}}
