@@ -42,6 +42,7 @@ export function routeArgs(){
  if(page==="title")return[Number(query.get("id"))||0];
  if(page==="watch")return[Number(query.get("id"))||0,Math.max(Number(query.get("ep"))||1,1)];
  if(page==="collections")return[query.get("id")||""];
+ if(page==="profile")return[query.get("user")||""];
  return[];
 }
 
