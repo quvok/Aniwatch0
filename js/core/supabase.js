@@ -182,20 +182,23 @@ export async function restoreCloudState(localState, userId) {
   const { data: authData, error: authError } = await client.auth.getUser();
   if (authError) throw authError;
   const { data: profile, error: profileError } = await client
-    .from("profiles").select("id,username,avatar_url,bio,banner_url").eq("id", userId).maybeSingle();
+    .from("profiles").select("id,username,avatar_url,bio,banner_url,profile_visibility,show_stats,show_favorites").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
 
   const metadataName = authData.user?.user_metadata?.username;
   await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним", client);
 
   const { data: savedProfile, error: savedProfileError } = await client
-    .from("profiles").select("username,avatar_url,bio,banner_url").eq("id", userId).maybeSingle();
+    .from("profiles").select("username,avatar_url,bio,banner_url,profile_visibility,show_stats,show_favorites").eq("id", userId).maybeSingle();
   if (savedProfileError) throw savedProfileError;
 
   const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
   if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
   merged.bio = savedProfile?.bio || "";
   merged.banner = savedProfile?.banner_url || "";
+  merged.profileVisibility = savedProfile?.profile_visibility || "friends";
+  merged.showStats = savedProfile?.show_stats !== false;
+  merged.showFavorites = savedProfile?.show_favorites !== false;
   cloudLibraryReadyUserId = userId;
   await syncCloudState(merged, userId);
   return merged;
@@ -287,21 +290,41 @@ export async function saveRecommendationFeedback(userId, animeId) {
 }
 
 
-export async function saveProfileDetails({ username, bio }, userId = activeUserId) {
+export async function saveProfileDetails({ bio }, userId = activeUserId) {
   if (!userId) throw new Error("Сначала войди в аккаунт.");
-  const cleanName = String(username || "").trim();
   const cleanBio = String(bio || "").trim();
-  if (cleanName.length < 2 || cleanName.length > 20) throw new Error("Ник должен содержать от 2 до 20 символов.");
   if (cleanBio.length > 280) throw new Error("Описание не должно превышать 280 символов.");
   const client = await getSupabaseClient();
   const { data, error } = await client.from("profiles")
-    .update({ username: cleanName, bio: cleanBio })
+    .update({ bio: cleanBio })
     .eq("id", userId)
-    .select("id,username,bio")
+    .select("id,bio")
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Не удалось сохранить профиль. Проверь права доступа.");
+  if (!data) throw new Error("Не удалось сохранить описание профиля.");
   return data;
+}
+
+export async function saveProfilePrivacy({ profile_visibility, show_stats, show_favorites }, userId = activeUserId) {
+  if (!userId) throw new Error("Сначала войди в аккаунт.");
+  if (!["public","friends","private"].includes(profile_visibility)) throw new Error("Некорректная настройка видимости.");
+  const client = await getSupabaseClient();
+  const { data, error } = await client.from("profiles")
+    .update({ profile_visibility, show_stats: !!show_stats, show_favorites: !!show_favorites })
+    .eq("id", userId)
+    .select("profile_visibility,show_stats,show_favorites")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Не удалось сохранить настройки приватности.");
+  return data;
+}
+
+export async function fetchPublicProfile(userId) {
+  if (!userId) throw new Error("Не указан профиль.");
+  const client = await getSupabaseClient();
+  const { data, error } = await client.rpc("get_public_profile", { target_user: userId });
+  if (error) throw error;
+  return data || null;
 }
 
 export async function uploadProfileBanner(file, userId) {
