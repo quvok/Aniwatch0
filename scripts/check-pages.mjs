@@ -1,6 +1,7 @@
 // CI guard for the multi-page layout: every route has a real HTML file, the service worker knows it,
 // and no source file goes back to hash routing (#title-12).
 import {readFileSync,existsSync,readdirSync,statSync} from "node:fs";
+import assert from "node:assert/strict";
 import {join} from "node:path";
 
 const read=file=>readFileSync(file,"utf8");
@@ -33,6 +34,27 @@ for(const file of walk("js")){
  if(file!==join("js","core","router.js")&&/location\.hash/.test(text))problems.push(file+": uses location.hash (hash routing was removed; only core/router.js may read it for old links)");
  if(/["'`]#(home|catalog|schedule|favorites|mylist|together|profile|random|title|watch)(-?["'`]|-\d|-\$\{)/.test(text))problems.push(file+": contains a hash route link");
 }
+
+// Recommendation regression checks: rating scale, cold start, genre balance and exclusions.
+const recommendationSource=read("js/core/recommendations.js");
+const recommendationModule=await import("data:text/javascript;base64,"+Buffer.from(recommendationSource).toString("base64"));
+const {buildTasteProfile,rankRecommendations}=recommendationModule;
+const fourStar=buildTasteProfile([{genres:["Фэнтези"],rating:8}]);
+assert.ok(fourStar.topGenres.some(item=>item.name==="фэнтези"),"4/5 stars must be a positive taste signal");
+assert.equal(fourStar.avoidedGenres.length,0,"4/5 stars must not create an avoided genre");
+const twoStar=buildTasteProfile([{genres:["Романтика"],rating:4}]);
+assert.ok(twoStar.avoidedGenres.some(item=>item.name==="романтика"),"2/5 stars should lower the genre preference");
+const coldStart=buildTasteProfile([],["Фэнтези","Драма"]);
+assert.equal(coldStart.topGenres.length,2,"selected starter genres must create a usable profile");
+const broadTags=buildTasteProfile([{genres:["Фэнтези"],rating:10}]);
+const manyTags=buildTasteProfile([{genres:["Фэнтези","Драма","Комедия","Экшен","Романтика","Ужасы","Детектив","Спорт","Музыка"],rating:10}]);
+assert.ok(broadTags.topGenres.find(item=>item.name==="фэнтези").weight>manyTags.topGenres.find(item=>item.name==="фэнтези").weight,"a long genre list must not inflate each genre's weight");
+const ranked=rankRecommendations([{id:101,mal:9001,genres:["Фэнтези"],score:8,recommendationSourceType:"similar",recommendationSourceTitle:"Любимый тайтл"}],fourStar,new Set(),5);
+assert.equal(ranked.length,1,"matching candidate should be ranked");
+assert.match(ranked[0].reason,/Любимый тайтл/,"similarity explanation must retain its source title");
+assert.equal(rankRecommendations([{id:102,mal:9002,genres:["Фэнтези"],score:9}],fourStar,new Set(["mal:9002"]),5).length,0,"MAL exclusions must be respected");
+assert.equal(rankRecommendations([{id:103,genres:["Хентай","Фэнтези"],score:9}],fourStar,new Set(),5).length,0,"adult genre candidates must remain excluded");
+console.log("✓ recommendation scoring checks passed");
 
 if(problems.length){console.error(problems.map(p=>"✗ "+p).join("\n"));process.exit(1)}
 console.log("✓ "+pages.length+" pages OK: "+pages.map(p=>p.file).join(", "));
