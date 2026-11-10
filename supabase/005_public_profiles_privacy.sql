@@ -11,6 +11,8 @@ alter table public.profiles
   check (profile_visibility in ('public','friends','private'));
 
 revoke select on public.profiles from authenticated;
+revoke select (bio, banner_url, profile_visibility, show_stats, show_favorites)
+  on public.profiles from authenticated;
 grant select (id, username, avatar_url, created_at)
   on public.profiles to authenticated;
 grant update (profile_visibility, show_stats, show_favorites)
