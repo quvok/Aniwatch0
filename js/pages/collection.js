@@ -82,7 +82,6 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
     '<div class="profile-top-identity"><span class="eyebrow">ЛИЧНЫЙ ПРОФИЛЬ</span><h1>'+escapeHtml(name)+'</h1><p>'+(bio?escapeHtml(bio):'Расскажи немного о себе и своём аниме-вкусе')+'</p></div>'+
    '</div>'+account+
   '</header>'+
-  '<section class="profile-friends-entry"><div><span class="eyebrow">СОЦИАЛЬНОЕ</span><h2>Друзья и совместный просмотр</h2><p>Ищи друзей, отправляй заявки и приглашай их смотреть аниме вместе.</p></div><a class="btn" href="together.html">Открыть друзей</a></section>'+
   '<section class="profile-edit-card"><div class="profile-block-title"><div><span class="eyebrow">НАСТРОЙКИ</span><h2>Оформление профиля</h2></div><span>Изменения сохраняются в аккаунте</span></div>'+
    '<form id="profile-form" class="profile-edit-form"><label>О себе <small>До 280 символов</small><textarea name="bio" maxlength="280" rows="3" placeholder="Какие жанры любишь? Что сейчас смотришь?">'+escapeHtml(bio)+'</textarea></label><button class="btn" type="submit">Сохранить описание</button></form>'+
    (!user?'<p class="profile-hint">Гостевой профиль хранится только на этом устройстве. Войди, чтобы синхронизировать оформление.</p>':'')+
