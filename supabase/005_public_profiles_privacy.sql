@@ -31,9 +31,7 @@ declare
   stats jsonb := null;
   favorites jsonb := '[]'::jsonb;
 begin
-  if viewer is null or target_user is null then
-    return null;
-  end if;
+  if target_user is null then return null; end if;
 
   select * into target
   from public.profiles
@@ -43,11 +41,11 @@ begin
     return null;
   end if;
 
-  if viewer = target_user then
+  if viewer is not null and viewer = target_user then
     allowed := true;
   elsif target.profile_visibility = 'public' then
     allowed := true;
-  elsif target.profile_visibility = 'friends' then
+  elsif viewer is not null and target.profile_visibility = 'friends' then
     select exists (
       select 1 from public.friend_requests fr
       where fr.status = 'accepted'
@@ -105,8 +103,7 @@ end;
 $$;
 
 revoke all on function public.get_public_profile(uuid) from public;
-revoke all on function public.get_public_profile(uuid) from anon;
-grant execute on function public.get_public_profile(uuid) to authenticated;
+grant execute on function public.get_public_profile(uuid) to anon, authenticated;
 
 comment on function public.get_public_profile(uuid) is
-  'Returns only privacy-approved profile fields and aggregated/favorite data; SECURITY DEFINER is intentional because user_library rows are otherwise owner-only under RLS.';
+  'Returns only privacy-approved profile fields and aggregated/favorite data; public profiles are readable anonymously, friends-only profiles require an accepted friendship, and private profiles are owner-only. SECURITY DEFINER is intentional because user_library rows are otherwise owner-only under RLS.';
