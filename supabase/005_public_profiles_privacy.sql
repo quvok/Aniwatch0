@@ -19,7 +19,7 @@ create or replace function public.get_public_profile(target_user uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, auth
+set search_path = pg_catalog, public, auth
 as $$
 declare
   viewer uuid := auth.uid();
@@ -64,7 +64,7 @@ begin
       'planned', count(*) filter (where status = 'planned'),
       'completed', count(*) filter (where status = 'completed'),
       'dropped', count(*) filter (where status = 'dropped'),
-      'favorites', count(*) filter (where is_favorite),
+      'favorites', case when target.show_favorites or viewer = target_user then count(*) filter (where is_favorite) else null end,
       'rated', count(rating),
       'average_rating', round(avg(rating), 1)
     ) into stats
@@ -104,3 +104,6 @@ $$;
 revoke all on function public.get_public_profile(uuid) from public;
 revoke all on function public.get_public_profile(uuid) from anon;
 grant execute on function public.get_public_profile(uuid) to authenticated;
+
+comment on function public.get_public_profile(uuid) is
+  'Returns only privacy-approved profile fields and aggregated/favorite data; SECURITY DEFINER is intentional because user_library rows are otherwise owner-only under RLS.';
