@@ -182,18 +182,20 @@ export async function restoreCloudState(localState, userId) {
   const { data: authData, error: authError } = await client.auth.getUser();
   if (authError) throw authError;
   const { data: profile, error: profileError } = await client
-    .from("profiles").select("id,username,avatar_url").eq("id", userId).maybeSingle();
+    .from("profiles").select("id,username,avatar_url,bio,banner_url").eq("id", userId).maybeSingle();
   if (profileError) throw profileError;
 
   const metadataName = authData.user?.user_metadata?.username;
   await ensureProfile(authData.user, metadataName || profile?.username || localState.name || "Аноним", client);
 
   const { data: savedProfile, error: savedProfileError } = await client
-    .from("profiles").select("username,avatar_url").eq("id", userId).maybeSingle();
+    .from("profiles").select("username,avatar_url,bio,banner_url").eq("id", userId).maybeSingle();
   if (savedProfileError) throw savedProfileError;
 
   const merged = mergeCloudState(localState, rows || [], savedProfile?.username || metadataName || "");
   if (savedProfile?.avatar_url) merged.avatar = savedProfile.avatar_url;
+  merged.bio = savedProfile?.bio || "";
+  merged.banner = savedProfile?.banner_url || "";
   cloudLibraryReadyUserId = userId;
   await syncCloudState(merged, userId);
   return merged;
@@ -282,6 +284,41 @@ export async function saveRecommendationFeedback(userId, animeId) {
     .from("anime_recommendation_feedback")
     .upsert({ user_id: userId, anime_id: id, action: "not_interested" }, { onConflict: "user_id,anime_id" });
   if (error) throw error;
+}
+
+
+export async function saveProfileDetails({ username, bio }, userId = activeUserId) {
+  if (!userId) throw new Error("Сначала войди в аккаунт.");
+  const cleanName = String(username || "").trim();
+  const cleanBio = String(bio || "").trim();
+  if (cleanName.length < 2 || cleanName.length > 20) throw new Error("Ник должен содержать от 2 до 20 символов.");
+  if (cleanBio.length > 280) throw new Error("Описание не должно превышать 280 символов.");
+  const client = await getSupabaseClient();
+  const { data, error } = await client.from("profiles")
+    .update({ username: cleanName, bio: cleanBio })
+    .eq("id", userId)
+    .select("id,username,bio")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Не удалось сохранить профиль. Проверь права доступа.");
+  return data;
+}
+
+export async function uploadProfileBanner(file, userId) {
+  const client = await getSupabaseClient();
+  if (!userId) throw new Error("Сначала войди в аккаунт.");
+  if (!file || !["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Выбери JPG, PNG или WebP.");
+  if (file.size > 1024 * 1024) throw new Error("Размер обложки не должен превышать 1 МБ.");
+  const extension = ({ "image/jpeg":"jpg", "image/png":"png", "image/webp":"webp" })[file.type];
+  const path = userId + "/banner." + extension;
+  const { error: uploadError } = await client.storage.from("avatars").upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
+  if (uploadError) throw uploadError;
+  const { data } = client.storage.from("avatars").getPublicUrl(path);
+  const bannerUrl = data.publicUrl + "?v=" + Date.now();
+  const { data: saved, error: profileError } = await client.from("profiles").update({banner_url:bannerUrl}).eq("id",userId).select("banner_url").maybeSingle();
+  if (profileError) throw profileError;
+  if (!saved) throw new Error("Обложка загружена, но профиль не обновился.");
+  return bannerUrl;
 }
 
 export async function uploadProfileAvatar(file, userId) {
