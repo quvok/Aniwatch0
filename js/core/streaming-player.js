@@ -71,6 +71,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
  const savedTime=Math.max(0,Number(resumeAt)||0),savedSpeed=Number(resumeSpeed)>0?Number(resumeSpeed):1;
+ const kodikVoiceStorageKey="aw-kodik-voice-"+String(anime?.id||anime?.shikiId||"unknown");
+ const readSavedKodikVoice=()=>{try{return localStorage.getItem(kodikVoiceStorageKey)||""}catch{return ""}};
+ const saveKodikVoice=id=>{if(id===null||id===undefined||String(id)==="")return;try{localStorage.setItem(kodikVoiceStorageKey,String(id))}catch(error){console.warn("[AniWatch] Could not save Kodik voice preference:",error)}};
  let savedProgressApplied=false;
  const restoreSavedProgress=el=>{
   if(savedProgressApplied||!el||savedTime<5)return;
@@ -231,7 +234,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    if(!releases.length)throw new Error("Не найдены подходящие релизы для этого аниме");
    const available=releases.filter(item=>item?.link&&item?.translation);
    if(!available.length)throw new Error("Не найдены доступные варианты озвучки");
-   let selected=available[0];
+   const savedTranslationId=readSavedKodikVoice();
+   let selected=available.find(item=>savedTranslationId&&String(item.translation?.id??"")===savedTranslationId)||available[0];
+   if(savedTranslationId&&String(selected.translation?.id??"")!==savedTranslationId)setStatus("Сохранённая озвучка недоступна для этой серии — выбрана доступная");
    const episodesOf=item=>{
     const all=[];
     for(const [seasonKey,season] of Object.entries(item?.seasons||{})){
@@ -273,6 +278,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     options.querySelectorAll("[data-kodik-voice]").forEach(button=>button.addEventListener("click",()=>{
      const previous=getPlaybackState()||{time:0,playing:false,speed:1};
      selected=available[Number(button.dataset.kodikVoice)]||available[0];
+     saveKodikVoice(selected.translation?.id);
      render();
      playSelected(previous);
      try{onTranslationChange({translationId:selected.translation?.id??null,title:String(selected.translation?.title||""),time:previous.time,duration:previous.duration,playing:previous.playing,speed:previous.speed})}catch(error){console.warn("[AniWatch] Kodik translation callback failed:",error)}
@@ -284,7 +290,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const match=available.find(item=>String(item.translation?.id??"")===String(translationId??""));
     if(!match){setStatus("Участнику недоступна выбранная ведущим озвучка");resolve(false);return}
     if(String(selected.translation?.id??"")===String(translationId??"")){resolve(true);return}
-    selected=match;render();playSelected(state,resolve);
+    selected=match;saveKodikVoice(selected.translation?.id);render();playSelected(state,resolve);
    });
    playSelected();
   }catch(error){
