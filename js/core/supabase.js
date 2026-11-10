@@ -27,6 +27,9 @@ let activeUserId = null;
 let cloudLibraryReadyUserId = null;
 let syncTimer = null;
 let syncChain = Promise.resolve();
+let episodeProgressChannel = null;
+let episodeProgressChannelUserId = null;
+let episodeProgressWrites = new Map();
 
 export async function initializeSupabaseAuth() {
   const client = await getSupabaseClient();
@@ -108,6 +111,9 @@ export async function signOut() {
   if (error) throw error;
   activeUserId = null;
   cloudLibraryReadyUserId = null;
+  if (episodeProgressChannel) await client.removeChannel(episodeProgressChannel).catch(() => {});
+  episodeProgressChannel = null;
+  episodeProgressChannelUserId = null;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = null;
 }
@@ -177,25 +183,93 @@ export async function restoreCloudState(localState, userId) {
 
   // The library and profile are independent reads. Fetch them together instead
   // of serializing several round-trips (getUser -> profiles -> RPC).
-  const [libraryResult, profileResult] = await Promise.all([
+  const [libraryResult, profileResult, progressResult] = await Promise.all([
     client.from("user_library")
       .select("anime_id,is_favorite,status,rating,history")
       .eq("user_id", userId),
-    client.rpc("get_public_profile", { target_user: userId })
+    client.rpc("get_public_profile", { target_user: userId }),
+    fetchEpisodeProgressRows(client, userId)
   ]);
   if (libraryResult.error) throw libraryResult.error;
   if (profileResult.error) throw profileResult.error;
   const savedProfile = profileResult.data;
   if (!savedProfile) throw new Error("Не удалось восстановить настройки профиля.");
 
+  const progressRows = progressResult;
   const merged = mergeCloudState(localState, libraryResult.data || [], savedProfile.username || "");
+  const watched = {};
+  const addMark = (animeId, episode, value) => {
+    const id = String(Number(animeId));
+    const number = Number(episode);
+    if (!Number.isSafeInteger(Number(id)) || Number(id) <= 0 || !Number.isInteger(number) || number <= 0) return;
+    watched[id] = watched[id] || [];
+    watched[id] = watched[id].filter(item => item !== number);
+    if (value) watched[id].push(number);
+    if (!watched[id].length) delete watched[id];
+  };
+  const localProgressBelongsToUser = !localState?.episodeProgressOwner || localState.episodeProgressOwner === userId;
+  if (progressRows.length) {
+    progressRows.forEach(row => addMark(row.anime_id, row.episode, row.is_watched));
+    merged.watchedEpisodes = watched;
+  } else {
+    // First-time migration fallback: retain local and legacy marks only while the
+    // dedicated table has no rows, and never carry a prior account's local marks into another account.
+    if (libraryResult.data?.length || localProgressBelongsToUser) {
+      Object.entries(merged.watchedEpisodes || {}).forEach(([id, episodes]) =>
+        (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
+      );
+    }
+    if (localProgressBelongsToUser) {
+      Object.entries(localState?.watchedEpisodes || {}).forEach(([id, episodes]) =>
+        (Array.isArray(episodes) ? episodes : []).forEach(ep => addMark(id, ep, true))
+      );
+    }
+    merged.watchedEpisodes = watched;
+  }
+
+  const allPending = merged.episodeProgressPending && typeof merged.episodeProgressPending === "object"
+    ? merged.episodeProgressPending : {};
+  const pendingEntries = [];
+  Object.entries(allPending).forEach(([key, isWatched]) => {
+    const match = /^(?:(guest|[0-9a-f-]+)\|)?(\d+):(\d+)$/i.exec(key);
+    if (!match) return;
+    const owner = match[1] || "guest";
+    if ((owner !== "guest" && owner !== userId) || (owner === "guest" && !localProgressBelongsToUser)) return;
+    const animeId = Number(match[2]), episode = Number(match[3]);
+    if (!Number.isSafeInteger(animeId) || animeId <= 0 || !Number.isInteger(episode) || episode <= 0) return;
+    addMark(animeId, episode, !!isWatched);
+    pendingEntries.push({
+      key,
+      row: { user_id: userId, anime_id: animeId, episode, is_watched: !!isWatched }
+    });
+  });
+  const pendingRows = pendingEntries.map(entry => entry.row);
+  const seedRows = !progressRows.length
+    ? Object.entries(watched).flatMap(([animeId, episodes]) => episodes.map(episode => ({
+        user_id: userId, anime_id: Number(animeId), episode, is_watched: true
+      })))
+    : [];
+  const initialRows = new Map();
+  seedRows.forEach(row => initialRows.set(row.anime_id + ":" + row.episode, row));
+  pendingRows.forEach(row => initialRows.set(row.anime_id + ":" + row.episode, row));
+  if (initialRows.size) {
+    const { error: initialError } = await client.from("user_episode_progress")
+      .upsert([...initialRows.values()], { onConflict: "user_id,anime_id,episode" });
+    if (initialError) console.warn("[AniWatch] Legacy or pending episode progress migration will retry:", initialError);
+    else if (pendingRows.length) {
+      pendingEntries.forEach(entry => delete merged.episodeProgressPending[entry.key]);
+      if (!Object.keys(merged.episodeProgressPending || {}).length) delete merged.episodeProgressPending;
+    }
+  }
   if (savedProfile.avatar_url) merged.avatar = savedProfile.avatar_url;
   merged.bio = savedProfile.bio || "";
   merged.banner = savedProfile.banner_url || "";
   merged.profileVisibility = savedProfile.profile_visibility || "friends";
   merged.showStats = savedProfile.show_stats !== false;
   merged.showFavorites = savedProfile.show_favorites !== false;
+  merged.episodeProgressOwner = userId;
   cloudLibraryReadyUserId = userId;
+  ensureEpisodeProgressRealtime(client, userId);
 
   // The snapshot is ready for the UI now. Reconciliation/migration writes must
   // not keep the user waiting after a successful sign-in.
@@ -203,6 +277,77 @@ export async function restoreCloudState(localState, userId) {
     console.warn("[AniWatch] Background cloud reconciliation failed:", error)
   );
   return merged;
+}
+
+async function fetchEpisodeProgressRows(client, userId) {
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client.from("user_episode_progress")
+      .select("anime_id,episode,is_watched,updated_at")
+      .eq("user_id", userId)
+      .order("anime_id", { ascending: true })
+      .order("episode", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+function ensureEpisodeProgressRealtime(client, userId) {
+  if (episodeProgressChannel && episodeProgressChannelUserId === userId) return;
+  if (episodeProgressChannel) client.removeChannel(episodeProgressChannel).catch(() => {});
+  episodeProgressChannelUserId = userId;
+  episodeProgressChannel = client
+    .channel("episode-progress-" + userId)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "user_episode_progress",
+      filter: "user_id=eq." + userId
+    }, payload => {
+      if (activeUserId !== userId || !payload?.new) return;
+      window.dispatchEvent(new CustomEvent("aw-episode-progress-changed", {
+        detail: { userId, row: payload.new }
+      }));
+    })
+    .subscribe(status => {
+      if (status !== "SUBSCRIBED") return;
+      fetchEpisodeProgressRows(client, userId).then(rows => {
+        if (activeUserId !== userId) return;
+        window.dispatchEvent(new CustomEvent("aw-episode-progress-changed", {
+          detail: { userId, rows }
+        }));
+      }).catch(error => console.warn("[AniWatch] Episode progress reconnect refresh failed:", error));
+    });
+}
+
+export async function saveEpisodeProgress(animeId, episode, isWatched, userId = activeUserId) {
+  const anime = Number(animeId), number = Number(episode);
+  if (!userId || !Number.isSafeInteger(anime) || anime <= 0 || !Number.isInteger(number) || number <= 0) return false;
+  if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return false;
+  const client = await getSupabaseClient();
+  const key = userId + ":" + anime + ":" + number;
+  const previous = episodeProgressWrites.get(key) || Promise.resolve();
+  const write = previous.catch(() => {}).then(async () => {
+    if (activeUserId !== userId || cloudLibraryReadyUserId !== userId) return false;
+    const { error } = await client.from("user_episode_progress").upsert({
+      user_id: userId,
+      anime_id: anime,
+      episode: number,
+      is_watched: !!isWatched
+    }, { onConflict: "user_id,anime_id,episode" });
+    if (error) throw error;
+    return true;
+  });
+  episodeProgressWrites.set(key, write);
+  try {
+    return await write;
+  } finally {
+    if (episodeProgressWrites.get(key) === write) episodeProgressWrites.delete(key);
+  }
 }
 
 export async function syncCloudState(state, userId = activeUserId) {
@@ -224,7 +369,11 @@ export async function syncCloudState(state, userId = activeUserId) {
     is_favorite: favorites.has(id),
     status: watchlist[id] || null,
     rating: (state.rate || {})[id] == null ? null : Number((state.rate || {})[id]),
-    history: { ...((state.hist || {})[id] || {}), ...((state.watchedEpisodes || {})[id] ? { watchedEpisodes: (state.watchedEpisodes || {})[id] } : {}) },
+    history: (() => {
+      const value = { ...((state.hist || {})[id] || {}) };
+      delete value.watchedEpisodes;
+      return value;
+    })(),
     updated_at: new Date().toISOString()
   })).filter(row => row.is_favorite || row.status || row.rating !== null || Object.keys(row.history).length);
 
