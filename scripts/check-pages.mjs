@@ -62,8 +62,9 @@ assert.ok(homeController.includes('params:{score:8,sort:"SCORE_DESC"}'),"high-ra
 assert.ok(homeController.includes('params:{status:"RELEASING",sort:"POPULARITY_DESC"}'),"ongoing smart tag must use the catalog status filter");
 assert.ok(!homePage.includes('class="genre-section"'),"homepage must not render the genre shelf");
 assert.ok(homePage.includes('class="smart-tag-grid"'),"homepage must render the smart-tag section");
-assert.ok(read("js/pages/anime.js").includes('class="title-tags" aria-label="Жанры"'),"anime detail page must render its genres");
-assert.ok(read("css/style.css").includes('.title-tags:before{content:"ЖАНРЫ"'),"anime genre chips must have a visible heading");
+assert.ok(read("js/pages/anime.js").includes('class="title-genres"><div class="title-genres-heading">Жанры</div>'),"anime detail page must render an explicit genre heading");
+assert.ok(read("js/pages/anime.js").includes('class="title-tags" aria-label="Жанры"'),"anime detail page must render its genre chips");
+assert.ok(read("css/style.css").includes(".title-genres-heading{"),"anime genre heading must have a dedicated visible style");
 console.log("✓ genre placement and homepage smart-tag checks passed");
 const plotTagSource=read("js/core/plot-tags.js");
 const plotTagModule=await import("data:text/javascript;base64,"+Buffer.from(plotTagSource).toString("base64"));
