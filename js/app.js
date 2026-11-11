@@ -762,7 +762,7 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
    var items=await fetchShikimoriCalendar({force});
    var posterEntries=calendarPosterModels(items);
    if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d));
-   posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img)});
+   posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img);entry.item.malId=Number(entry.d.mal)||Number(entry.item.malId)||0});
    calendarItems=items;
    await loadCalendarFollowState();
    try{calendarPushState=await getCalendarPushState()}catch(error){calendarPushState={supported:false,enabled:false}}
@@ -1335,6 +1335,7 @@ async function xshikiPosters(L){
     var d=findItem(a.id);if(!d)return;
     var poster=a.poster||{},path=shikiImageUrl(poster.originalUrl||poster.mainUrl);
     if(path)d.img=path;
+    if(Number(a.malId)>0)d.mal=Number(a.malId);
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
   }
