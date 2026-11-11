@@ -4,5 +4,5 @@ export function renderHomePage({app,featured,continueCards,popularCards=[],ongoi
  const popularShelf=popularCards.length?row("Популярное",popularCards,"Тайтлы, которые чаще добавляют в избранное"):"";
  const ongoingShelf=ongoingCards.length?row("Сейчас выходит",ongoingCards,"Сериалы, у которых продолжается выход серий"):"";
  const recentShelf=recentCards.length?row("Свежие релизы",recentCards,"Недавно опубликованные тайтлы и обновления"):"";
- app.innerHTML='<div class="home-layout"><div class="home-primary"><div id="hw">'+featured+'</div>'+continueShelf+popularShelf+ongoingShelf+recentShelf+recommendationShelf+'</div></div>';
+ app.innerHTML='<div class="home-layout"><div class="home-primary"><div id="hw">'+featured+'</div>'+continueShelf+popularShelf+ongoingShelf+recentShelf+'</div></div>';
 }
