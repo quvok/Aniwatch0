@@ -68,6 +68,7 @@ assert.equal(rankRecommendations([{id:104,genres:["Ecchi"],score:9}],ecchiProfil
 const adultApi=read("js/api/shikimori.js"),adultGenreLoader=read("js/api/genders.js"),adultApp=read("js/app.js"),adultSw=read("sw.js");
 assert.ok(adultApi.includes("isAdultAnime(item)")&&adultApi.includes("filterAdultGenres([g])"),"Shikimori catalog and genre list must filter adult content");
 assert.ok(adultGenreLoader.includes("filterAdultGenres(data.genres)"),"anime detail genre loader must filter adult genres");
+assert.ok(read("js/pages/anime.js").includes("filterAdultGenres(d.g)"),"anime detail page must sanitize stale cached genre chips");
 assert.ok(adultApp.includes("filterAdultGenres(a.genres)")&&adultApp.includes("!isAdultGenre(g)"),"all app anime mappings and catalog genre options must filter adult genres");
 assert.ok(adultSw.includes('"js/core/adult-content.js"')&&adultSw.includes("aw-v223"),"service worker must cache the adult genre filter with a new version");
 console.log("✓ adult genre exclusion checks passed");
