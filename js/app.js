@@ -1334,13 +1334,14 @@ async function xcq(reset){
  try{
   var q=xCF.q.trim(),sourcePage=xCF.p;
   var key="aw-shikimori-catalog-v4:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
-  var cached=null,raw=null;
+  var cached=null,raw=null,hasMore=false;
   try{cached=JSON.parse(localStorage.getItem(key)||"null")}catch(e){}
-  if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
+  if(cached&&Date.now()-cached.at<10*60*1000){raw=Array.isArray(cached.data)?cached.data:cached.data.items;hasMore=typeof cached.hasMore==="boolean"?cached.hasMore:raw.length===50;}
   if(!raw){
    var order=xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity";
-   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g});
-   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
+   var pageResult=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g,withMeta:true});
+   raw=pageResult.items;hasMore=pageResult.hasMore;
+   try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw,hasMore}))}catch(e){}
   }
   if(requestId!==xSearchRequest||k!==xCF.k||activePage()!=="catalog")return;
   var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
@@ -1355,7 +1356,7 @@ async function xcq(reset){
   var cr=$("#cr");if(!cr)return;
   cr.insertAdjacentHTML("beforeend",L.map(d=>card(d)).join(""));
   xshikiPosters(L);
-  xCF.p=sourcePage+1;xCF.more=Array.isArray(raw)&&raw.length===50;xCF.busy=false;
+  xCF.p=sourcePage+1;xCF.more=hasMore;xCF.busy=false;
   $("#cc").textContent=q?"Результаты поиска":"Каталог";
   if(box)box.textContent=xCF.more?"Загрузить ещё":"Это все результаты";
   if(!cr.children.length)$("#cc").textContent=q?"Ничего не найдено":"В каталоге пока нет результатов";
