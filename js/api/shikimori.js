@@ -59,7 +59,7 @@ export async function fetchAnimeGenres({signal}={}){
  return result.filter(g=>g&&g.kind==="genre"&&filterAdultGenres([g]).length===1);
 }
 
-export async function fetchCatalogPage({query="",page=1,limit=50,order="popularity",format="",season="",status="",genre="",signal}={}){
+export async function fetchCatalogPage({query="",page=1,limit=50,order="popularity",format="",season="",status="",genre="",signal,withMeta=false}={}){
  const url=new URL(API_ROOT+"/animes");
  url.searchParams.set("limit",String(Math.max(1,Math.min(50,Number(limit)||50))));
  url.searchParams.set("page",String(page));
@@ -71,7 +71,8 @@ export async function fetchCatalogPage({query="",page=1,limit=50,order="populari
  if(genre)url.searchParams.set("genre_v2",String(genre));
  const result=await fetchCatalogJSON(url.toString(),{signal,ttl:5*60*1000});
  if(!Array.isArray(result))throw new Error("Некорректный ответ");
- return result.filter(item=>!isAdultAnime(item));
+ const items=result.filter(item=>!isAdultAnime(item));
+ return withMeta?{items,hasMore:result.length>=Math.max(1,Math.min(50,Number(limit)||50))}:items;
 }
 
 
