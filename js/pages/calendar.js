@@ -5,7 +5,6 @@ const DAY_NAMES=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 const FULL_DAYS=["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"];
 const dateKey=date=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const localDate=value=>{const d=new Date(value);return Number.isFinite(d.getTime())?d:null};
-const mondayOf=date=>{const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());d.setDate(d.getDate()-((d.getDay()+6)%7));return d};
 const dateLabel=date=>new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"long"}).format(date);
 const timeLabel=value=>{const date=localDate(value);return date?new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(date):""};
 
@@ -14,7 +13,7 @@ function releaseCard(item,{followed=false,inLibrary=false}={}){
  const title=id?'<a class="calendar-title" href="'+titleUrl(id)+'">'+esc(item.title)+'</a>':'<b class="calendar-title">'+esc(item.title)+'</b>';
  const time=timeLabel(item.airingAt);
  const episode='<span class="calendar-new-episode">Серия '+esc(item.nextEpisode??"—")+(time?' · '+esc(time):"")+'</span>';
- const poster=item.poster?'<img src="'+esc(item.poster)+'" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement("span"),{className:"calendar-poster-placeholder",textContent:"AW"}))">':'<span class="calendar-poster-placeholder">AW</span>';
+ const poster=item.poster?'<img src="'+esc(item.poster)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=&#39;AW&#39;">':'<span class="calendar-poster-placeholder">AW</span>';
  const followButton=item.shikimoriId?'<button class="calendar-follow'+(followed?' is-following':'')+'" type="button" data-a="calendar-follow" data-v="'+item.shikimoriId+'" aria-pressed="'+followed+'">'+(followed?'Отслеживается':'Следить')+'</button>':"";
  return '<article class="calendar-release">'+(id?'<a class="calendar-poster" href="'+titleUrl(id)+'">'+poster+'</a>':'<div class="calendar-poster">'+poster+'</div>')+'<div class="calendar-release-info">'+title+'<div class="calendar-release-meta">'+(item.year?item.year+" · ":"")+esc(item.type||"Аниме")+'</div><div class="calendar-episode-state">'+episode+'</div><div class="calendar-release-tags">'+(inLibrary?'<span class="calendar-library-tag">В моей библиотеке</span>':"")+'</div>'+followButton+'</div></article>';
 }
