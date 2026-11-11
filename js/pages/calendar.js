@@ -12,8 +12,8 @@ function releaseCard(item){
 }
 export function renderCalendarPage({app,items=[],loading=false,error=""}){
  const now=new Date(),today=(now.getDay()+6)%7+1;
- const count=items.length;
- const head='<section class="calendar-page-head"><div><span class="eyebrow">РАСПИСАНИЕ РЕЛИЗОВ</span><h1>Календарь релизов</h1><p>Ближайшие выходы серий по расписанию Shikimori. Время показано по твоему часовому поясу.</p></div><div class="calendar-summary"><b>'+items.length+'</b><span>тайтлов на неделе</span><b>'+count+'</b><span>с новыми сериями</span></div></section>';
+ const count=new Set(items.map(item=>item.day)).size;
+ const head='<section class="calendar-page-head"><div><span class="eyebrow">РАСПИСАНИЕ РЕЛИЗОВ</span><h1>Календарь релизов</h1><p>Ближайшие выходы серий по расписанию Shikimori. Время показано по твоему часовому поясу.</p></div><div class="calendar-summary"><b>'+items.length+'</b><span>тайтлов на неделе</span><b>'+count+'</b><span>дней с релизами</span></div></section>';
  if(loading){app.innerHTML=head+'<p class="empty">Загружаем расписание…</p>';return}
  if(error&&!items.length){app.innerHTML=head+'<section class="offline-state"><h2>Не удалось загрузить календарь</h2><p>'+esc(error)+'</p><button class="btn" type="button" data-a="calendar-reload">Повторить</button></section>';return}
  const days=DAYS.map((name,index)=>{
