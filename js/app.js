@@ -761,7 +761,7 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
   try{
    var items=await fetchShikimoriCalendar({force});
    var posterEntries=calendarPosterModels(items);
-   if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d));
+   if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d),{resolveMalIds:true});
    posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img);entry.item.malId=Number(entry.d.mal)||Number(entry.item.malId)||0});
    calendarItems=items;
    await loadCalendarFollowState();
@@ -1322,12 +1322,16 @@ async function xhyd(){
  }
 }
 // Shikimori is the single source for poster artwork. Keep image URLs transient.
-async function xshikiPosters(L){
+async function xshikiPosters(L,{resolveMalIds=false}={}){
  L=(L||[]).filter(Boolean);
  var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
  if(needsLookup.length)await enrichShikimori(needsLookup);
- var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
+ var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>{
+  if(!Number.isInteger(id)||id<=0)return false;
+  var item=findItem(id);
+  return !dHasImage(L,id)||(resolveMalIds&&item&&!Number(item.mal));
+ }))];
  try{
   for(var i=0;i<ids.length;i+=50){
    var batchIds=ids.slice(i,i+50),posters=await fetchAnimePostersByIds(batchIds);
@@ -1349,6 +1353,7 @@ async function xshikiPosters(L){
     var d=findItem(a.id);if(!d)return;
     var image=a.image||{},path=shikiImageUrl(image.original||image.preview||image.x96);
     if(path)d.img=path;
+    if(Number(a.malId)>0)d.mal=Number(a.malId);
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
   }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
