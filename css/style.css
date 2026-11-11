@@ -3575,6 +3575,7 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .calendar-filter button{border:0;border-radius:8px;padding:8px 13px;background:transparent;color:var(--mt);font-size:11px;font-weight:750}
 .calendar-filter button.is-active{background:rgba(150,119,230,.2);color:#e5dcff}
 .calendar-push-toggle{border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:9px 13px;background:rgba(139,92,246,.09);color:#d8c8ff;font-size:11px;font-weight:750}
+.calendar-push-toggle:disabled{opacity:.55;cursor:not-allowed}
 .calendar-push-toggle.is-enabled{border-color:rgba(111,211,158,.35);background:rgba(68,170,115,.1);color:#a7e5bd}
 .calendar-week-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:0 0 14px}
 .calendar-week-day{display:grid;justify-items:center;gap:4px;min-width:0;padding:10px 4px;border:1px solid var(--ln);border-radius:12px;background:rgba(255,255,255,.025);color:var(--mt)}
