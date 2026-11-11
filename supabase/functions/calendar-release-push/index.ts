@@ -59,7 +59,7 @@ Deno.serve(async (request: Request) => {
   const subscriptions = (subscriptionResult.data || []) as Subscription[];
   if (!follows.length || !subscriptions.length) return json({ ok: true, checked: 0, sent: 0 });
 
-  const response = await fetch("https://shikimori.one/api/calendar", {
+  const response = await fetch("https://shikimori.io/api/calendar", {
     headers: { "Accept": "application/json", "User-Agent": "AniWatch/1.0 (release calendar notifications)" }
   });
   if (!response.ok) return json({ error: "Shikimori calendar request failed", status: response.status }, 502);
