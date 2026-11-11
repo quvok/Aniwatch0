@@ -1344,7 +1344,7 @@ async function xcq(reset){
    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw,hasMore}))}catch(e){}
   }
   if(requestId!==xSearchRequest||k!==xCF.k||activePage()!=="catalog")return;
-  var L=(Array.isArray(raw)?raw:[]).map(shikiToItem);
+  var L=(Array.isArray(raw)?raw:[]).map(shikiToItem).filter(d=>!isAdultAnime(d));
 
   if(xCF.y)L=L.filter(d=>String(d.y)===String(xCF.y));
   if(xCF.season){
