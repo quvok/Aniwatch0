@@ -1,0 +1,83 @@
+import {warmKodikDomainRules} from "./kodik-replacer.js";
+const API_BASE="https://kodik-api.com";
+const clean=value=>String(value||"").toLocaleLowerCase("ru").replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/gi," ").trim();
+const FUNCTION_URL="https://oikuyhdgcobuuesbuygl.supabase.co/functions/v1/kodik-search";
+const SUPABASE_KEY="sb_publishable_Ker59ui359qC1e9dsGsmsg_VW6azZfK";
+async function request(params){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(FUNCTION_URL,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},body:JSON.stringify({params}),signal:controller.signal});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data?.error)throw new Error(data?.error||("Kodik API: HTTP "+response.status));
+  if(!Array.isArray(data?.results))throw new Error("Kodik вернул неожиданный ответ");
+  return data.results;
+ }catch(error){
+  if(error?.name==="AbortError")throw new Error("Kodik API не ответил за 15 секунд");
+  if(error instanceof TypeError)throw new Error("Не удалось подключиться к серверу Kodik");
+  throw error;
+ }finally{clearTimeout(timer)}
+}
+const titlesOf=item=>[item?.title,item?.title_orig,item?.other_title].flatMap(x=>String(x||"").split(/[\/|;]/)).map(clean).filter(Boolean);
+function rank(item,anime){
+ const wanted=[anime?.n,anime?.o,anime?.title,anime?.originalTitle].map(clean).filter(Boolean);
+ const candidates=titlesOf(item);
+ if(!wanted.length||!candidates.length)return 99;
+ if(wanted.some(x=>candidates.includes(x)))return 0;
+ if(wanted.some(x=>candidates.some(y=>y.includes(x)||x.includes(y))))return 1;
+ return 99;
+}
+const searchCache=new Map();
+export async function searchKodikAnime(anime){
+ warmKodikDomainRules();
+ const cacheKey=String(anime?.shikiId||anime?.shiki_id||anime?.id||anime?.n||anime?.o||"unknown");
+ if(searchCache.has(cacheKey))return searchCache.get(cacheKey);
+ const pending=(async()=>{
+ const shikiId=Number(anime?.shikiId||anime?.shiki_id||(anime?.source==="shikimori"&&Number(anime?.id)>1000000000?Number(anime.id)-1000000000:0));
+ const common={types:"anime-serial,anime",limit:50,with_episodes_data:true};
+ let results=[];
+ if(shikiId>0)results=await request({...common,shikimori_id:shikiId});
+ if(!results.length){
+  const title=String(anime?.n||anime?.o||anime?.title||"").trim();
+  if(title.length<2)throw new Error("Не удалось определить название аниме");
+  results=await request({...common,title});
+ }
+ const exact=results.map(item=>({item,score:rank(item,anime)})).filter(x=>x.score<99);
+ const idMatches=shikiId>0?results.filter(item=>Number(item?.shikimori_id)===shikiId):[];
+ const selected=exact.length?exact:idMatches.map(item=>({item,score:0}));
+ const list=selected.map(x=>x.item).filter(item=>item?.link&&item?.translation);
+ const unique=new Map();
+ for(const item of list){
+  const key=[item.id,item.translation?.id,item.translation?.type].join(":");
+  if(!unique.has(key))unique.set(key,item);
+ }
+ return [...unique.values()].sort((a,b)=>{
+  const at=a.type==="anime-serial"?0:1,bt=b.type==="anime-serial"?0:1;
+  return at-bt||String(a.translation?.title||"").localeCompare(String(b.translation?.title||""),"ru");
+ });
+
+ })();
+ searchCache.set(cacheKey,pending);
+ try{return await pending}catch(error){searchCache.delete(cacheKey);throw error}
+}
+export function getKodikEpisodeLink(item,episode,seasonNumber){
+ const seasons=item?.seasons||{};
+ const entries=Object.entries(seasons);
+ const wantedSeason=Number(seasonNumber);
+ const ordered=Number.isFinite(wantedSeason)&&wantedSeason>0
+  ?[...entries.filter(([key])=>Number(key)===wantedSeason),...entries.filter(([key])=>Number(key)!==wantedSeason)]
+  :entries;
+ for(const [seasonKey,season] of ordered){
+  const episodes=season?.episodes||{};
+  const entry=Object.entries(episodes).find(([key,value])=>Number(key)===Number(episode)||Number(value?.episode)===Number(episode)||Number(value?.number)===Number(episode));
+  const link=entry?.[1]?.link||entry?.[1]?.url;
+  if(link)return normalizeKodikLink(link);
+ }
+ return normalizeKodikLink(item?.link||"");
+}
+export function normalizeKodikLink(link){
+ const value=String(link||"").trim();
+ if(!value)return"";
+ if(value.startsWith("//"))return"https:"+value;
+ if(/^https?:\/\//i.test(value))return value;
+ return "";
+}
