@@ -1438,7 +1438,7 @@ function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
  var image=a.image||{},path=image.original||image.preview||image.x96||"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:"",kind:String(a.kind||"").toLowerCase()}
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:"",kind:String(a.kind||"").toLowerCase(),rating:String(a.rating||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){
