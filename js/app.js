@@ -210,8 +210,7 @@ V.home=()=>{
  var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
- renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,row});
- loadHomeRecommendations();
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,ongoingCards:ongoing,recentCards:recent,row});
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
 
