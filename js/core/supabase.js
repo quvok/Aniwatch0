@@ -440,6 +440,62 @@ export async function saveRecommendationFeedback(userId, animeId) {
 }
 
 
+export async function loadCalendarFollows(userId = activeUserId) {
+  if (!userId) return {};
+  const client = await getSupabaseClient();
+  const { data, error } = await client.from("calendar_follows")
+    .select("shikimori_id,notify_before,notify_release")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return Object.fromEntries((data || []).map(row => [String(row.shikimori_id), {
+    notifyBefore: row.notify_before !== false,
+    notifyRelease: row.notify_release !== false
+  }]));
+}
+
+export async function saveCalendarFollow(userId, shikimoriId, enabled) {
+  const id = Number(shikimoriId);
+  if (!userId || !Number.isSafeInteger(id) || id <= 0) throw new Error("Некорректный тайтл.");
+  const client = await getSupabaseClient();
+  if (enabled) {
+    const { error } = await client.from("calendar_follows").upsert({
+      user_id: userId, shikimori_id: id, notify_before: true, notify_release: true
+    }, { onConflict: "user_id,shikimori_id" });
+    if (error) throw error;
+  } else {
+    const { error } = await client.from("calendar_follows")
+      .delete().eq("user_id", userId).eq("shikimori_id", id);
+    if (error) throw error;
+  }
+  return true;
+}
+
+export async function saveCalendarPushSubscription(userId, subscription) {
+  if (!userId || !subscription?.endpoint || !subscription?.p256dh || !subscription?.auth) {
+    throw new Error("Некорректная push-подписка.");
+  }
+  const client = await getSupabaseClient();
+  const { error } = await client.from("push_subscriptions").upsert({
+    user_id: userId,
+    endpoint: subscription.endpoint,
+    p256dh: subscription.p256dh,
+    auth: subscription.auth,
+    expiration_time: subscription.expiration_time || null,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id,endpoint" });
+  if (error) throw error;
+  return true;
+}
+
+export async function removeCalendarPushSubscription(userId, endpoint) {
+  if (!userId || !endpoint) return false;
+  const client = await getSupabaseClient();
+  const { error } = await client.from("push_subscriptions")
+    .delete().eq("user_id", userId).eq("endpoint", endpoint);
+  if (error) throw error;
+  return true;
+}
+
 export async function saveProfileDetails({ bio }, userId = activeUserId) {
   if (!userId) throw new Error("Сначала войди в аккаунт.");
   const cleanBio = String(bio || "").trim();
