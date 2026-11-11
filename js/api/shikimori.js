@@ -88,7 +88,7 @@ export async function fetchAnimeByIds(ids,{signal}={}){
 export async function fetchAnimePostersByIds(ids,{signal}={}) {
  const unique=[...new Set((ids||[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))];
  if(!unique.length)return [];
- const response=await fetch("https://shikimori.io/api/graphql",{method:"POST",signal,headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({query:"query($ids: String) { animes(ids: $ids, limit: 50) { id poster { originalUrl mainUrl } } }",variables:{ids:unique.join(",")}})});
+ const response=await fetch("https://shikimori.io/api/graphql",{method:"POST",signal,headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({query:"query($ids: String) { animes(ids: $ids, limit: 50) { id malId poster { originalUrl mainUrl } } }",variables:{ids:unique.join(",")}})});
  if(!response.ok)throw new Error("Ошибка GraphQL Shikimori (HTTP "+response.status+")");
  const payload=await response.json();
  if(payload.errors&&payload.errors.length)throw new Error(payload.errors.map(e=>e.message).join("; "));
@@ -114,7 +114,7 @@ export async function fetchShikimoriCalendar({signal,force=false}={}){
   const image=anime.image||{},path=String(image.original||image.preview||"");
   let poster="";
   if(path&&!/missing_(?:original|preview)/i.test(path)){try{poster=new URL(path,"https://shikimori.io").href}catch{}}
-  return {day:(date.getDay()+6)%7+1,airingAt:at,nextEpisode:Number(entry.next_episode)||((Number(anime.episodes_aired)||0)+1),shikimoriId:Number(anime.id),title:String(anime.russian||anime.name||"Без названия"),poster,year:Number(String(anime.aired_on||"").slice(0,4))||0,type:String(anime.kind||"").toUpperCase()};
+  return {day:(date.getDay()+6)%7+1,airingAt:at,nextEpisode:Number(entry.next_episode)||((Number(anime.episodes_aired)||0)+1),shikimoriId:Number(anime.id),malId:Number(anime.myanimelist_id)||0,title:String(anime.russian||anime.name||"Без названия"),poster,year:Number(String(anime.aired_on||"").slice(0,4))||0,type:String(anime.kind||"").toUpperCase()};
  }).filter(Boolean);
 }
  

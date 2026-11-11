@@ -4,7 +4,7 @@ import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js"
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
-import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback } from "./core/supabase.js";
+import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow } from "./core/supabase.js";
 import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl as routeWatchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
@@ -25,6 +25,7 @@ import { fetchAniLibriaHomeCollections } from "./api/anilibria.js";
 import { searchKodikAnime } from "./api/kodik.js";
 import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
+import { getCalendarPushState, enableCalendarPush, disableCalendarPush } from "./core/calendar-push.js";
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
@@ -710,36 +711,69 @@ V.mylist=()=>{
   if(page)page.insertAdjacentHTML("afterbegin",'<p class="empty" role="status">Не удалось обновить данные из БД. Ниже показан сохранённый локальный снимок. <button class="btn ghost" type="button" data-a="mylist-reload">Повторить загрузку</button></p>');
  });
 };
-var calendarLoadRequest=0;
-function calendarPosterModels(items){
- return (items||[]).map(item=>{
-  var shikiId=Number(item.shikimoriId),id=1000000000+shikiId;
-  if(!Number.isInteger(shikiId)||shikiId<=0)return null;
-  var d=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
-  if(!d){
-   d={id,shikiId,source:"shikimori",mal:null,n:esc(item.title||"Без названия"),o:"",g:["Аниме"],y:Number(item.year)||0,r:0,e:0,s:"Онгоинг",d:"",c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(item.poster),ban:"",kind:String(item.type||"").toLowerCase()};
-  }else if(!shikiImageUrl(d.img)&&item.poster)d.img=shikiImageUrl(item.poster);
-  d.shikiId=shikiId;d.source=d.source||"shikimori";
-  M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;
-  return {item,d};
- }).filter(Boolean);
-}
-async function loadCalendar(force=false){
- var request=++calendarLoadRequest;
- renderCalendarPage({app,loading:true});
- try{
-  var items=await fetchShikimoriCalendar({force});
-  var posterEntries=calendarPosterModels(items);
-  if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d));
-  posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img)});
-  if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarPage({app,items});
- }catch(error){
-  console.warn("[AniWatch] Shikimori calendar failed:",error);
-  if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание Shikimori. Попробуй ещё раз."});
+var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="all",calendarSelectedDate="",calendarPushState={supported:false,enabled:false};
+ function calendarPosterModels(items){
+  return (items||[]).map(item=>{
+   var shikiId=Number(item.shikimoriId),id=1000000000+shikiId;
+   if(!Number.isInteger(shikiId)||shikiId<=0)return null;
+   var d=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
+   if(!d){
+    d={id,shikiId,source:"shikimori",mal:Number(item.malId)||null,n:String(item.title||"Без названия"),o:"",g:["Аниме"],y:Number(item.year)||0,r:0,e:0,s:"Онгоинг",d:"",c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(item.poster),ban:"",kind:String(item.type||"").toLowerCase()};
+   }else if(!shikiImageUrl(d.img)&&item.poster)d.img=shikiImageUrl(item.poster);
+   if(!Number(d.mal)&&Number(item.malId)>0)d.mal=Number(item.malId);
+   d.shikiId=shikiId;d.source=d.source||"shikimori";
+   M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;
+   return {item,d};
+  }).filter(Boolean);
  }
-}
-V.calendar=()=>loadCalendar(false);
-V.profile=async()=>{var targetId=routeArgs()[0];if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){app.innerHTML='<p class="empty">Загружаем профиль…</p>';try{var publicProfile=await fetchPublicProfile(targetId);if(!publicProfile){app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}var publicIds=(publicProfile.favorite_ids||[]).map(Number);if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}if(activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M})}catch(error){console.error("[AniWatch] Public profile load failed:",error);app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}return}renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}};
+ function calendarLibraryIds(){
+  var ids=new Set((S.fav||[]).map(Number).filter(id=>Number.isSafeInteger(id)&&id>0)),watch=S.watchlist||{};
+  if(Array.isArray(watch))watch.forEach(item=>{var id=Number(item&&(item.id??item.anime_id??item.animeId));if(id>0)ids.add(id)});
+  else Object.keys(watch).forEach(key=>{var id=Number(key);if(id>0)ids.add(id)});
+  var shiki=new Set(),mal=new Set();
+  ids.forEach(id=>{
+   var d=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
+   var shikiId=Number(d&&d.shikiId)||(id>=1000000000?id-1000000000:0),malId=Number(d&&d.mal)||0;
+   if(shikiId>0)shiki.add(shikiId);
+   if(malId>0)mal.add(malId);
+  });
+  return {shiki:[...shiki],mal:[...mal]};
+ }
+ function renderCalendarCurrent(){
+  var library=calendarLibraryIds();
+  renderCalendarPage({app,items:calendarItems,filter:calendarFilter,selectedDate:calendarSelectedDate,libraryShikiIds:library.shiki,libraryMalIds:library.mal,follows:calendarFollows,loggedIn:!!AUTH_USER,pushState:calendarPushState});
+ }
+ async function loadCalendarFollowState(){
+  if(AUTH_USER){
+   try{
+    var localFollows={...(S.calendarFollows||{})},cloudFollows=await loadCalendarFollows(AUTH_USER.id);
+    for(var id of Object.keys(localFollows))if(!cloudFollows[id])await saveCalendarFollow(AUTH_USER.id,id,true);
+    calendarFollows=await loadCalendarFollows(AUTH_USER.id);
+    if(Object.keys(localFollows).length){S.calendarFollows={};saveLocalState(S,M)}
+    return;
+   }catch(error){console.warn("[AniWatch] Calendar follows could not be loaded:",error)}
+  }
+  calendarFollows={...(S.calendarFollows||{})};
+ }
+ async function loadCalendar(force=false){
+  var request=++calendarLoadRequest;
+  renderCalendarPage({app,loading:true});
+  try{
+   var items=await fetchShikimoriCalendar({force});
+   var posterEntries=calendarPosterModels(items);
+   if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d),{resolveMalIds:true});
+   posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img);entry.item.malId=Number(entry.d.mal)||Number(entry.item.malId)||0});
+   calendarItems=items;
+   await loadCalendarFollowState();
+   try{calendarPushState=await getCalendarPushState()}catch(error){calendarPushState={supported:false,enabled:false}}
+   if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarCurrent();
+  }catch(error){
+   console.warn("[AniWatch] Shikimori calendar failed:",error);
+   if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание Shikimori. Попробуй ещё раз."});
+  }
+ }
+ V.calendar=()=>loadCalendar(false);
+ V.profile=async()=>{var targetId=routeArgs()[0];if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){app.innerHTML='<p class="empty">Загружаем профиль…</p>';try{var publicProfile=await fetchPublicProfile(targetId);if(!publicProfile){app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}var publicIds=(publicProfile.favorite_ids||[]).map(Number);if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}if(activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M})}catch(error){console.error("[AniWatch] Public profile load failed:",error);app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}return}renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}};
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
  if(document.getElementById("auth-modal"))return;
@@ -786,7 +820,7 @@ async function handleAuthSubmit(form){
      });
      saveLocalState(S,M);hd();
      if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}
-     else if(activePage()==="profile")V.profile();
+     else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar();
      else if(activePage()==="mylist")V.mylist();
      else if(activePage()==="favorites")V.favorites();
      else if(activePage()==="together")loadTogetherView();
@@ -1106,7 +1140,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
@@ -1288,12 +1322,16 @@ async function xhyd(){
  }
 }
 // Shikimori is the single source for poster artwork. Keep image URLs transient.
-async function xshikiPosters(L){
+async function xshikiPosters(L,{resolveMalIds=false}={}){
  L=(L||[]).filter(Boolean);
  var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
  if(needsLookup.length)await enrichShikimori(needsLookup);
- var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>Number.isInteger(id)&&id>0&&!dHasImage(L,id)))];
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
+ var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>{
+  if(!Number.isInteger(id)||id<=0)return false;
+  var item=findItem(id);
+  return !dHasImage(L,id)||(resolveMalIds&&item&&!Number(item.mal));
+ }))];
  try{
   for(var i=0;i<ids.length;i+=50){
    var batchIds=ids.slice(i,i+50),posters=await fetchAnimePostersByIds(batchIds);
@@ -1301,6 +1339,7 @@ async function xshikiPosters(L){
     var d=findItem(a.id);if(!d)return;
     var poster=a.poster||{},path=shikiImageUrl(poster.originalUrl||poster.mainUrl);
     if(path)d.img=path;
+    if(Number(a.malId)>0)d.mal=Number(a.malId);
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
   }
@@ -1314,6 +1353,7 @@ async function xshikiPosters(L){
     var d=findItem(a.id);if(!d)return;
     var image=a.image||{},path=shikiImageUrl(image.original||image.preview||image.x96);
     if(path)d.img=path;
+    if(Number(a.malId)>0)d.mal=Number(a.malId);
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
   }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
@@ -1527,6 +1567,32 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a==="mylist-reload"){myListCloudAt=0;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
   else if(a==="calendar-reload"){loadCalendar(true)}
+  else if(a==="calendar-filter"){calendarFilter=v==="mine"?"mine":"all";renderCalendarCurrent()}
+  else if(a==="calendar-day"){calendarSelectedDate=String(v||"");renderCalendarCurrent()}
+  else if(a==="calendar-follow"){
+   var shikiFollowId=String(v||""),followEnabled=!calendarFollows[shikiFollowId];
+   (async()=>{
+    try{
+     if(AUTH_USER)await saveCalendarFollow(AUTH_USER.id,shikiFollowId,followEnabled);
+     else{S.calendarFollows=S.calendarFollows||{};if(followEnabled)S.calendarFollows[shikiFollowId]={notifyBefore:true,notifyRelease:true};else delete S.calendarFollows[shikiFollowId];sv()}
+     if(followEnabled)calendarFollows[shikiFollowId]={notifyBefore:true,notifyRelease:true};else delete calendarFollows[shikiFollowId];
+     renderCalendarCurrent();
+     toast(followEnabled?"Аниме добавлено в отслеживание":"Аниме убрано из отслеживания");
+    }catch(error){console.error("[AniWatch] Calendar follow update failed:",error);toast(error.message||"Не удалось изменить отслеживание")}
+   })()
+  }
+  else if(a==="calendar-push-toggle"){
+   (async()=>{
+    if(!AUTH_USER){openAuthModal();toast("Войди в аккаунт, чтобы включить push-уведомления");return}
+    try{
+     if(calendarPushState.enabled)await disableCalendarPush(AUTH_USER.id);
+     else await enableCalendarPush(AUTH_USER.id);
+     calendarPushState=await getCalendarPushState();
+     renderCalendarCurrent();
+     toast(calendarPushState.enabled?"Push-уведомления включены":"Push-уведомления отключены");
+    }catch(error){console.warn("[AniWatch] Calendar push setup failed:",error);toast(error.message||"Не удалось настроить push-уведомления")}
+   })()
+  }
  else if(a==="add-to-collection"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
   listCollections(AUTH_USER.id).then(rows=>{
