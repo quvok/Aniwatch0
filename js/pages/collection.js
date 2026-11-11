@@ -67,6 +67,19 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
  const genreCounts={};
  ids.forEach(id=>{const anime=mediaMap[id]||state.shikiAnime?.[id];(anime?.g||[]).filter(genre=>String(genre).trim().toLowerCase()!=="аниме").forEach(genre=>{genreCounts[genre]=(genreCounts[genre]||0)+1})});
  const topGenres=Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]).slice(0,4);
+ const achievementData=[
+  {icon:"▤",title:"Коллекционер",description:"Добавь 10 аниме в свои списки",value:total,target:10},
+  {icon:"✓",title:"До финала",description:"Заверши просмотр 10 тайтлов",value:counts.completed,target:10},
+  {icon:"▶",title:"Марафонец",description:"Отметь 100 просмотренных серий",value:watchedEpisodes,target:100},
+  {icon:"★",title:"Кинокритик",description:"Поставь оценки 10 аниме",value:rated.length,target:10},
+  {icon:"♥",title:"Фанат",description:"Добавь 10 тайтлов в избранное",value:fav,target:10},
+  {icon:"◇",title:"Любознательный",description:"Собери аниме из 5 разных жанров",value:Object.keys(genreCounts).length,target:5}
+ ];
+ const achievementHtml=achievementData.map(item=>{
+  const value=Math.max(0,Number(item.value)||0),target=item.target,unlocked=value>=target,percent=Math.min(100,Math.round(value/target*100));
+  return '<article class="profile-achievement-card '+(unlocked?'is-unlocked':'is-locked')+'"><div class="profile-achievement-icon">'+item.icon+'</div><div class="profile-achievement-copy"><b>'+item.title+'</b><span>'+item.description+'</span><div class="profile-achievement-progress"><i style="width:'+percent+'%"></i></div><small>'+Math.min(value,target)+' / '+target+'</small></div><span class="profile-achievement-state">'+(unlocked?'Получено':'В процессе')+'</span></article>';
+ }).join("");
+
  const recent=Object.entries(state.hist||{}).filter(([id,item])=>item&&Number(item.at)>0).sort((a,b)=>Number(b[1].at)-Number(a[1].at)).slice(0,5);
  const recentHtml=recent.length?recent.map(([id,item])=>{const anime=mediaMap[id]||state.shikiAnime?.[id];return '<div class="profile-recent-item"><span><b>'+escapeHtml(anime?.n||("Аниме #"+id))+'</b><small>Серия '+Math.max(1,Number(item.ep)||1)+'</small></span><time>'+new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short"}).format(new Date(Number(item.at)))+'</time></div>'}).join(""):'<p class="profile-hint">История просмотра пока пуста.</p>';
  const favoriteIds=(state.fav||[]).map(Number).slice(0,5);
@@ -95,6 +108,7 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
    '<div class="profile-stat-secondary"><div><span>Средняя оценка</span><b>★ '+average+'</b><small>'+rated.length+' оценок</small></div><div><span>Завершение списков</span><b>'+progress+'%</b><small>'+counts.completed+' из '+total+' тайтлов</small></div></div>'+
    '<div class="profile-progress"><div><div><b>Завершение коллекции</b><small>'+counts.completed+' из '+total+' тайтлов</small></div><strong>'+progress+'%</strong></div><div class="profile-progress-track"><i style="width:'+progress+'%"></i></div></div>'+
   '</section>'+
+  '<section class="profile-achievements-section"><div class="profile-block-title"><div><span class="eyebrow">ТВОИ РЕЗУЛЬТАТЫ</span><h2>Достижения</h2></div><span>Открывается автоматически</span></div><div class="profile-achievement-grid-modern">'+achievementHtml+'</div></section>'+
   '<section class="profile-status-block profile-favorites-block"><div class="profile-block-title"><div><span class="eyebrow">ТВОЙ ВКУС</span><h2>Любимые аниме</h2></div><a href="favorites.html">Все избранное ↗</a></div><div class="profile-favorite-grid">'+favoriteHtml+'</div></section>'+
   '<div class="profile-insights-grid"><section class="profile-status-block"><div class="profile-block-title"><div><span class="eyebrow">РАСПРЕДЕЛЕНИЕ</span><h2>Мои списки</h2></div><a href="lists.html">Открыть списки ↗</a></div><div class="profile-status-list"><div><span class="status-mark watching"></span><span>Смотрю</span><b>'+counts.watching+'</b></div><div><span class="status-mark planned"></span><span>В планах</span><b>'+counts.planned+'</b></div><div><span class="status-mark completed"></span><span>Просмотрено</span><b>'+counts.completed+'</b></div><div><span class="status-mark dropped"></span><span>Брошено</span><b>'+counts.dropped+'</b></div></div></section><section class="profile-status-block"><div class="profile-block-title"><div><span class="eyebrow">ТВОИ ПРЕДПОЧТЕНИЯ</span><h2>Любимые жанры</h2></div></div>'+(topGenres.length?'<div class="profile-genre-list">'+topGenres.map(([name,count])=>'<div><span>'+escapeHtml(name)+'</span><b>'+count+'</b></div>').join("")+'</div>':'<p class="profile-hint">Добавляй аниме в списки, чтобы здесь появились жанры.</p>')+'</section></div>'+
    '<section class="profile-status-block profile-recent-block"><div class="profile-block-title"><div><span class="eyebrow">ПОСЛЕДНИЕ ДЕЙСТВИЯ</span><h2>Недавно смотрел</h2></div></div><div class="profile-recent-list">'+recentHtml+'</div></section>'+
