@@ -1,6 +1,7 @@
 import { query as xgq } from "./api/anilist.js";
 import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
 import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
+import { filterAdultGenres, isAdultGenre } from "./core/adult-content.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
@@ -973,7 +974,7 @@ async function loadRelated(d){
      if(!(shikiId>0)){similarFetchFailed=true;return}
      try{
       var similarRaw=await fetchAnimeSimilar(shikiId),similarSeen={};
-      similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
+      similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=filterAdultGenres(a.genres).map(g=>esc(g.russian||g.name||"")).filter(Boolean);return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
      }catch(similarError){similarFetchFailed=true;console.warn("[AniWatch] Similar anime unavailable:",similarError)}
     })();
     try{
@@ -1321,7 +1322,7 @@ V.catalog=()=>{
  xCF.q=F.q||xCF.q||"";xCF.g=F.g||xCF.g||"";F.q=xCF.q;F.g=xCF.g;
  var csInput=$("#cs"),genreSelect=$("#cf-g");if(csInput)csInput.value=xCF.q;
  var hqi=$("#q");if(hqi)hqi.value=xCF.q;if(genreSelect)genreSelect.value=xCF.g;
- if(!xGenrePromise)xGenrePromise=fetchShikimoriGenreList().then(list=>{var seenIds=new Set(),seenNames=new Set();xGenreOptions=list.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime").map(g=>({id:String(g.id||"").trim(),ru:String(g.russian||"").trim(),name:String(g.name||"").trim()})).filter(g=>{var id=g.id,keys=[g.ru,g.name].filter(Boolean).map(v=>v.normalize("NFKC").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,""));if(!id||seenIds.has(id)||!keys.length||keys.some(k=>seenNames.has(k)))return false;seenIds.add(id);keys.forEach(k=>seenNames.add(k));return true}).map(g=>[g.id,g.ru||g.name]).sort((a,b)=>a[1].localeCompare(b[1],"ru"));return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
+ if(!xGenrePromise)xGenrePromise=fetchShikimoriGenreList().then(list=>{var seenIds=new Set(),seenNames=new Set();xGenreOptions=list.filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime"&&!isAdultGenre(g)).map(g=>({id:String(g.id||"").trim(),ru:String(g.russian||"").trim(),name:String(g.name||"").trim()})).filter(g=>{var id=g.id,keys=[g.ru,g.name].filter(Boolean).map(v=>v.normalize("NFKC").toLocaleLowerCase("ru").replace(/[ё]/g,"е").replace(/[\s\p{P}\p{S}]+/gu,""));if(!id||seenIds.has(id)||!keys.length||keys.some(k=>seenNames.has(k)))return false;seenIds.add(id);keys.forEach(k=>seenNames.add(k));return true}).map(g=>[g.id,g.ru||g.name]).sort((a,b)=>a[1].localeCompare(b[1],"ru"));return xGenreOptions}).catch(e=>{console.warn("[AniWatch] Genre list unavailable:",e);return null});
  var routeKey=xCF.k;
  xGenrePromise.then(options=>{if(routeKey!==xCF.k||activePage()!=="catalog")return;if(options&&options.length){var select=$("#cf-g"),value=xCF.g;if(value&&!/^[0-9]+$/.test(value)){var legacy=options.find(g=>String(g[1]).toLowerCase()===String(value).toLowerCase());value=legacy?legacy[0]:"";xCF.g=value}select.innerHTML="<option value=\"\">Все жанры</option>"+options.map(g=>"<option value=\""+esc(g[0])+"\">"+esc(g[1])+"</option>").join("");select.value=value}xcq(true)});
 };
