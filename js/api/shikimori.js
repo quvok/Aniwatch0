@@ -56,7 +56,7 @@ export async function fetchAnimeGenres({signal}={}){
  if(!response.ok)throw new Error("Ошибка загрузки жанров (HTTP "+response.status);
  const result=await response.json();
  if(!Array.isArray(result))throw new Error("Некорректный список жанров");
- return result;
+ return result.filter(g=>g&&g.kind==="genre"&&filterAdultGenres([g]).length===1);
 }
 
 export async function fetchCatalogPage({query="",page=1,limit=50,order="popularity",format="",season="",status="",genre="",signal}={}){
@@ -71,7 +71,7 @@ export async function fetchCatalogPage({query="",page=1,limit=50,order="populari
  if(genre)url.searchParams.set("genre_v2",String(genre));
  const result=await fetchCatalogJSON(url.toString(),{signal,ttl:5*60*1000});
  if(!Array.isArray(result))throw new Error("Некорректный ответ");
- return result;
+ return result.filter(item=>!isAdultAnime(item));
 }
 
 
@@ -122,5 +122,5 @@ export async function fetchAnimeSimilar(id,{signal}={}){
  const url=API_ROOT+"/animes/"+numeric+"/similar";
  const result=await fetchCatalogJSON(url,{signal,ttl:5*60*1000});
  if(!Array.isArray(result))throw new Error("Некорректный ответ similar");
- return result;
+ return result.filter(item=>!isAdultAnime(item));
 }
