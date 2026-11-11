@@ -73,7 +73,7 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
   {icon:"▶",title:"Марафонец",description:"Отметь 100 просмотренных серий",value:watchedEpisodes,target:100},
   {icon:"★",title:"Кинокритик",description:"Поставь оценки 10 аниме",value:rated.length,target:10},
   {icon:"♥",title:"Фанат",description:"Добавь 10 тайтлов в избранное",value:fav,target:10},
-  {icon:"◇",title:"Любознательный",description:"Собери аниме из 5 разных жанров",value:Object.keys(genreCounts).length,target:5}
+  {icon:"⌁",title:"На волне",description:"Смотри 5 аниме одновременно",value:counts.watching,target:5}
  ];
  const achievementHtml=achievementData.map(item=>{
   const value=Math.max(0,Number(item.value)||0),target=item.target,unlocked=value>=target,percent=Math.min(100,Math.round(value/target*100));
