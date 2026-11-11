@@ -1,4 +1,4 @@
-var V="aw-v224",SHELL=["./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html","profile.html","random.html","anime.html","watch.html","collections.html","js/components/site-header.js","css/style.css","js/app.js","js/api/anilist.js","js/api/shikimori.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js","js/api/anilibria.js","js/pages/calendar.js","calendar.html","js/components/anime-card.js","js/core/storage.js","js/core/recommendations.js","js/core/router.js","js/core/supabase.js","js/core/analytics.js","js/pages/stats.js","js/core/collections.js","js/pages/collections.js","js/core/rooms.js","js/core/friends.js","js/core/streaming-player.js","js/pages/collection.js","js/pages/catalog.js","js/core/events.js","js/pages/discovery.js","js/pages/together.js","js/pages/watch.js","js/pages/anime.js","js/pages/home.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
+var V="aw-v225",SHELL=["./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html","profile.html","random.html","anime.html","watch.html","collections.html","js/components/site-header.js","css/style.css","js/app.js","js/api/anilist.js","js/api/shikimori.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js","js/api/anilibria.js","js/pages/calendar.js","calendar.html","js/components/anime-card.js","js/core/storage.js","js/core/recommendations.js","js/core/router.js","js/core/supabase.js","js/core/calendar-push.js","js/core/analytics.js","js/pages/stats.js","js/core/collections.js","js/pages/collections.js","js/core/rooms.js","js/core/friends.js","js/core/streaming-player.js","js/pages/collection.js","js/pages/catalog.js","js/core/events.js","js/pages/discovery.js","js/pages/together.js","js/pages/watch.js","js/pages/anime.js","js/pages/home.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 // Same-origin app files use stale-while-revalidate. Remote images/posters are never cached.
@@ -19,4 +19,34 @@ self.addEventListener("fetch",e=>{
   var n=fetch(r).then(x=>{if(x.ok)c.put(r,x.clone());return x}).catch(()=>h);
   return h||n;
  })));
+});
+
+
+self.addEventListener("push",event=>{
+ let payload={};
+ try{payload=event.data?event.data.json():{}}catch(error){payload={body:event.data?event.data.text():""}}
+ const title=String(payload.title||"Новая серия скоро");
+ const options={
+  body:String(payload.body||"Проверь календарь AniWatch."),
+  icon:"/icons/icon-192.png",
+  badge:"/icons/icon-192.png",
+  tag:String(payload.tag||"aniwatch-calendar"),
+  renotify:false,
+  data:{url:String(payload.url||"/calendar.html")}
+ };
+ event.waitUntil(self.registration.showNotification(title,options));
+});
+
+self.addEventListener("notificationclick",event=>{
+ event.notification.close();
+ const target=new URL(String(event.notification.data&&event.notification.data.url||"/calendar.html"),self.location.origin).href;
+ event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(windows=>{
+  for(const client of windows){
+   if(client.url.startsWith(self.location.origin)){
+    if("navigate" in client)return client.navigate(target).then(()=>client.focus());
+    return client.focus();
+   }
+  }
+  return self.clients.openWindow(target);
+ }));
 });
