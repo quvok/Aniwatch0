@@ -207,7 +207,6 @@ V.home=()=>{
  var cont=continueWatchingCards();
  var source=homeCollections||{popular:D,recommended:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
  var popular=source.popular.map(d=>{M[d.id]=d;return card(d)});
- var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,ongoingCards:ongoing,recentCards:recent,row});
