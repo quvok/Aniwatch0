@@ -3605,3 +3605,131 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .calendar-selected-day{padding:12px;border-radius:13px}
  .calendar-selected-day .calendar-day-heading h2{font-size:17px}
 }
+
+
+/* Profile refresh: editorial header, clearer settings and activity dashboard */
+.profile-page{
+ max-width:1160px;gap:18px;margin:4px auto 0
+}
+.profile-top-card{
+ display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:0;overflow:hidden;
+ border:1px solid rgba(190,175,235,.17);
+ background:linear-gradient(135deg,rgba(29,27,47,.98),rgba(13,16,27,.98));
+ box-shadow:0 18px 48px rgba(0,0,0,.2)
+}
+.profile-banner{
+ position:relative;min-height:148px;padding:18px 22px;display:flex;align-items:flex-start;
+ background:radial-gradient(ellipse at 80% 20%,rgba(139,92,246,.28),transparent 38%),linear-gradient(110deg,#211b37,#151827 70%,#11131e)
+}
+.profile-banner:after{
+ content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(90deg,rgba(8,9,16,.35),transparent 70%),linear-gradient(0deg,rgba(8,9,16,.5),transparent 65%)
+}
+.profile-banner-label{position:relative;z-index:1;color:#d6c8ff;font-size:9px;font-weight:850;letter-spacing:.2em}
+.profile-banner-edit{position:absolute;right:17px;top:14px;z-index:2;padding:8px 11px;border:1px solid #ffffff2b;border-radius:9px;background:#0b0b14a8;color:#f0eaff;font-size:10px;backdrop-filter:blur(12px)}
+.profile-top-main{
+ position:relative;z-index:2;align-items:flex-end;gap:17px;padding:0 25px;margin-top:-47px
+}
+.profile-avatar-edit{
+ flex-basis:92px;width:92px;height:92px;border:4px solid #171725;border-radius:25px;
+ box-shadow:0 10px 28px #0007
+}
+.profile-top-identity{padding:0 0 4px}
+.profile-top-identity .eyebrow{color:#bda9ff}
+.profile-top-identity h1{font-size:clamp(27px,4vw,38px);margin:5px 0}
+.profile-top-identity p{max-width:660px;margin:0;color:#b1afc2;line-height:1.55}
+.profile-account-inline{
+ padding:15px 25px 18px;margin-top:15px;border-top:1px solid rgba(255,255,255,.07);
+ color:#aeb0c3
+}
+.profile-edit-card,.profile-overview,.profile-status-block,.profile-achievements-section{
+ min-width:0;padding:21px;border:1px solid rgba(190,197,230,.12);border-radius:17px;
+ background:linear-gradient(145deg,rgba(25,26,42,.88),rgba(13,15,25,.94));
+ box-shadow:0 12px 32px rgba(0,0,0,.12)
+}
+.profile-block-title{margin-bottom:17px}
+.profile-block-title h2{font-size:20px}
+.profile-block-title>span{color:#8f91a8}
+.profile-edit-form,.profile-privacy-form,.profile-playback-form{gap:13px}
+.profile-edit-form label,.profile-privacy-form>label,.profile-playback-form>label{
+ color:#d8d5e4;font-size:12px
+}
+.profile-edit-form textarea,.profile-privacy-form select{
+ border:1px solid rgba(190,197,230,.17);border-radius:11px;background:rgba(7,8,15,.55);
+ color:#f4f1ff
+}
+.profile-edit-form textarea:focus,.profile-privacy-form select:focus{
+ outline:2px solid rgba(167,139,250,.32);border-color:#9878e8
+}
+.profile-metric-grid article{
+ min-height:88px;align-content:center;padding:16px;border-color:rgba(190,197,230,.12);
+ background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+ transition:transform .18s,border-color .18s
+}
+.profile-metric-grid article:hover{transform:translateY(-2px);border-color:rgba(167,139,250,.32)}
+.profile-metric-grid b{font-size:29px}
+.profile-stat-secondary>div,.profile-progress{
+ border:1px solid rgba(167,139,250,.12);background:rgba(5,6,14,.25)
+}
+.profile-favorite-grid{gap:13px}
+.profile-favorite-card{
+ overflow:hidden;border:1px solid rgba(190,197,230,.12);border-radius:12px;
+ background:rgba(255,255,255,.025);transition:transform .2s,border-color .2s
+}
+.profile-favorite-card:hover{transform:translateY(-3px);border-color:rgba(167,139,250,.42)}
+.profile-achievements-section{
+ display:grid;gap:0
+}
+.profile-achievement-grid-modern{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px
+}
+.profile-achievement-card{
+ display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;
+ min-width:0;padding:13px;border:1px solid rgba(190,197,230,.12);border-radius:13px;
+ background:rgba(255,255,255,.025)
+}
+.profile-achievement-card.is-unlocked{
+ border-color:rgba(167,139,250,.3);
+ background:linear-gradient(115deg,rgba(105,77,166,.2),rgba(255,255,255,.02))
+}
+.profile-achievement-card.is-locked{opacity:.72}
+.profile-achievement-card .profile-achievement-icon{
+ display:grid;place-items:center;width:42px;height:42px;border-radius:12px;
+ background:rgba(167,139,250,.13);color:#d4c4ff;font-size:19px;font-weight:800
+}
+.profile-achievement-card.is-unlocked .profile-achievement-icon{
+ background:linear-gradient(145deg,#9b7ae8,#6547b3);color:#fff
+}
+.profile-achievement-copy{display:grid;gap:4px;min-width:0}
+.profile-achievement-copy>b{font-size:12px;color:#f0ecfb}
+.profile-achievement-copy>span{font-size:10px;color:#9fa0b4;line-height:1.4}
+.profile-achievement-copy>small{font-size:9px;color:#bdb0e7;font-variant-numeric:tabular-nums}
+.profile-achievement-progress{height:4px;margin-top:3px;border-radius:9px;background:#ffffff12;overflow:hidden}
+.profile-achievement-progress i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#7651d5,#c3a9ff)}
+.profile-achievement-state{font-size:9px;color:#9e9bad;white-space:nowrap}
+.profile-achievement-card.is-unlocked .profile-achievement-state{color:#c7b4ff}
+.profile-insights-grid{gap:12px}
+.profile-status-list>div,.profile-genre-list>div{
+ border:1px solid rgba(190,197,230,.09);background:rgba(255,255,255,.025)
+}
+.profile-recent-item{padding:13px 0}
+.profile-recent-item b{color:#e9e6f3}
+@media(max-width:760px){
+ .profile-page{gap:12px}
+ .profile-banner{min-height:116px;padding:15px}
+ .profile-top-main{padding:0 16px;gap:12px;margin-top:-36px;align-items:flex-end}
+ .profile-avatar-edit{flex-basis:72px;width:72px;height:72px;border-radius:20px}
+ .profile-top-identity h1{font-size:24px}
+ .profile-top-identity p{font-size:11px}
+ .profile-account-inline{padding:13px 16px 15px;margin-top:13px}
+ .profile-edit-card,.profile-overview,.profile-status-block,.profile-achievements-section{padding:15px}
+ .profile-achievement-grid-modern{grid-template-columns:1fr}
+ .profile-achievement-card{grid-template-columns:38px minmax(0,1fr) auto;gap:9px;padding:11px}
+ .profile-achievement-card .profile-achievement-icon{width:38px;height:38px}
+}
+@media(max-width:390px){
+ .profile-achievement-card{grid-template-columns:34px minmax(0,1fr);gap:8px}
+ .profile-achievement-card .profile-achievement-icon{width:34px;height:34px}
+ .profile-achievement-state{grid-column:2}
+ .profile-banner-edit{right:10px;top:10px}
+}
