@@ -143,7 +143,31 @@ function cleanDesc(v){return String(v||"").replace(/<[^>]*>/g," ").replace(/\[\/
 function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.slice(0,n);return cut.slice(0,cut.lastIndexOf(" "))+"…"}
 
 var featuredIndex=0;
-function featured(){var d=H[featuredIndex%H.length]||D[0];loadBanner(d);ru(d);var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);return '<section class="hero hero-editorial" style="--hero-poster:url(\''+(shikiImageUrl(d.img)||"")+'\');background:'+bn(d)+'"><div class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> В центре внимания</div><small>'+d.g.slice(0,3).join(" · ")+' <i>•</i> '+d.y+' <i>•</i> '+(d.s||"Аниме")+'</small><h1>'+d.n+'</h1><p id="featured-desc" data-id="'+d.id+'">'+rd+'</p><div class="hero-facts"><span>★ '+(d.r?Number(d.r).toFixed(1):"—")+'</span><span id="featured-count" data-id="'+d.id+'">'+epLabel(d)+'</span></div><div class="acts"><a class="btn" href="'+watchUrl(d.id,1)+'">▶ Смотреть</a><a class="btn ghost" href="'+titleUrl(d.id)+'">Подробнее</a></div></div><div class="hero-poster" style="background:'+bg(d)+'">'+(d.img?"":"<b>"+d.n[0]+"</b>")+'<span>ANIWATCH PICK</span></div>'+(H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер">‹</button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер">›</button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"") +'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+'</section>'}
+function featured(){
+ var d=H[featuredIndex%H.length]||D[0];
+ loadBanner(d);ru(d);
+ var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);
+ var rating=d.r?Number(d.r).toFixed(1):"—";
+ var poster=shikiImageUrl(d.img);
+ return '<section class="hero hero-editorial aurora-hero" style="--hero-poster:url(\\''+(poster||"")+'\\');background:'+bn(d)+'">'+
+  '<div class="hero-copy">'+
+   '<div class="eyebrow"><span class="live-dot"></span> В центре внимания</div>'+
+   '<small class="hero-meta">'+d.g.slice(0,3).map(esc).join(" · ")+' <i>•</i> '+esc(d.y)+' <i>•</i> '+esc(d.s||"Аниме")+'</small>'+
+   '<h1>'+esc(d.n)+'</h1>'+
+   '<p id="featured-desc" data-id="'+d.id+'">'+esc(rd)+'</p>'+
+   '<div class="hero-facts">'+
+    '<span class="hero-rating"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 1.8 2.45 5 5.52.8-3.99 3.89.94 5.5L10 14.4l-4.92 2.59.94-5.5L2.03 7.6l5.52-.8L10 1.8Z" fill="currentColor"/></svg><b>'+rating+'</b></span>'+
+    '<span class="hero-episodes" id="featured-count" data-id="'+d.id+'">'+esc(epLabel(d))+'</span>'+
+   '</div>'+
+   '<div class="acts">'+
+    '<a class="btn hero-watch" href="'+watchUrl(d.id,1)+'"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3.8c0-.8.9-1.3 1.6-.9l9 5.2a1 1 0 0 1 0 1.8l-9 5.2c-.7.4-1.6-.1-1.6-.9V3.8Z" fill="currentColor"/></svg><span>Смотреть</span></a>'+
+    '<a class="btn ghost hero-details" href="'+titleUrl(d.id)+'"><span>Подробнее</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>'+
+   '</div>'+
+  '</div>'+
+  '<div class="hero-poster" role="img" aria-label="Постер: '+esc(d.n)+'" style="background:'+bg(d)+'">'+(poster?"":'<b>'+esc(String(d.n||"А").slice(0,1))+'</b>')+'</div>'+
+  (H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"")+'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+
+ '</section>';
+}
 function showFeatured(){var hw=$("#hw");if(hw)hw.innerHTML=featured()}
 function animeProgress(d){
  var total=availableEpCount(d)||epTotal(d);
