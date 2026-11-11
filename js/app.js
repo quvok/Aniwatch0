@@ -1526,7 +1526,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a==="mylist-reload"){myListCloudAt=0;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
-  else if(a==="calendar-reload"){renderCalendarPage({app,loading:true});fetchShikimoriCalendar({force:true}).then(items=>{if(activePage()==="calendar")renderCalendarPage({app,items})}).catch(error=>{console.warn("[AniWatch] Shikimori calendar refresh failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось обновить расписание. Попробуй ещё раз."})})}
+  else if(a==="calendar-reload"){loadCalendar(true)}
  else if(a==="add-to-collection"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
   listCollections(AUTH_USER.id).then(rows=>{
