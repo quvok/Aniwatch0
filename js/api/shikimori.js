@@ -114,7 +114,7 @@ export async function fetchShikimoriCalendar({signal,force=false}={}){
   const image=anime.image||{},path=String(image.original||image.preview||"");
   let poster="";
   if(path&&!/missing_(?:original|preview)/i.test(path)){try{poster=new URL(path,"https://shikimori.io").href}catch{}}
-  return {day:(date.getDay()+6)%7+1,airingAt:at,nextEpisode:Number(entry.next_episode)||((Number(anime.episodes_aired)||0)+1),shikimoriId:Number(anime.id),title:String(anime.russian||anime.name||"Без названия"),poster,year:Number(String(anime.aired_on||"").slice(0,4))||0,type:String(anime.kind||"").toUpperCase()};
+  return {day:(date.getDay()+6)%7+1,airingAt:at,nextEpisode:Number(entry.next_episode)||((Number(anime.episodes_aired)||0)+1),shikimoriId:Number(anime.id),malId:Number(anime.myanimelist_id)||0,title:String(anime.russian||anime.name||"Без названия"),poster,year:Number(String(anime.aired_on||"").slice(0,4))||0,type:String(anime.kind||"").toUpperCase()};
  }).filter(Boolean);
 }
  
