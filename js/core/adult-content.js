@@ -3,7 +3,7 @@
 const ADULT_GENRE_IDS = new Set(["9","12","51","59","539","540"]);
 const ADULT_GENRE_NAMES = new Set([
   "ecchi","этти","хентай","hentai","erotica","эротика",
-  "adult","18+","для взрослых","порнография","pornography"
+  "adult","18","для взрослых","порнография","pornography"
 ]);
 const normalize = value => String(value || "")
   .toLocaleLowerCase("ru")
@@ -29,5 +29,5 @@ export function filterAdultGenres(genres) {
 export function isAdultAnime(anime) {
   if (!anime || typeof anime !== "object") return false;
   if (String(anime.rating || "").toLowerCase() === "rx") return true;
-  return (Array.isArray(anime.genres) ? anime.genres : []).some(isAdultGenre);
+  return (Array.isArray(anime.genres) ? anime.genres : Array.isArray(anime.g) ? anime.g : []).some(isAdultGenre);
 }
