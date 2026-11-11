@@ -745,8 +745,13 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
  }
  async function loadCalendarFollowState(){
   if(AUTH_USER){
-   try{calendarFollows=await loadCalendarFollows(AUTH_USER.id);return}
-   catch(error){console.warn("[AniWatch] Calendar follows could not be loaded:",error)}
+   try{
+    var localFollows={...(S.calendarFollows||{})},cloudFollows=await loadCalendarFollows(AUTH_USER.id);
+    for(var id of Object.keys(localFollows))if(!cloudFollows[id])await saveCalendarFollow(AUTH_USER.id,id,true);
+    calendarFollows=await loadCalendarFollows(AUTH_USER.id);
+    if(Object.keys(localFollows).length){S.calendarFollows={};saveLocalState(S,M)}
+    return;
+   }catch(error){console.warn("[AniWatch] Calendar follows could not be loaded:",error)}
   }
   calendarFollows={...(S.calendarFollows||{})};
  }
