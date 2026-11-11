@@ -1,2 +1,5 @@
 [functions.site-analytics]
 verify_jwt = false
+
+[functions.calendar-release-push]
+verify_jwt = false
