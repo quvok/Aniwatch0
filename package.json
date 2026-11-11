@@ -1,0 +1,16 @@
+{
+  "name": "aniwatch",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AniWatch static anime catalog and tracker",
+  "scripts": {
+    "check": "node scripts/check-pages.mjs && node scripts/check-recommendations.mjs && node scripts/check-library-import.mjs",
+    "build": "node scripts/build-site.mjs",
+    "serve": "node scripts/serve.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}
