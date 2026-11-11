@@ -1,4 +1,5 @@
 // Dedicated Shikimori genre loader for anime detail pages.
+import { filterAdultGenres } from "../core/adult-content.js";
 const API_ROOT="https://shikimori.io/api";
 const cache=new Map();
 const pending=new Map();
@@ -15,7 +16,7 @@ export async function fetchAnimeGenres(shikimoriId,{signal}={}){
   if(!response.ok)throw new Error("Ошибка загрузки жанров Shikimori (HTTP "+response.status+")");
   const data=await response.json();
   if(!data||Number(data.id)!==id||!Array.isArray(data.genres))throw new Error("Shikimori вернул некорректные жанры");
-  const genres=[...new Set(data.genres.map(item=>String(item&&((item.russian||item.name)||"")).trim()).filter(Boolean))];
+  const genres=[...new Set(filterAdultGenres(data.genres).map(item=>String(item&&((item.russian||item.name)||"")).trim()).filter(Boolean))];
   cache.set(id,{genres,expires:Date.now()+30*60*1000});
   return genres;
  })();

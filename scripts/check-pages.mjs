@@ -3,6 +3,7 @@
 import {readFileSync,existsSync,readdirSync,statSync} from "node:fs";
 import assert from "node:assert/strict";
 import {join} from "node:path";
+import {pathToFileURL} from "node:url";
 
 const read=file=>readFileSync(file,"utf8");
 const router=read("js/core/router.js");
@@ -37,7 +38,7 @@ for(const file of walk("js")){
 
 // Recommendation regression checks: rating scale, cold start, genre balance and exclusions.
 const recommendationSource=read("js/core/recommendations.js");
-const recommendationModule=await import("data:text/javascript;base64,"+Buffer.from(recommendationSource).toString("base64"));
+const recommendationModule=await import(pathToFileURL(join(process.cwd(),"js/core/recommendations.js")).href);
 const {buildTasteProfile,rankRecommendations}=recommendationModule;
 const fourStar=buildTasteProfile([{genres:["Фэнтези"],rating:8}]);
 assert.ok(fourStar.topGenres.some(item=>item.name==="фэнтези"),"4/5 stars must be a positive taste signal");
@@ -54,6 +55,23 @@ assert.equal(ranked.length,1,"matching candidate should be ranked");
 assert.match(ranked[0].reason,/Любимый тайтл/,"similarity explanation must retain its source title");
 assert.equal(rankRecommendations([{id:102,mal:9002,genres:["Фэнтези"],score:9}],fourStar,new Set(["mal:9002"]),5).length,0,"MAL exclusions must be respected");
 assert.equal(rankRecommendations([{id:103,genres:["Хентай","Фэнтези"],score:9}],fourStar,new Set(),5).length,0,"adult genre candidates must remain excluded");
+const adultContentSource=read("js/core/adult-content.js");
+const adultContentModule=await import("data:text/javascript;base64,"+Buffer.from(adultContentSource).toString("base64"));
+const {isAdultGenre,filterAdultGenres,isAdultAnime}=adultContentModule;
+for(const genre of ["Ecchi","Этти","Hentai","Хентай","Erotica","Эротика","539","540"])assert.equal(isAdultGenre(genre),true,"adult genre must be blocked: "+genre);
+assert.equal(isAdultGenre("Yaoi"),false,"Yaoi must not be treated as an 18+ genre by itself");
+assert.equal(isAdultGenre("Yuri"),false,"Yuri must not be treated as an 18+ genre by itself");
+assert.deepEqual(filterAdultGenres([{id:51,name:"Ecchi"},{id:10,name:"Fantasy"}]),[{id:10,name:"Fantasy"}],"adult genres must be removed from genre chips");
+assert.equal(isAdultAnime({rating:"rx"}),true,"RX-rated titles must be excluded from discovery");
+const ecchiProfile=buildTasteProfile([],["Ecchi"]);
+assert.equal(rankRecommendations([{id:104,genres:["Ecchi"],score:9}],ecchiProfile,new Set(),5).length,0,"adult genres must remain excluded even when selected as a preference");
+const adultApi=read("js/api/shikimori.js"),adultGenreLoader=read("js/api/genders.js"),adultApp=read("js/app.js"),adultSw=read("sw.js");
+assert.ok(adultApi.includes("isAdultAnime(item)")&&adultApi.includes("filterAdultGenres([g])"),"Shikimori catalog and genre list must filter adult content");
+assert.ok(adultGenreLoader.includes("filterAdultGenres(data.genres)"),"anime detail genre loader must filter adult genres");
+assert.ok(read("js/pages/anime.js").includes("filterAdultGenres(d.g)"),"anime detail page must sanitize stale cached genre chips");
+assert.ok(adultApp.includes("filterAdultGenres(a.genres)")&&adultApp.includes("!isAdultGenre(g)"),"all app anime mappings and catalog genre options must filter adult genres");
+assert.ok(adultSw.includes('"js/core/adult-content.js"')&&adultSw.includes("aw-v223"),"service worker must cache the adult genre filter with a new version");
+console.log("✓ adult genre exclusion checks passed");
 console.log("✓ recommendation scoring checks passed");
 const homeController=read("js/app.js");
 assert.ok(!homeController.includes("homeSmartTagTiles"),"homepage must not call the removed standalone smart-tag shelf");
