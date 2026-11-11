@@ -710,7 +710,35 @@ V.mylist=()=>{
   if(page)page.insertAdjacentHTML("afterbegin",'<p class="empty" role="status">Не удалось обновить данные из БД. Ниже показан сохранённый локальный снимок. <button class="btn ghost" type="button" data-a="mylist-reload">Повторить загрузку</button></p>');
  });
 };
-V.calendar=async()=>{renderCalendarPage({app,loading:true});try{var items=await fetchShikimoriCalendar();if(activePage()==="calendar")renderCalendarPage({app,items})}catch(error){console.warn("[AniWatch] Shikimori calendar failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание Shikimori. Попробуй ещё раз."})}};
+var calendarLoadRequest=0;
+function calendarPosterModels(items){
+ return (items||[]).map(item=>{
+  var shikiId=Number(item.shikimoriId),id=1000000000+shikiId;
+  if(!Number.isInteger(shikiId)||shikiId<=0)return null;
+  var d=M[id]||(S.shikiAnime&&S.shikiAnime[id]);
+  if(!d){
+   d={id,shikiId,source:"shikimori",mal:null,n:esc(item.title||"Без названия"),o:"",g:["Аниме"],y:Number(item.year)||0,r:0,e:0,s:"Онгоинг",d:"",c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(item.poster),ban:"",kind:String(item.type||"").toLowerCase()};
+  }else if(!shikiImageUrl(d.img)&&item.poster)d.img=shikiImageUrl(item.poster);
+  d.shikiId=shikiId;d.source=d.source||"shikimori";
+  M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;
+  return {item,d};
+ }).filter(Boolean);
+}
+async function loadCalendar(force=false){
+ var request=++calendarLoadRequest;
+ renderCalendarPage({app,loading:true});
+ try{
+  var items=await fetchShikimoriCalendar({force});
+  var posterEntries=calendarPosterModels(items);
+  if(posterEntries.length)await xshikiPosters(posterEntries.map(entry=>entry.d));
+  posterEntries.forEach(entry=>{entry.item.poster=shikiImageUrl(entry.d.img)});
+  if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarPage({app,items});
+ }catch(error){
+  console.warn("[AniWatch] Shikimori calendar failed:",error);
+  if(request===calendarLoadRequest&&activePage()==="calendar")renderCalendarPage({app,error:"Не удалось загрузить расписание Shikimori. Попробуй ещё раз."});
+ }
+}
+V.calendar=()=>loadCalendar(false);
 V.profile=async()=>{var targetId=routeArgs()[0];if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){app.innerHTML='<p class="empty">Загружаем профиль…</p>';try{var publicProfile=await fetchPublicProfile(targetId);if(!publicProfile){app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}var publicIds=(publicProfile.favorite_ids||[]).map(Number);if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}if(activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M})}catch(error){console.error("[AniWatch] Public profile load failed:",error);app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}return}renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}};
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
@@ -1498,7 +1526,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
  else if(a=="list-filter"){F.listStatus=v;V.mylist()}
  else if(a==="mylist-reload"){myListCloudAt=0;V.mylist()}
  else if(a==="collections-reload"){loadCollectionsView(routeArgs())}
-  else if(a==="calendar-reload"){renderCalendarPage({app,loading:true});fetchShikimoriCalendar({force:true}).then(items=>{if(activePage()==="calendar")renderCalendarPage({app,items})}).catch(error=>{console.warn("[AniWatch] Shikimori calendar refresh failed:",error);if(activePage()==="calendar")renderCalendarPage({app,error:"Не удалось обновить расписание. Попробуй ещё раз."})})}
+  else if(a==="calendar-reload"){loadCalendar(true)}
  else if(a==="add-to-collection"){
   if(!AUTH_USER){toast("Войди в аккаунт, чтобы создавать коллекции");return}
   listCollections(AUTH_USER.id).then(rows=>{
