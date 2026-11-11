@@ -1,5 +1,3 @@
-import { isAdultAnime, isAdultGenre } from "./adult-content.js";
-
 const normalize = value => String(value || "")
   .toLocaleLowerCase("ru")
   .normalize("NFKC")
@@ -101,7 +99,7 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
 
     const genres = [...new Set((anime.genres || anime.g || [])
       .filter(Boolean).map(normalizeRecommendationGenre))];
-    if (isAdultAnime(anime) || genres.some(isAdultGenre)) continue;
+    if (genres.some(g => ["hentai", "хентай"].includes(g))) continue;
 
     seenIds.add(id);
     if (mal > 0) seenMal.add(mal);
