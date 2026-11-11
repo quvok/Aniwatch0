@@ -22,9 +22,9 @@ function releaseCard(item,{followed=false,inLibrary=false}={}){
 export function renderCalendarPage({app,items=[],loading=false,error="",filter="all",selectedDate="",libraryShikiIds=[],libraryMalIds=[],follows={},loggedIn=false,pushState={}}){
  const now=new Date(),todayKey=dateKey(now);
  const days=Array.from({length:7},(_,offset)=>{const date=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset);return {date,key:dateKey(date),offset,weekdayIndex:(date.getDay()+6)%7}});
- const count=new Set(items.map(item=>item.day)).size;
  const inLibrary=item=>libraryShikiIds.includes(Number(item.shikimoriId))||(Number(item.malId)>0&&libraryMalIds.includes(Number(item.malId)));
  const visible=filter==="mine"?items.filter(inLibrary):items;
+ const count=new Set(visible.map(item=>item.day)).size;
  const availableDates=new Set(visible.map(item=>{const date=localDate(item.airingAt);return date?dateKey(date):""}));
  const activeDate=selectedDate&&days.some(day=>day.key===selectedDate)?selectedDate:(availableDates.has(todayKey)?todayKey:(days.find(day=>availableDates.has(day.key))?.key||todayKey));
  const activeDay=days.find(day=>day.key===activeDate)||days[0];
