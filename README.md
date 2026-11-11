@@ -288,7 +288,8 @@ http://localhost:8000
 | `js/app.js` | Контроллер приложения: загрузка данных, состояние, обработчики событий, связывание экранов и функций |
 | `js/api/anilist.js` | GraphQL-клиент AniList, очередь запросов и обработка лимитов |
 | `js/api/anilibria.js` | Клиент API AniLibria для провайдерских сценариев |
-| `js/pages/calendar.js` | Недельный календарь, фильтр библиотеки и отслеживание релизов |\n| `js/core/calendar-push.js` | Регистрация и отключение браузерных Web Push-подписок |
+| `js/pages/calendar.js` | Недельный календарь, фильтр библиотеки и отслеживание релизов |
+| `js/core/calendar-push.js` | Регистрация и отключение браузерных Web Push-подписок |
 | `js/api/shikimori.js` | HTTP-клиент Shikimori |
 | `js/components/site-header.js` | Общая навигация: боковое меню на десктопе и нижнее меню на мобильных |
 | `js/components/anime-card.js` | Единый шаблон карточки аниме |
