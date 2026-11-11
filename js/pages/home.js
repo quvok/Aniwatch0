@@ -5,5 +5,5 @@ export function renderHomePage({app,featured,continueCards,popularCards=[],recom
  const ongoingShelf=ongoingCards.length?row("Сейчас выходит",ongoingCards,"Сериалы, у которых продолжается выход серий"):"";
  const recentShelf=recentCards.length?row("Свежие релизы",recentCards,"Недавно опубликованные тайтлы и обновления"):"";
  const recommendationShelf='<section class="shelf recommendation-shelf" id="recommendation-shelf"><div class="shelf-head"><div><h2>По твоему вкусу</h2><p class="shelf-sub">На основе твоих оценок, списков и истории просмотра</p></div></div><div class="recommendation-list row" id="recommendation-cards"><p class="m">Подбираем аниме…</p></div></section>';
- app.innerHTML='<div class="home-layout"><div class="home-primary"><div id="hw">'+featured+'</div>'+continueShelf+popularShelf+ongoingShelf+recentShelf+recommendationShelf+'</div></div>';
+ app.innerHTML='<div class="home-layout premium-home"><div class="home-primary"><div id="hw">'+featured+'</div>'+continueShelf+popularShelf+ongoingShelf+recentShelf+recommendationShelf+'</div></div>';
 }
