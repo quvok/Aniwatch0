@@ -37,6 +37,12 @@ Deno.serve(async (request: Request) => {
   }
   const suppliedToken = request.headers.get("x-calendar-cron-token") || "";
   if (suppliedToken !== config.aniwatch_calendar_cron_token) return json({ error: "Unauthorized" }, 401);
+  webpush.setVapidDetails(
+    "mailto:admin@aniwatch1.ru",
+    VAPID_PUBLIC_KEY,
+    config.aniwatch_calendar_vapid_private_key
+  );
+
 
   const [followResult, subscriptionResult] = await Promise.all([
     supabase.from("calendar_follows")
@@ -59,12 +65,6 @@ Deno.serve(async (request: Request) => {
   if (!response.ok) return json({ error: "Shikimori calendar request failed", status: response.status }, 502);
   const calendar = await response.json();
   if (!Array.isArray(calendar)) return json({ error: "Invalid Shikimori calendar response" }, 502);
-
-  webpush.setVapidDetails(
-    "mailto:admin@aniwatch1.ru",
-    VAPID_PUBLIC_KEY,
-    config.aniwatch_calendar_vapid_private_key
-  );
 
   const byShikimoriId = new Map<number, any>();
   for (const entry of calendar) {
