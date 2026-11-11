@@ -350,6 +350,33 @@ export async function saveEpisodeProgress(animeId, episode, isWatched, userId = 
   }
 }
 
+// Imports can mark hundreds of episodes at once. Upsert them in batches instead
+// of issuing one request per episode, and only after cloud restore completed.
+export async function saveEpisodeProgressBatch(items, userId = activeUserId) {
+  if (!userId || activeUserId !== userId || cloudLibraryReadyUserId !== userId) return 0;
+  const rows = [];
+  for (const item of items || []) {
+    const anime = Number(item && item.animeId);
+    if (!Number.isSafeInteger(anime) || anime <= 0) continue;
+    for (const episode of item.episodes || []) {
+      const number = Number(episode);
+      if (Number.isInteger(number) && number > 0) rows.push({ user_id: userId, anime_id: anime, episode: number, is_watched: true });
+    }
+    if (rows.length >= 20000) break;
+  }
+  if (!rows.length) return 0;
+  const client = await getSupabaseClient();
+  let saved = 0;
+  for (let offset = 0; offset < rows.length; offset += 500) {
+    const chunk = rows.slice(offset, offset + 500);
+    const { error } = await client.from("user_episode_progress")
+      .upsert(chunk, { onConflict: "user_id,anime_id,episode" });
+    if (error) throw error;
+    saved += chunk.length;
+  }
+  return saved;
+}
+
 export async function syncCloudState(state, userId = activeUserId) {
   if (!userId) return;
   const client = await getSupabaseClient();

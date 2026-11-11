@@ -1,6 +1,6 @@
 import { titleUrl } from "../core/router.js";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const cover=c=>c.cover_url?'<img src="'+esc(c.cover_url)+'" alt="" loading="eager" fetchpriority="low">':'<div class="collection-cover-placeholder"><span>AW</span></div>';
+const cover=c=>c.cover_url?'<img src="'+esc(c.cover_url)+'" alt="" loading="lazy" fetchpriority="low">':'<div class="collection-cover-placeholder"><span>AW</span></div>';
 function tile(c,userId){
  return '<a class="user-collection-card" href="collections.html?id='+encodeURIComponent(c.id)+'">'+cover(c)+'<div class="user-collection-card-info"><div><h3>'+esc(c.title)+'</h3><p>'+esc(c.description||"Без описания")+'</p></div><footer><span>'+c.item_count+' аниме</span><b>★ '+(c.rating_count?Number(c.average_rating).toFixed(1):"—")+' <small>('+c.rating_count+')</small></b></footer><small class="collection-visibility">'+(c.is_public?"Публичная":"Приватная")+'</small></div></a>';
 }

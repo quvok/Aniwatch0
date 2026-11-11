@@ -27,6 +27,8 @@ body{
 }
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:#09090f}
 a{color:inherit;text-decoration:none}
+.skip-link{position:fixed;left:14px;top:-70px;z-index:10000;padding:10px 16px;border:1px solid rgba(196,181,253,.35);border-radius:0 0 11px 11px;background:#1a1428;color:#f3edff;font-size:12px;font-weight:700;transition:top .18s}
+.skip-link:focus{top:0}
 button,input,select{font:inherit;color:inherit}
 button{background:none;border:0;cursor:pointer}
 input,select{
@@ -3400,6 +3402,16 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 .profile-playback-form{display:grid;gap:10px}
 .profile-playback-form>small{color:#9291a8;font-size:10px;line-height:1.55}
 .profile-playback-form .btn{justify-self:start}
+
+/* Public library import (Shikimori / AniList) */
+.profile-import-form{display:grid;grid-template-columns:minmax(130px,.55fr) minmax(200px,1.4fr) auto;align-items:end;gap:12px;margin-top:4px}
+.profile-import-form label{display:grid;gap:7px;color:#c9c4d9;font-size:11px}
+.profile-import-form select,.profile-import-form input[type="text"],.profile-import-form input:not([type]){width:100%;min-width:0;height:42px;padding:10px 12px;border:1px solid rgba(190,197,230,.16);border-radius:10px;background:#111321;color:#eeeaf8;font:inherit;outline:none}
+.profile-import-form select:focus,.profile-import-form input:focus{border-color:#9877e7}
+.profile-import-form .btn{height:42px;white-space:nowrap}
+.profile-import-check{grid-column:1/-1;align-self:center}
+.profile-import-status{margin-top:13px;padding:11px 13px;border:1px solid rgba(166,139,250,.16);border-radius:10px;background:rgba(145,118,220,.06);color:#a9a5bd;font-size:10px;line-height:1.6}
+@media(max-width:760px){.profile-import-form{grid-template-columns:1fr}.profile-import-form .btn{width:100%}}
 
 /* Friends hub summary */
 .social-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 4px}
