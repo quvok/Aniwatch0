@@ -4,9 +4,9 @@ const API_ROOT="https://shikimori.io/api";
 const catalogCache=new Map(),catalogPending=new Map();
 let catalogQueue=Promise.resolve(),catalogNextAt=0;
 function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
-async function fetchCatalogJSON(url,{signal,ttl=5*60*1000}={}){
+async function fetchCatalogJSON(url,{signal,ttl=5*60*1000,force=false}={}){
  const key=String(url),cached=catalogCache.get(key);
- if(cached&&cached.expires>Date.now())return JSON.parse(JSON.stringify(cached.data));
+ if(!force&&cached&&cached.expires>Date.now())return JSON.parse(JSON.stringify(cached.data));
  if(catalogPending.has(key))return JSON.parse(JSON.stringify(await catalogPending.get(key)));
  const task=catalogQueue.then(async()=>{
   const pause=Math.max(catalogNextAt-Date.now(),0);
@@ -97,14 +97,25 @@ export async function fetchAnimePostersByIds(ids,{signal}={}) {
  return result;
 }
 
-export async function fetchAnimeById(id,{signal}={}){
+export async function fetchAnimeById(id,{signal,force=false}={}){
  const numeric=Number(id);
  if(!Number.isInteger(numeric)||numeric<=0)throw new Error("Некорректный идентификатор аниме");
- const response=await fetch(API_ROOT+"/animes/"+numeric,{signal,headers:{Accept:"application/json"}});
- if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status);
- const result=await response.json();
+ const result=await fetchCatalogJSON(API_ROOT+"/animes/"+numeric,{signal,ttl:15*60*1000,force});
  if(!result||!Number(result.id))throw new Error("Получен пустой результат");
  return result;
+}
+
+export async function fetchShikimoriCalendar({signal,force=false}={}){
+ const result=await fetchCatalogJSON(API_ROOT+"/calendar",{signal,ttl:10*60*1000,force});
+ if(!Array.isArray(result))throw new Error("Некорректный ответ календаря Shikimori");
+ return result.map(entry=>{
+  const anime=entry&&entry.anime||{},at=String(entry&&entry.next_episode_at||""),date=new Date(at);
+  if(!Number(anime.id)||!Number.isFinite(date.getTime()))return null;
+  const image=anime.image||{},path=String(image.original||image.preview||"");
+  let poster="";
+  if(path&&!/missing_(?:original|preview)/i.test(path)){try{poster=new URL(path,"https://shikimori.io").href}catch{}}
+  return {day:(date.getDay()+6)%7+1,airingAt:at,nextEpisode:Number(entry.next_episode)||((Number(anime.episodes_aired)||0)+1),shikimoriId:Number(anime.id),title:String(anime.russian||anime.name||"Без названия"),poster,year:Number(String(anime.aired_on||"").slice(0,4))||0,type:String(anime.kind||"").toUpperCase()};
+ }).filter(Boolean);
 }
  
 export async function fetchAnimeRelated(id,{signal}={}){
