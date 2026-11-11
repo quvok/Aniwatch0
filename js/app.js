@@ -720,6 +720,7 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
    if(!d){
     d={id,shikiId,source:"shikimori",mal:Number(item.malId)||null,n:String(item.title||"Без названия"),o:"",g:["Аниме"],y:Number(item.year)||0,r:0,e:0,s:"Онгоинг",d:"",c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(item.poster),ban:"",kind:String(item.type||"").toLowerCase()};
    }else if(!shikiImageUrl(d.img)&&item.poster)d.img=shikiImageUrl(item.poster);
+   if(!Number(d.mal)&&Number(item.malId)>0)d.mal=Number(item.malId);
    d.shikiId=shikiId;d.source=d.source||"shikimori";
    M[id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=d;
    return {item,d};
@@ -1134,7 +1135,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
