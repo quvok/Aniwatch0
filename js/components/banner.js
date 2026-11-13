@@ -128,6 +128,9 @@ export function createBannerManager(options){
    }
   }));
   if(changed)options.save();
+  // The hero was rendered before these asynchronous lookups completed. Re-render it
+  // from the now-enriched H list instead of relying only on an in-place DOM update.
+  if(typeof options.refreshFeatured==="function")options.refreshFeatured();
  }
  return {load:load,loadFeatured:loadFeatured};
 }
