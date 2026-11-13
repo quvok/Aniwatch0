@@ -13,7 +13,11 @@ export function createBannerManager(options){
   var hero=document.querySelector("#hw .hero-editorial");
   if(hero&&featured.length){
    var active=featured[((index%featured.length)+featured.length)%featured.length];
-   if(active&&Number(active.id)===Number(anime.id))hero.style.background=background;
+   if(active&&Number(active.id)===Number(anime.id)){
+    hero.style.background=background;
+    var image=anime.ban||anime.img;
+    if(typeof image==="string"&&image)hero.style.setProperty("--hero-poster","url("+JSON.stringify(image)+")");
+   }
   }
  }
  function saveBanner(anime,media){
