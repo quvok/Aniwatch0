@@ -193,6 +193,7 @@ async function refreshCloudProgress(force=false){
    if(!AUTH_USER)return;
    S=merged;
    saveLocalState(S,M);
+   syncCurrentVoicePreference();
    await xhyd();
    if(activePage()==="home")refreshContinueShelf();
   }catch(error){console.warn("[AniWatch] Cloud progress refresh failed:",error)}
@@ -560,6 +561,7 @@ function jumpToEpisode(value,animeId){
 }
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
+function syncCurrentVoicePreference(){var voice=P&&S.hist&&S.hist[P.d.id]&&S.hist[P.d.id].voice;if(!voice||voice.provider!=="kodik"||!voice.translationId||!STREAM_PLAYER||!STREAM_PLAYER.syncTranslation)return;var media=STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():{time:P.t||0,duration:0,playing:!!P.on,speed:P.sp||1};STREAM_PLAYER.syncTranslation(voice.translationId,media).then(changed=>{if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(media)}).catch(error=>console.warn("[AniWatch] Cloud voice preference restore failed:",error))}
 function broadcastPlayback(type){
  if(!ROOM_CONNECTED||!P)return;
  var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
@@ -624,7 +626,7 @@ V.watch=p=>{
  recordWatchEntry(d,n);
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
- STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,preferredTranslationId:S.hist[d.id]?.voice?.provider==="kodik"?S.hist[d.id].voice.translationId:null,onEpisodeChange:async change=>{if(!inRoom||!S.roomHost||!change||!Number(change.episode)||Number(change.episode)===n)return;var next=Math.floor(Number(change.episode));await sendRoomEvent("episode-change",{animeId:d.id,episode:next,host:true});location.href=watchUrl(d.id,next)+"&room="+encodeURIComponent(S.room)},onTranslationChange:change=>{if(!change||!change.translationId)return;setAnimeHistory(d.id,{voice:{provider:"kodik",translationId:String(change.translationId),title:String(change.title||""),updatedAt:Date.now()}});sv();if(!inRoom||!S.roomHost)return;sendRoomEvent("translation-change",{animeId:d.id,episode:n,translationId:change.translationId,translationTitle:change.title||"",time:change.time,duration:change.duration,playing:change.playing,speed:change.speed,host:true}).catch(error=>console.warn("[AniWatch] Room translation broadcast failed:",error))},onReady:()=>{if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextEpisode=nextUnwatchedEpisode(d,n);if(nextEpisode&&S.autoNextEpisode!==false){setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});else clearAnimePlaybackHistory(d.id);sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена")}},onPlayback:media=>{
+ STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,preferredTranslationId:S.hist[d.id]?.voice?.provider==="kodik"?S.hist[d.id].voice.translationId:null,onEpisodeChange:async change=>{if(!inRoom||!S.roomHost||!change||!Number(change.episode)||Number(change.episode)===n)return;var next=Math.floor(Number(change.episode));await sendRoomEvent("episode-change",{animeId:d.id,episode:next,host:true});location.href=watchUrl(d.id,next)+"&room="+encodeURIComponent(S.room)},onTranslationChange:change=>{if(!change||!change.translationId)return;setAnimeHistory(d.id,{voice:{provider:"kodik",translationId:String(change.translationId),title:String(change.title||""),updatedAt:Date.now()}});sv();if(!inRoom||!S.roomHost)return;sendRoomEvent("translation-change",{animeId:d.id,episode:n,translationId:change.translationId,translationTitle:change.title||"",time:change.time,duration:change.duration,playing:change.playing,speed:change.speed,host:true}).catch(error=>console.warn("[AniWatch] Room translation broadcast failed:",error))},onReady:()=>{syncCurrentVoicePreference();if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextEpisode=nextUnwatchedEpisode(d,n);if(nextEpisode&&S.autoNextEpisode!==false){setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});else clearAnimePlaybackHistory(d.id);sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена")}},onPlayback:media=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
@@ -857,7 +859,7 @@ async function handleAuthSubmit(form){
     try{
      var restored=await restoreCloudState(S,signedInUserId);
      if(!AUTH_USER||AUTH_USER.id!==signedInUserId)return;
-     S=restored;saveLocalState(S,M);
+     S=restored;saveLocalState(S,M);syncCurrentVoicePreference();
      await xhyd();myListCloudAt=Date.now();
      var cloudFeedback=await loadRecommendationFeedback(signedInUserId);
      S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};
@@ -1194,7 +1196,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
