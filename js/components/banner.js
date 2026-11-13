@@ -64,36 +64,57 @@ export function createBannerManager(options){
   }).finally(function(){delete pending[id]});
   return pending[id];
  }
+ function warmBanner(url,priority){
+  if(typeof url!=="string"||!url)return;
+  var image=new Image();
+  if("fetchPriority" in image)image.fetchPriority=priority?"high":"low";
+  image.decoding="async";
+  image.src=url;
+ }
  async function loadFeatured(list){
-  var seen=new Set(),items=[],changed=false;
-  (list||[]).forEach(function(anime){
-   if(!anime||anime.ban)return;
-   var mal=Number(anime.mal),id=Number(anime.id);
-   if(!Number.isInteger(mal)||mal<=0||!Number.isInteger(id)||id<=0||seen.has(mal))return;
+  var seen=new Set(),items=[],changed=false,featured=list||[];
+  var activeIndex=Number(options.getFeaturedIndex())||0;
+  function isNearActive(index){
+   if(!featured.length)return false;
+   var distance=(index-activeIndex+featured.length)%featured.length;
+   return distance<=2;
+  }
+  featured.forEach(function(anime,index){
+   if(!anime)return;
+   var id=Number(anime.id),mal=Number(anime.mal);
+   if(!Number.isInteger(id)||id<=0||!Number.isInteger(mal)||mal<=0||seen.has(mal))return;
    seen.add(mal);
    var cached=cache[id];
-   if(cacheValid(cached)){
-    if(cached.media&&saveBanner(anime,cached.media))changed=true;
+   if(anime.ban){
+    if(isNearActive(index))warmBanner(anime.ban,index===activeIndex);
     return;
    }
-   items.push(anime);
+   if(cacheValid(cached)){
+    if(cached.media&&saveBanner(anime,cached.media))changed=true;
+    if(cached.media&&cached.media.bannerImage&&isNearActive(index))warmBanner(cached.media.bannerImage,index===activeIndex);
+    return;
+   }
+   items.push({anime:anime,index:index});
   });
-  for(var offset=0;offset<items.length;offset+=8){
-   var batch=items.slice(offset,offset+8),aliases=[];
-   batch.forEach(function(anime,index){
-    aliases.push("b"+index+":Media(idMal:"+Number(anime.mal)+",type:ANIME){id bannerImage}");
+  var batches=[];
+  for(var offset=0;offset<items.length;offset+=8)batches.push(items.slice(offset,offset+8));
+  await Promise.all(batches.map(async function(batch){
+   var aliases=[];
+   batch.forEach(function(entry,index){
+    aliases.push("b"+index+":Media(idMal:"+Number(entry.anime.mal)+",type:ANIME){id bannerImage}");
    });
    try{
     var data=await options.query("query{"+aliases.join(" ")+"}");
-    batch.forEach(function(anime,index){
-     var media=data&&data["b"+index]||null;
+    batch.forEach(function(entry,index){
+     var media=data&&data["b"+index]||null,anime=entry.anime;
      cache[Number(anime.id)]={media:media,at:Date.now()};
      if(saveBanner(anime,media))changed=true;
+     if(media&&media.bannerImage&&isNearActive(entry.index))warmBanner(media.bannerImage,entry.index===activeIndex);
     });
    }catch(error){
     console.warn("[AniWatch] Featured banner batch failed:",error);
    }
-  }
+  }));
   if(changed)options.save();
  }
  return {load:load,loadFeatured:loadFeatured};
