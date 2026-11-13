@@ -43,6 +43,9 @@ export function createBannerManager(options){
    if(Number.isInteger(mal)&&mal>0)return {field:"idMal",value:mal,key:"mal:"+mal};
    var mappedId=Number(anime.aniId);
    if(Number.isInteger(mappedId)&&mappedId>0)return {field:"id",value:mappedId,key:"id:"+mappedId};
+   // Last resort: search by the original title, then verify the returned title before saving.
+   var search=String(anime.o||anime.n||"").trim();
+   if(search)return {field:"search",value:search,key:"search:"+search.toLocaleLowerCase()};
    return null;
   }
   var id=Number(anime.aniId||anime.id);
@@ -51,7 +54,21 @@ export function createBannerManager(options){
  }
  function queryFor(lookup){
   if(!lookup)return null;
-  return {query:"query($id:Int){Media("+lookup.field+":$id,type:ANIME){id bannerImage}}",variables:{id:lookup.value}};
+  if(lookup.field==="search")return {query:"query($search:String!){Media(search:$search,type:ANIME){id title{romaji english native} seasonYear bannerImage}}",variables:{search:lookup.value}};
+  return {query:"query($id:Int){Media("+lookup.field+":$id,type:ANIME){id title{romaji english native} seasonYear bannerImage}}",variables:{id:lookup.value}};
+ }
+ function normalizeTitle(value){
+  return String(value||"").toLocaleLowerCase().normalize("NFKC").replace(/[^\\p{L}\\p{N}]/gu,"");
+ }
+ function verifiedMedia(anime,media,lookup){
+  if(!media)return null;
+  if(!lookup||lookup.field!=="search")return media;
+  var wanted=normalizeTitle(lookup.value),titles=media.title||{};
+  var exact=[titles.romaji,titles.english,titles.native].some(title=>normalizeTitle(title)===wanted);
+  if(!exact)return null;
+  var animeYear=Number(anime&&anime.y)||0,mediaYear=Number(media.seasonYear)||0;
+  if(animeYear&&mediaYear&&Math.abs(animeYear-mediaYear)>1)return null;
+  return media;
  }
  function load(anime){
   if(!anime)return Promise.resolve(null);
@@ -67,9 +84,10 @@ export function createBannerManager(options){
   if(pending[lookup.key])return pending[lookup.key];
   var request=queryFor(lookup);
   pending[lookup.key]=options.query(request.query,request.variables).then(function(response){
-   var media=response&&response.Media||null;
-   cache[lookup.key]={media:media,at:Date.now()};
+   var responseMedia=response&&response.Media||null;
    var current=(getAnimeMap()||{})[id]||anime;
+   var media=verifiedMedia(current,responseMedia,lookup);
+   cache[lookup.key]={media:media,at:Date.now()};
    if(saveBanner(current,media))options.save();
    return media;
   }).finally(function(){delete pending[lookup.key]});
@@ -112,12 +130,14 @@ export function createBannerManager(options){
   await Promise.all(batches.map(async function(batch){
    var aliases=[];
    batch.forEach(function(entry,index){
-    aliases.push("b"+index+":Media("+entry.lookup.field+":"+Number(entry.lookup.value)+",type:ANIME){id bannerImage}");
+    var argument=entry.lookup.field==="search"?"search:"+JSON.stringify(entry.lookup.value):entry.lookup.field+":"+Number(entry.lookup.value);
+    aliases.push("b"+index+":Media("+argument+",type:ANIME){id title{romaji english native} seasonYear bannerImage}");
    });
    try{
     var data=await options.query("query{"+aliases.join(" ")+"}");
     batch.forEach(function(entry,index){
-     var media=data&&data["b"+index]||null;
+     var responseMedia=data&&data["b"+index]||null;
+     var media=verifiedMedia(entry.anime,responseMedia,entry.lookup);
      cache[entry.lookup.key]={media:media,at:Date.now()};
      if(saveBanner(entry.anime,media))changed=true;
      if(media&&media.bannerImage&&isNearActive(entry.index))warmBanner(media.bannerImage,entry.index===activeIndex);
