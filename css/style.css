@@ -3747,7 +3747,6 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 /* Aurora Maximalism — homepage feature treatment */
 #hw .aurora-hero{position:relative;isolation:isolate;overflow:hidden;min-height:clamp(370px,35vw,500px);grid-template-columns:minmax(0,1fr) minmax(190px,230px);gap:clamp(28px,4vw,58px);padding:clamp(32px,5vw,68px);border:1px solid rgba(205,190,255,.23);border-radius:26px;background-color:#080910!important;box-shadow:0 30px 90px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.09)}
 #hw .aurora-hero::before{z-index:-1;background:linear-gradient(90deg,rgba(5,5,14,.97) 0%,rgba(7,5,17,.86) 43%,rgba(7,5,17,.25) 100%),linear-gradient(0deg,rgba(5,5,14,.72),transparent 68%)}
-#hw .aurora-hero::after{z-index:-2;inset:-28%;background-image:radial-gradient(ellipse at 72% 34%,rgba(255,0,110,.38),transparent 28%),radial-gradient(ellipse at 38% 12%,rgba(93,52,208,.54),transparent 38%),radial-gradient(ellipse at 91% 72%,rgba(0,240,255,.24),transparent 30%),var(--hero-poster);background-size:auto,auto,auto,cover;background-position:center;filter:blur(34px) brightness(.38) saturate(1.3);opacity:1}
 #hw .hero-copy{position:relative;z-index:2;max-width:760px;gap:15px}
 #hw .hero-copy .eyebrow{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid rgba(196,181,253,.25);border-radius:999px;background:rgba(30,17,55,.48);color:#e3d8ff;font-size:10px;letter-spacing:.13em;backdrop-filter:blur(12px)}
 #hw .hero-copy .live-dot{width:8px;height:8px;background:#00f0ff;box-shadow:0 0 8px #00f0ff,0 0 20px rgba(0,240,255,.75)}
@@ -3782,7 +3781,6 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 @media(max-width:700px){
  #hw .aurora-hero{min-height:310px;max-height:none;grid-template-columns:minmax(0,1fr) 82px;gap:10px;padding:22px 15px 25px;border-radius:18px}
  #hw .aurora-hero::before{background:linear-gradient(90deg,rgba(5,5,14,.94),rgba(7,5,17,.68)),linear-gradient(0deg,rgba(5,5,14,.78),transparent 78%)}
- #hw .aurora-hero::after{filter:blur(24px) brightness(.34) saturate(1.25)}
  #hw .hero-copy{gap:9px}
  #hw .hero-copy .eyebrow{padding:6px 9px;font-size:8px}
  #hw .hero-meta{font-size:8px;letter-spacing:.03em}
