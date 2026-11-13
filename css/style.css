@@ -4076,3 +4076,11 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
     margin-right: 12px;
   }
 }
+
+/* Keep the actual AniList/Shikimori hero banner sharp: disable the blurred poster glow layer. */
+#hw .aurora-hero::after{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+  filter:none!important;
+}
