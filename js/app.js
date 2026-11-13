@@ -1513,6 +1513,7 @@ var bannerManager=createBannerManager({
  getPlayer:()=>P,
  isTitleRoute:id=>isRoute("title",id),
  background:bn,
+ refreshFeatured:showFeatured,
  save:sv
 });
 var xvt=V.title;V.title=p=>{xvt(p);bannerManager.load(M[+p[0]])};
