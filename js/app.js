@@ -145,7 +145,7 @@ function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.sli
 var featuredIndex=0;
 function featured(){
  var d=H[featuredIndex%H.length]||D[0];
- loadBanner(d);ru(d);
+ ru(d);
  var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);
  var rating=d.r?Number(d.r).toFixed(1):"—";
  var poster=shikiImageUrl(d.img);
@@ -211,6 +211,7 @@ V.home=()=>{
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,row});
+ loadFeaturedBanners(H).catch(error=>console.warn("[AniWatch] Featured banners could not be loaded:",error));
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
@@ -1511,6 +1512,27 @@ function aniMedia(d){
  return xXP[id];
 }
 function loadBanner(d){if(d&&!d.ban)aniMedia(d).catch(function(){})}
+// Загружаем баннеры всех слайдов одной серией GraphQL-запросов, а не ждём,
+// пока пользователь долистает до каждого слайда. MAL ID — ключ связи Shikimori и AniList.
+async function loadFeaturedBanners(list){
+ var pending=(list||[]).filter(function(d){return d&&Number(d.mal)>0&&!d.ban});
+ for(var offset=0;offset<pending.length;offset+=8){
+  var batch=pending.slice(offset,offset+8),parts=[];
+  batch.forEach(function(d,i){parts.push("b"+i+":Media(idMal:"+Number(d.mal)+",type:ANIME){id bannerImage}")});
+  try{
+   var data=await xgq("query{"+parts.join(" ")+"}");
+   batch.forEach(function(d,i){
+    var media=data&&data["b"+i];
+    xXC[d.id]=media||null;
+    if(!media||typeof media.bannerImage!=="string"||!media.bannerImage)return;
+    d.ban=media.bannerImage;
+    if(d.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
+    applyBanner(d);
+   });
+  }catch(error){console.warn("[AniWatch] Featured banner batch failed:",error)}
+ }
+ sv();
+}
 var xvt=V.title;V.title=p=>{xvt(p);loadBanner(M[+p[0]])};
 
 function activePage(){return getActivePage()}
