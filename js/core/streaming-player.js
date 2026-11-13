@@ -56,7 +56,7 @@ async function requestAnimeLibEpisodes(shikiId){
  }
  throw new Error("Список серий недоступен: "+[...new Set(errors)].join("; "));
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onEpisodeChange=()=>{},onTranslationChange=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onEpisodeChange=()=>{},onTranslationChange=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1,preferredTranslationId=null}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
@@ -236,8 +236,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const available=releases.filter(item=>item?.link&&item?.translation);
    if(!available.length)throw new Error("Не найдены доступные варианты озвучки");
    const savedTranslationId=readSavedKodikVoice();
-   let selected=available.find(item=>savedTranslationId&&String(item.translation?.id??"")===savedTranslationId)||available[0];
-   if(savedTranslationId&&String(selected.translation?.id??"")!==savedTranslationId)setStatus("Сохранённая озвучка недоступна для этой серии — выбрана доступная");
+   const cloudTranslationId=preferredTranslationId===null||preferredTranslationId===undefined?"":String(preferredTranslationId);
+   let selected=available.find(item=>cloudTranslationId&&String(item.translation?.id??"")===cloudTranslationId)||available.find(item=>savedTranslationId&&String(item.translation?.id??"")===savedTranslationId)||available[0];
+   if((cloudTranslationId||savedTranslationId)&&String(selected.translation?.id??"")!==(cloudTranslationId||savedTranslationId))setStatus("Сохранённая озвучка недоступна для этой серии — выбрана доступная");
    const episodesOf=item=>{
     const all=[];
     for(const [seasonKey,season] of Object.entries(item?.seasons||{})){
@@ -294,9 +295,10 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     const match=available.find(item=>String(item.translation?.id??"")===String(translationId??""));
     if(!match){setStatus("Участнику недоступна выбранная ведущим озвучка");resolve(false);return}
     if(String(selected.translation?.id??"")===String(translationId??"")){resolve(true);return}
-    selected=match;saveKodikVoice(selected.translation?.id);render();playSelected(state,resolve);
+    selected=match;saveKodikVoice(selected.translation?.id);render();try{onTranslationChange({translationId:selected.translation?.id??null,title:String(selected.translation?.title||""),time:Number(state.time)||0,duration:Number(state.duration)||0,playing:!!state.playing,speed:Number(state.speed)||1})}catch(error){console.warn("[AniWatch] Kodik translation callback failed:",error)}playSelected(state,resolve);
    });
    playSelected({time:savedTime,speed:savedSpeed});
+   try{onTranslationChange({translationId:selected.translation?.id??null,title:String(selected.translation?.title||""),time:savedTime,duration:0,playing:false,speed:savedSpeed})}catch(error){console.warn("[AniWatch] Kodik initial translation callback failed:",error)}
   }catch(error){
    options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#kodik-retry").addEventListener("click",showKodik);
