@@ -27,3 +27,26 @@
   }
   #hw .hero-copy{gap:10px}
 }
+
+/* Featured hero: keep overlays behind the content and let the banner image show through. */
+#hw .hero-editorial{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+}
+
+#hw .hero-editorial::before,
+#hw .hero-editorial::after{
+  z-index:-1;
+}
+
+#hw .hero-editorial > *{
+  position:relative;
+  z-index:1;
+}
+
+#hw .hero-editorial::before{
+  background:
+    linear-gradient(90deg,rgba(5,6,12,.78) 0%,rgba(5,6,12,.5) 45%,rgba(5,6,12,.08) 100%),
+    linear-gradient(0deg,rgba(5,6,12,.6),rgba(5,6,12,0) 60%);
+}
