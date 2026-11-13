@@ -15,8 +15,8 @@ export function createBannerManager(options){
    var active=featured[((index%featured.length)+featured.length)%featured.length];
    if(active&&Number(active.id)===Number(anime.id)){
     hero.style.background=background;
-    var image=anime.ban||anime.img;
-    if(typeof image==="string"&&image)hero.style.setProperty("--hero-poster","url("+JSON.stringify(image)+")");
+    var image=anime.ban;
+    hero.style.setProperty("--hero-poster",typeof image==="string"&&image?"url("+JSON.stringify(image)+")":"none");
    }
   }
  }
@@ -35,15 +35,23 @@ export function createBannerManager(options){
  function cacheValid(entry){
   return !!entry&&((entry.media&&typeof entry.media.bannerImage==="string"&&!!entry.media.bannerImage)||Date.now()-entry.at<negativeCacheTtl);
  }
- function queryFor(anime){
-  if(anime.source){
+ function lookupFor(anime){
+  if(!anime)return null;
+  if(anime.source==="shikimori"){
    var mal=Number(anime.mal);
-   if(!Number.isInteger(mal)||mal<=0)return null;
-   return {query:"query($mal:Int){Media(idMal:$mal,type:ANIME){id bannerImage}}",variables:{mal:mal}};
+   if(Number.isInteger(mal)&&mal>0)return {field:"idMal",value:mal,key:"mal:"+mal};
+   var mappedId=Number(anime.aniId);
+   if(Number.isInteger(mappedId)&&mappedId>0)return {field:"id",value:mappedId,key:"id:"+mappedId};
+   return null;
   }
   var id=Number(anime.aniId||anime.id);
   if(!Number.isInteger(id)||id<=0)return null;
-  return {query:"query($id:Int){Media(id:$id,type:ANIME){id bannerImage}}",variables:{id:id}};
+  return {field:"id",value:id,key:"id:"+id};
+ }
+ function queryFor(anime){
+  var lookup=lookupFor(anime);
+  if(!lookup)return null;
+  return {query:"query($id:Int){Media("+lookup.field+":$id,type:ANIME){id bannerImage}}",variables:{id:lookup.value}};
  }
  function load(anime){
   if(!anime)return Promise.resolve(null);
@@ -85,9 +93,9 @@ export function createBannerManager(options){
   }
   featured.forEach(function(anime,index){
    if(!anime)return;
-   var id=Number(anime.id),mal=Number(anime.mal);
-   if(!Number.isInteger(id)||id<=0||!Number.isInteger(mal)||mal<=0||seen.has(mal))return;
-   seen.add(mal);
+   var id=Number(anime.id),lookup=lookupFor(anime);
+   if(!Number.isInteger(id)||id<=0||!lookup||seen.has(lookup.key))return;
+   seen.add(lookup.key);
    var cached=cache[id];
    if(anime.ban){
     if(isNearActive(index))warmBanner(anime.ban,index===activeIndex);
@@ -98,14 +106,14 @@ export function createBannerManager(options){
     if(cached.media&&cached.media.bannerImage&&isNearActive(index))warmBanner(cached.media.bannerImage,index===activeIndex);
     return;
    }
-   items.push({anime:anime,index:index});
+   items.push({anime:anime,index:index,lookup:lookup});
   });
   var batches=[];
   for(var offset=0;offset<items.length;offset+=8)batches.push(items.slice(offset,offset+8));
   await Promise.all(batches.map(async function(batch){
    var aliases=[];
    batch.forEach(function(entry,index){
-    aliases.push("b"+index+":Media(idMal:"+Number(entry.anime.mal)+",type:ANIME){id bannerImage}");
+    aliases.push("b"+index+":Media("+entry.lookup.field+":"+Number(entry.lookup.value)+",type:ANIME){id bannerImage}");
    });
    try{
     var data=await options.query("query{"+aliases.join(" ")+"}");
