@@ -916,24 +916,32 @@ async function enrichShikimori(list){return list||[];}
 function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,8);if(H.length<8){var featuredIds=new Set(H.map(d=>d.id));H=H.concat(D.filter(d=>!featuredIds.has(d.id)).slice(0,8-H.length))}}
 var aniCountPending={};
 async function anilibriaCount(d){
+ if(!d)return;
+ // Home releases already carry their AniLibria release ID and often episode total.
+ // Avoid a redundant /search/releases title lookup when we already know the release.
+ if(Number(d.e)>0){refreshEpCount(d);return}
  var cache=S.aniEpisodes=S.aniEpisodes||{},saved=cache[d.id];
  if(saved&&Date.now()-saved.at<6*36e5){d.e=Number(saved.total)||d.e;d.ae=Number(saved.available)||0;refreshEpCount(d);return}
  if(aniCountPending[d.id])return aniCountPending[d.id];
  aniCountPending[d.id]=(async()=>{
-  var names=[un(d.n),un(d.o)].filter(Boolean),match=null;
-  for(var q of names){
-   try{
-    var sr=await fetch("https://api.anilibria.app/api/v1/app/search/releases?query="+encodeURIComponent(q));
-    if(!sr.ok)continue;
-    var list=await sr.json();if(!Array.isArray(list))list=list.list||list.data||[];
-    var wanted=names.map(normTitle).filter(Boolean);
-    match=list.find(x=>{var n=x.name||{};return [n.main,n.english,n.alternative,x.name_ru,x.name_en].some(v=>wanted.includes(normTitle(v)))});
-    if(match)break;
-   }catch(e){}
+  var releaseId=Number(d.aniLibriaReleaseId)||0;
+  if(!releaseId){
+   var names=[un(d.n),un(d.o)].filter(Boolean),match=null;
+   for(var q of names){
+    try{
+     var sr=await fetch("https://api.anilibria.app/api/v1/app/search/releases?query="+encodeURIComponent(q));
+     if(!sr.ok)continue;
+     var list=await sr.json();if(!Array.isArray(list))list=list.list||list.data||[];
+     var wanted=names.map(normTitle).filter(Boolean);
+     match=list.find(x=>{var n=x.name||{};return [n.main,n.english,n.alternative,x.name_ru,x.name_en].some(v=>wanted.includes(normTitle(v)))});
+     if(match)break;
+    }catch(e){}
+   }
+   releaseId=Number(match&&match.id)||0;
   }
-  if(!match)return;
+  if(!releaseId)return;
   try{
-   var rr=await fetch("https://api.anilibria.app/api/v1/anime/releases/"+encodeURIComponent(match.id));
+   var rr=await fetch("https://api.anilibria.app/api/v1/anime/releases/"+encodeURIComponent(releaseId));
    if(!rr.ok)return;
    var data=await rr.json(),total=Number(data.episodes_count||data.episodes_total||(data.type&&data.type.episodes)||0);
    var available=Array.isArray(data.episodes)?data.episodes.length:0;
@@ -1288,6 +1296,11 @@ async function loadHomeCollections(){
   if(!item)return null;
   var mapped=shikiToItem(item);
   if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId))||(Number(mapped.mal)>0&&seenMalIds.has(Number(mapped.mal))))return null;
+  // Keep the AniLibria release ID and known episode total. The hero can use these
+  // directly instead of searching AniLibria by title again.
+  mapped.aniLibriaReleaseId=Number(release&&release.id)||0;
+  var releaseEpisodeTotal=Number(release&&release.episodes_total)||0;
+  if(releaseEpisodeTotal>0)mapped.e=releaseEpisodeTotal;
   // AniLibria supplies the primary poster; retain Shikimori artwork as an on-error fallback.
   var aniPoster=aniLibriaPosterUrl(release);
   if(aniPoster){mapped.posterFallback=shikiImageUrl(mapped.img);mapped.img=aniPoster;}
