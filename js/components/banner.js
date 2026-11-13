@@ -29,7 +29,7 @@ export function createBannerManager(options){
   return true;
  }
  function cacheValid(entry){
-  return !!entry&&(!!entry.media||Date.now()-entry.at<negativeCacheTtl);
+  return !!entry&&((entry.media&&typeof entry.media.bannerImage==="string"&&!!entry.media.bannerImage)||Date.now()-entry.at<negativeCacheTtl);
  }
  function queryFor(anime){
   if(anime.source){
@@ -49,7 +49,7 @@ export function createBannerManager(options){
   var cached=cache[id];
   if(cacheValid(cached)){
    var current=(getAnimeMap()||{})[id]||anime;
-   if(cached.media)saveBanner(current,cached.media);
+   if(cached.media&&saveBanner(current,cached.media))options.save();
    return Promise.resolve(cached.media);
   }
   if(pending[id])return pending[id];
