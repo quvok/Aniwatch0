@@ -4,7 +4,7 @@ import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js"
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
-import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, saveEpisodeProgressBatch, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow } from "./core/supabase.js";
+import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, saveEpisodeProgressBatch, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow, saveWatchTimeSessions, loadWatchTimeStats } from "./core/supabase.js";
 import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl as routeWatchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
 import { renderSiteHeader } from "./components/site-header.js";
@@ -54,6 +54,19 @@ function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")
 function setAnimeHistory(id,patch){S.hist=S.hist||{};var previous=S.hist[id]&&typeof S.hist[id]==="object"?S.hist[id]:{};S.hist[id]={...previous,...patch}}
 function clearAnimePlaybackHistory(id){var previous=S.hist&&S.hist[id]||{};if(previous.voice)S.hist[id]={voice:previous.voice};else delete S.hist[id]}
 function recordWatchEntry(anime,episode){if(!anime||!Number(anime.id)||!Number(episode))return;S.hist=S.hist||{};var previous=S.hist[anime.id],same=previous&&Number(previous.ep)===Number(episode);setAnimeHistory(anime.id,{ep:Number(episode),t:same?Math.max(0,Number(previous.t)||0):0,duration:same?Math.max(0,Number(previous.duration)||0):0,at:Date.now(),speed:same&&Number(previous.speed)>0?Number(previous.speed):1});sv()}
+
+var watchTimeBuffers=new Map(),watchTimeFlushes=new Map(),watchTimeGuestLastSave=0;
+function watchDateKey(date=new Date()){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0")}
+function createWatchTimeSessionId(){if(globalThis.crypto?.randomUUID)return globalThis.crypto.randomUUID();var bytes=new Uint8Array(16);if(globalThis.crypto?.getRandomValues)globalThis.crypto.getRandomValues(bytes);else for(var i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;var hex=Array.from(bytes,value=>value.toString(16).padStart(2,"0")).join("");return hex.slice(0,8)+"-"+hex.slice(8,12)+"-"+hex.slice(12,16)+"-"+hex.slice(16,20)+"-"+hex.slice(20)}
+function enqueueWatchTimeSegment(userId,animeId,milliseconds,day){var seconds=Math.min(30,Math.round(milliseconds/1000));if(seconds<1)return;S.watchTimePending=Array.isArray(S.watchTimePending)?S.watchTimePending:[];S.watchTimePending.push({userId:String(userId),sessionId:createWatchTimeSessionId(),animeId:Number(animeId),watchedSeconds:seconds,watchedOn:day||watchDateKey()})}
+function flushWatchTimeQueue(userId=AUTH_USER?.id){if(!userId)return Promise.resolve(false);userId=String(userId);var existing=watchTimeFlushes.get(userId);if(existing)return existing;var batch=(Array.isArray(S.watchTimePending)?S.watchTimePending:[]).filter(item=>item&&item.userId===userId).slice(0,100);if(!batch.length)return Promise.resolve(true);var task=(async()=>{try{await saveWatchTimeSessions(userId,batch);var ids=new Set(batch.map(item=>item.sessionId));S.watchTimePending=(S.watchTimePending||[]).filter(item=>!ids.has(item.sessionId));saveLocalState(S,M);return true}catch(error){console.warn("[AniWatch] Watch-time sync deferred; intervals remain queued:",error);return false}})();watchTimeFlushes.set(userId,task);return task.then(success=>{watchTimeFlushes.delete(userId);if(success&&(S.watchTimePending||[]).some(item=>item&&item.userId===userId))setTimeout(()=>flushWatchTimeQueue(userId),0);return success},error=>{watchTimeFlushes.delete(userId);throw error})}
+function flushWatchTimeBuffers(){var owners=new Set();watchTimeBuffers.forEach(buffer=>{if(buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,buffer.animeId,buffer.ms,buffer.day);buffer.ms=0;owners.add(buffer.userId)}});saveLocalState(S,M);owners.forEach(owner=>flushWatchTimeQueue(owner))}
+function recordWatchedTime(animeId,seconds,meta={},ownerId=null){var id=Number(animeId),ms=Math.round(Math.max(0,Math.min(30,Number(seconds)||0))*1000);if(!Number.isSafeInteger(id)||id<=0||(ms<50&&!meta?.flush))return;var day=watchDateKey();if(ownerId){var key=String(ownerId)+":"+id,buffer=watchTimeBuffers.get(key);if(!buffer){buffer={userId:String(ownerId),animeId:id,ms:0,day};watchTimeBuffers.set(key,buffer)}var queued=false;if(buffer.day!==day){if(buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,id,buffer.ms,buffer.day);queued=true}buffer.ms=0;buffer.day=day}buffer.ms+=ms;while(buffer.ms>=30000){enqueueWatchTimeSegment(buffer.userId,id,30000,buffer.day);buffer.ms-=30000;queued=true}if(meta?.flush&&buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,id,buffer.ms,buffer.day);buffer.ms=0;queued=true}if(queued){saveLocalState(S,M);flushWatchTimeQueue(buffer.userId)}return}
+ if(ms<50){if(meta?.flush){watchTimeGuestLastSave=Date.now();saveLocalState(S,M)}return}var guest=S.watchTimeGuest||(S.watchTimeGuest={totalMs:0,byAnimeMs:{},byDayMs:{}});guest.totalMs=(Number(guest.totalMs)||0)+ms;guest.byAnimeMs=guest.byAnimeMs||{};guest.byDayMs=guest.byDayMs||{};guest.byAnimeMs[id]=(Number(guest.byAnimeMs[id])||0)+ms;guest.byDayMs[day]=(Number(guest.byDayMs[day])||0)+ms;if(Date.now()-watchTimeGuestLastSave>=15000||meta?.flush){watchTimeGuestLastSave=Date.now();saveLocalState(S,M)}}
+function buildLocalWatchTimeStats(){var guest=S.watchTimeGuest||{},stats={totalSeconds:Math.floor((Number(guest.totalMs)||0)/1000),byAnimeSeconds:{},byDaySeconds:{},sessionIds:[]};Object.entries(guest.byAnimeMs||{}).forEach(([id,value])=>stats.byAnimeSeconds[id]=Math.floor((Number(value)||0)/1000));Object.entries(guest.byDayMs||{}).forEach(([day,value])=>stats.byDaySeconds[day]=Math.floor((Number(value)||0)/1000));return stats}
+async function loadProfileWatchTimeStats(userId){if(!userId)return buildLocalWatchTimeStats();await flushWatchTimeQueue(userId);var stats;try{stats=await loadWatchTimeStats(userId)}catch(error){stats={totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{},sessionIds:[],error:"Облачная статистика временно недоступна. Локальная очередь сохранена."}}var known=new Set(stats.sessionIds||[]);(S.watchTimePending||[]).filter(item=>item&&item.userId===String(userId)&&!known.has(item.sessionId)).forEach(item=>{var seconds=Number(item.watchedSeconds)||0,id=String(item.animeId),day=String(item.watchedOn||"");stats.totalSeconds+=seconds;stats.byAnimeSeconds[id]=(stats.byAnimeSeconds[id]||0)+seconds;if(day)stats.byDaySeconds[day]=(stats.byDaySeconds[day]||0)+seconds});return stats}
+window.addEventListener("online",()=>flushWatchTimeQueue());
+window.addEventListener("pagehide",flushWatchTimeBuffers);
 function df(){S.autoNextEpisode=S.autoNextEpisode!==false;S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
 df();
 function watchUrl(id,episode){var url=routeWatchUrl(id,episode);if(S&&S.room)url+=(url.indexOf("?")>=0?"&":"?")+"room="+encodeURIComponent(S.room);return url}
@@ -349,7 +362,7 @@ function startInlineWatch(anime,episode){
  document.querySelectorAll(".episode-inline-play").forEach(b=>{b.classList.toggle("on",Number(b.dataset.v)===Number(episode));b.textContent=Number(b.dataset.v)===Number(episode)?"Ⅱ":"▶"});
  var inlineHistory=S.hist[anime.id],inlineResume=inlineHistory&&Number(inlineHistory.ep)===Number(episode)?inlineHistory:{};
  recordWatchEntry(anime,episode);
- INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,resumeAt:Number(inlineResume.t)||0,resumeSpeed:Number(inlineResume.speed)||1,onEpisodeEnded:()=>{
+ var inlineWatchOwnerId=AUTH_USER&&AUTH_USER.id||null;INLINE_STREAM_PLAYER=mountStreamPlayer({root:host,anime,episode,resumeAt:Number(inlineResume.t)||0,resumeSpeed:Number(inlineResume.speed)||1,onEpisodeEnded:()=>{
   setEpisodeWatched(anime.id,episode,true);
   var nextEpisode=nextUnwatchedEpisode(anime,episode);
   var next=nextEpisode&&section.querySelector('.episode-inline-play[data-v="'+nextEpisode+'"]');
@@ -361,7 +374,7 @@ function startInlineWatch(anime,episode){
    clearAnimePlaybackHistory(anime.id);sv();
    toast("Серия отмечена как просмотренная");
   }
- },onPlayback:media=>{
+ },onWatchTime:(seconds,meta)=>recordWatchedTime(anime.id,seconds,meta,inlineWatchOwnerId),onPlayback:media=>{
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){setAnimeHistory(anime.id,{ep:episode,t:time,duration:Math.max(0,Number(media.duration)||0),at:now,speed:Number(media.speed)||1});if(!startInlineWatch.lastSave||now-startInlineWatch.lastSave>=5000||!media.playing){startInlineWatch.lastSave=now;sv()}}
  }});
@@ -626,7 +639,7 @@ V.watch=p=>{
  recordWatchEntry(d,n);
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
  var historySaveAt=0;
- STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,preferredVoice:S.hist[d.id]?.voice||null,onEpisodeChange:async change=>{if(!inRoom||!S.roomHost||!change||!Number(change.episode)||Number(change.episode)===n)return;var next=Math.floor(Number(change.episode));await sendRoomEvent("episode-change",{animeId:d.id,episode:next,host:true});location.href=watchUrl(d.id,next)+"&room="+encodeURIComponent(S.room)},onTranslationChange:change=>{if(!change)return;var voiceId=change.translationId??change.voiceId;if(!voiceId)return;setAnimeHistory(d.id,{voice:{provider:String(change.provider||"kodik"),id:String(voiceId),title:String(change.title||""),updatedAt:Date.now()}});sv();if(!inRoom||!S.roomHost||!change.translationId)return;sendRoomEvent("translation-change",{animeId:d.id,episode:n,translationId:change.translationId,translationTitle:change.title||"",time:change.time,duration:change.duration,playing:change.playing,speed:change.speed,host:true}).catch(error=>console.warn("[AniWatch] Room translation broadcast failed:",error))},onReady:()=>{syncCurrentVoicePreference();if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextEpisode=nextUnwatchedEpisode(d,n);if(nextEpisode&&S.autoNextEpisode!==false){setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});else clearAnimePlaybackHistory(d.id);sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена")}},onPlayback:media=>{
+ var playbackOwnerId=AUTH_USER&&AUTH_USER.id||null;STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,preferredVoice:S.hist[d.id]?.voice||null,onEpisodeChange:async change=>{if(!inRoom||!S.roomHost||!change||!Number(change.episode)||Number(change.episode)===n)return;var next=Math.floor(Number(change.episode));await sendRoomEvent("episode-change",{animeId:d.id,episode:next,host:true});location.href=watchUrl(d.id,next)+"&room="+encodeURIComponent(S.room)},onTranslationChange:change=>{if(!change)return;var voiceId=change.translationId??change.voiceId;if(!voiceId)return;setAnimeHistory(d.id,{voice:{provider:String(change.provider||"kodik"),id:String(voiceId),title:String(change.title||""),updatedAt:Date.now()}});sv();if(!inRoom||!S.roomHost||!change.translationId)return;sendRoomEvent("translation-change",{animeId:d.id,episode:n,translationId:change.translationId,translationTitle:change.title||"",time:change.time,duration:change.duration,playing:change.playing,speed:change.speed,host:true}).catch(error=>console.warn("[AniWatch] Room translation broadcast failed:",error))},onReady:()=>{syncCurrentVoicePreference();if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextEpisode=nextUnwatchedEpisode(d,n);if(nextEpisode&&S.autoNextEpisode!==false){setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});else clearAnimePlaybackHistory(d.id);sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена")}},onWatchTime:(seconds,meta)=>recordWatchedTime(d.id,seconds,meta,playbackOwnerId),onPlayback:media=>{
   // Save real HTML5 player progress; the legacy custom-player tick is not used here.
   var now=Date.now(),time=Math.max(0,Number(media.time)||0);
   if(time>0){
@@ -820,7 +833,27 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
   }
  }
  V.calendar=()=>loadCalendar(false);
- V.profile=async()=>{var targetId=routeArgs()[0];if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){app.innerHTML='<p class="empty">Загружаем профиль…</p>';try{var publicProfile=await fetchPublicProfile(targetId);if(!publicProfile){app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}var publicIds=(publicProfile.favorite_ids||[]).map(Number);if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}if(activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M})}catch(error){console.error("[AniWatch] Public profile load failed:",error);app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}return}renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}};
+ var profileStatsRequest=0;
+ V.profile=async()=>{
+  var request=++profileStatsRequest,targetId=routeArgs()[0];
+  if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){
+   app.innerHTML='<p class="empty">Загружаем профиль…</p>';
+   try{
+    var publicProfile=await fetchPublicProfile(targetId);
+    if(!publicProfile){if(request===profileStatsRequest)app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}
+    var publicIds=(publicProfile.favorite_ids||[]).map(Number);
+    if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}
+    if(request===profileStatsRequest&&activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M});
+   }catch(error){console.error("[AniWatch] Public profile load failed:",error);if(request===profileStatsRequest)app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}
+   return;
+  }
+  app.innerHTML='<p class="empty">Загружаем статистику просмотра…</p>';
+  var userId=AUTH_USER&&AUTH_USER.id||null,watchStats=null,watchStatsError="";
+  try{watchStats=await loadProfileWatchTimeStats(userId);watchStatsError=watchStats.error||""}catch(error){console.warn("[AniWatch] Watch-time statistics unavailable:",error);watchStats=userId?{totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{},sessionIds:[]}:buildLocalWatchTimeStats();watchStatsError="Не удалось загрузить облачную статистику. Накопленные интервалы останутся в очереди и будут отправлены при восстановлении связи."}
+  if(request!==profileStatsRequest||activePage()!=="profile")return;
+  renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER,watchStats,watchStatsError});
+  if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}
+ };
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
  if(document.getElementById("auth-modal"))return;
@@ -859,7 +892,7 @@ async function handleAuthSubmit(form){
     try{
      var restored=await restoreCloudState(S,signedInUserId);
      if(!AUTH_USER||AUTH_USER.id!==signedInUserId)return;
-     S=restored;saveLocalState(S,M);syncCurrentVoicePreference();
+     S=restored;saveLocalState(S,M);syncCurrentVoicePreference();flushWatchTimeQueue(signedInUserId);
      await xhyd();myListCloudAt=Date.now();
      var cloudFeedback=await loadRecommendationFeedback(signedInUserId);
      S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};
@@ -1196,7 +1229,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){

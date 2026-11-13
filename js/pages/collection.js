@@ -47,7 +47,7 @@ export function renderMyList({app,state,mediaMap,filters,lists,card}){
  '<div class="list-results">'+(content?'<div class="list-card-grid">'+content+'</div>':'<div class="list-empty-state"><span class="list-empty-icon">'+(isFavorites?"♡":"▤")+'</span><b>'+(isFavorites?"Пока нет избранного":"Здесь пока пусто")+'</b><p>'+(isFavorites?"Добавляй понравившиеся тайтлы в избранное — они появятся здесь.":"Открой страницу аниме и выбери статус, чтобы добавить его в этот список.")+'</p><a class="btn ghost" href="catalog.html">Перейти в каталог</a></div>')+'</div></section>';
 }
 
-export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
+export function renderProfile({app,state,escapeHtml,user,mediaMap={},watchStats=null,watchStatsError=""}){
  const watchlist=normalizedWatchlist(state),counts={watching:0,planned:0,completed:0,dropped:0};
  Object.values(watchlist).forEach(status=>{if(Object.prototype.hasOwnProperty.call(counts,status))counts[status]++});
  const rated=Object.values(state.rate||{}).map(Number).filter(value=>Number.isFinite(value)&&value>0);
@@ -80,6 +80,22 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
   return '<article class="profile-achievement-card '+(unlocked?'is-unlocked':'is-locked')+'"><div class="profile-achievement-icon">'+item.icon+'</div><div class="profile-achievement-copy"><b>'+item.title+'</b><span>'+item.description+'</span><div class="profile-achievement-progress"><i style="width:'+percent+'%"></i></div><small>'+Math.min(value,target)+' / '+target+'</small></div><span class="profile-achievement-state">'+(unlocked?'Получено':'В процессе')+'</span></article>';
  }).join("");
 
+
+ const watch=watchStats||{totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{}};
+ const watchDays=watch.byDaySeconds||{},watchAnime=watch.byAnimeSeconds||{};
+ const totalWatchSeconds=Math.max(0,Number(watch.totalSeconds)||0);
+ const formatWatchDuration=value=>{const seconds=Math.max(0,Math.floor(Number(value)||0)),hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return hours?hours+" ч "+minutes+" мин":minutes+" мин"};
+ const dayKey=date=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+ const today=new Date(),weeklyDays=Array.from({length:7},(_,index)=>{const date=new Date(today.getFullYear(),today.getMonth(),today.getDate()-6+index),key=dayKey(date);return {key,label:new Intl.DateTimeFormat("ru-RU",{weekday:"short"}).format(date).replace(".",""),seconds:Math.max(0,Number(watchDays[key])||0)}});
+ const monthItems=Array.from({length:6},(_,index)=>{const date=new Date(today.getFullYear(),today.getMonth()-5+index,1),prefix=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0"),seconds=Object.entries(watchDays).reduce((sum,[key,value])=>sum+(key.startsWith(prefix)?Math.max(0,Number(value)||0):0),0);return {label:new Intl.DateTimeFormat("ru-RU",{month:"short"}).format(date).replace(".",""),seconds}});
+ const weekSeconds=weeklyDays.reduce((sum,item)=>sum+item.seconds,0),monthSeconds=Object.entries(watchDays).reduce((sum,[key,value])=>{const date=new Date(key+"T12:00:00");return sum+(Number.isFinite(date.getTime())&&today-date<=30*864e5&&today>=date?Math.max(0,Number(value)||0):0)},0);
+ const activeWatchDays=Object.values(watchDays).filter(value=>Number(value)>0).length;
+ const weeklyMax=Math.max(1,...weeklyDays.map(item=>item.seconds)),monthlyMax=Math.max(1,...monthItems.map(item=>item.seconds));
+ const weeklyBars=weeklyDays.map(item=>'<div class="profile-watchtime-bar-item" title="'+item.label+': '+formatWatchDuration(item.seconds)+'"><div class="profile-watchtime-bar-track"><i style="height:'+(item.seconds?Math.max(4,Math.round(item.seconds/weeklyMax*100)):0)+'%"></i></div><small>'+item.label+'</small></div>').join("");
+ const monthlyBars=monthItems.map(item=>'<div class="profile-watchtime-bar-item" title="'+item.label+': '+formatWatchDuration(item.seconds)+'"><div class="profile-watchtime-bar-track"><i style="height:'+(item.seconds?Math.max(4,Math.round(item.seconds/monthlyMax*100)):0)+'%"></i></div><small>'+item.label+'</small></div>').join("");
+ const topWatchHtml=Object.entries(watchAnime).filter(([id,value])=>Number(value)>0).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,5).map(([id,value])=>{const anime=mediaMap[id]||state.shikiAnime?.[id];return '<div class="profile-watchtime-top-item"><span>'+escapeHtml(anime?.n||("Аниме #"+id))+'</span><b>'+formatWatchDuration(value)+'</b></div>'}).join("");
+ const watchTimeHtml='<section class="profile-overview profile-watchtime-section"><div class="profile-block-title"><div><span class="eyebrow">АНАЛИТИКА ПРОСМОТРА</span><h2>Время просмотра</h2></div><span>Учёт с даты обновления</span></div><div class="profile-watchtime-metrics"><article><small>Всего</small><b>'+formatWatchDuration(totalWatchSeconds)+'</b></article><article><small>За 7 дней</small><b>'+formatWatchDuration(weekSeconds)+'</b></article><article><small>За 30 дней</small><b>'+formatWatchDuration(monthSeconds)+'</b></article></div><div class="profile-watchtime-charts"><div class="profile-watchtime-chart"><div class="profile-watchtime-chart-title"><b>По дням</b><small>Последние 7 дней</small></div><div class="profile-watchtime-bars">'+weeklyBars+'</div></div><div class="profile-watchtime-chart"><div class="profile-watchtime-chart-title"><b>По месяцам</b><small>Последние 6 месяцев</small></div><div class="profile-watchtime-bars">'+monthlyBars+'</div></div></div><div class="profile-watchtime-footer"><span>Активных дней: <b>'+activeWatchDays+'</b></span><span>Серий отмечено: <b>'+watchedEpisodes+'</b></span></div><div class="profile-watchtime-top"><b>Больше всего времени</b>'+(topWatchHtml||'<p class="profile-hint">Пока нет накопленного времени просмотра.</p>')+'</div>'+(watchStatsError?'<p class="profile-watchtime-warning">'+escapeHtml(watchStatsError)+'</p>':'')+'<p class="profile-watchtime-note">Учитывается только реальное воспроизведение. Паузы и перемотки не засчитываются; старые просмотры не пересчитываются.</p></section>';
+
  const recent=Object.entries(state.hist||{}).filter(([id,item])=>item&&Number(item.at)>0).sort((a,b)=>Number(b[1].at)-Number(a[1].at)).slice(0,5);
  const recentHtml=recent.length?recent.map(([id,item])=>{const anime=mediaMap[id]||state.shikiAnime?.[id];return '<div class="profile-recent-item"><span><b>'+escapeHtml(anime?.n||("Аниме #"+id))+'</b><small>Серия '+Math.max(1,Number(item.ep)||1)+'</small></span><time>'+new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short"}).format(new Date(Number(item.at)))+'</time></div>'}).join(""):'<p class="profile-hint">История просмотра пока пуста.</p>';
  const favoriteIds=(state.fav||[]).map(Number).slice(0,5);
@@ -110,6 +126,7 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={}}){
    '</form>'+
    '<p id="library-import-status" class="profile-import-status" role="status" aria-live="polite">Импортируются только публичные списки. Оценки переводятся в 5-звёздочную шкалу приблизительно, прогресс серий объединяется с локальными отметками.</p>'+
   '</section>'+
+  watchTimeHtml+
   '<section class="profile-overview"><div class="profile-block-title"><div><span class="eyebrow">ТВОЯ АКТИВНОСТЬ</span><h2>Статистика</h2></div><span>'+total+' в списках</span></div>'+
    '<div class="profile-metric-grid profile-metric-grid-expanded">'+
     '<article><b>'+total+'</b><span>В коллекции</span></article><article><b>'+counts.watching+'</b><span>Смотрю</span></article><article><b>'+counts.completed+'</b><span>Завершено</span></article><article><b>'+fav+'</b><span>Избранное</span></article><article><b>'+started+'</b><span>Начато</span></article><article><b>'+watchedEpisodes+'</b><span>Отмечено серий</span></article>'+
