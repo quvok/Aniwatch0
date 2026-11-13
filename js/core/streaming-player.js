@@ -67,7 +67,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
- let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",lastKodikCorrectionAt=0,kodikLoadSequence=0,kodikFrame=null,kodikTranslationSync=null,libertyReleaseSync=null,kodikTranslation={id:null,title:""},kodikMedia={time:0,duration:0,playing:false,speed:1};
+ let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",lastKodikCorrectionAt=0,kodikLoadSequence=0,kodikFrame=null,kodikTranslationSync=null,libertyReleaseSync=null,userSelectedProvider=false,kodikTranslation={id:null,title:""},kodikMedia={time:0,duration:0,playing:false,speed:1};
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
  const video=()=>stage.querySelector("video");
@@ -441,13 +441,14 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
   }
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
+  userSelectedProvider=true;
   if(button.dataset.provider!=="kodik"){kodikLoadSequence++;kodikFrame=null;}
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
   if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));
  reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
- const initialProvider=preferredVoice?.provider==="liberty"||readSavedLibertyVoice()?"liberty":"kodik";
+ const initialProvider=preferredVoice?.provider==="kodik"?"kodik":preferredVoice?.provider==="liberty"?"liberty":readSavedLibertyVoice()?"liberty":"kodik";
  root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===initialProvider));
  if(initialProvider==="liberty")showLiberty();else showKodik();
- return {getPlaybackState,syncPlayback,syncTranslation(voiceId,state,provider="kodik"){if(provider==="liberty")return libertyReleaseSync?libertyReleaseSync(voiceId,state):Promise.resolve(false);return kodikTranslationSync?kodikTranslationSync(voiceId,state):Promise.resolve(false)},destroy(){destroyHls();kodikTranslationSync=null;libertyReleaseSync=null;kodikFrame=null;window.removeEventListener("message",onKodikMessage);clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
+ return {getPlaybackState,syncPlayback,syncTranslation(voiceId,state,provider="kodik"){const active=root.querySelector("[data-provider].on")?.dataset.provider||"kodik";if(userSelectedProvider&&active!==provider)return Promise.resolve(false);if(active!==provider){root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===provider));const load=provider==="liberty"?showLiberty():showKodik();return load.then(()=>provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):false):(kodikTranslationSync?kodikTranslationSync(voiceId,state):false))}return provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):Promise.resolve(false)):(kodikTranslationSync?kodikTranslationSync(voiceId,state):Promise.resolve(false))},destroy(){destroyHls();kodikTranslationSync=null;libertyReleaseSync=null;kodikFrame=null;window.removeEventListener("message",onKodikMessage);clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
