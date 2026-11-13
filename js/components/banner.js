@@ -65,7 +65,7 @@ export function createBannerManager(options){
   return pending[id];
  }
  async function loadFeatured(list){
-  var seen=new Set(),items=[];
+  var seen=new Set(),items=[],changed=false;
   (list||[]).forEach(function(anime){
    if(!anime||anime.ban)return;
    var mal=Number(anime.mal),id=Number(anime.id);
@@ -78,7 +78,6 @@ export function createBannerManager(options){
    }
    items.push(anime);
   });
-  var changed=false;
   for(var offset=0;offset<items.length;offset+=8){
    var batch=items.slice(offset,offset+8),aliases=[];
    batch.forEach(function(anime,index){
