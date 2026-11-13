@@ -73,7 +73,7 @@ export function createBannerManager(options){
    seen.add(mal);
    var cached=cache[id];
    if(cacheValid(cached)){
-    if(cached.media&&saveBanner(anime,cached.media)){}
+    if(cached.media&&saveBanner(anime,cached.media))changed=true;
     return;
    }
    items.push(anime);
