@@ -15,6 +15,9 @@ create index if not exists user_watch_time_sessions_user_day_idx
 create index if not exists user_watch_time_sessions_user_anime_idx
   on public.user_watch_time_sessions (user_id, anime_id);
 
+create index if not exists user_watch_time_sessions_user_created_idx
+  on public.user_watch_time_sessions (user_id, created_at, session_id);
+
 alter table public.user_watch_time_sessions enable row level security;
 
 drop policy if exists "Users can read their own watch time" on public.user_watch_time_sessions;
