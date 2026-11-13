@@ -591,3 +591,51 @@ export async function uploadProfileAvatar(file, userId) {
   if (profileError) throw profileError;
   return avatarUrl;
 }
+
+// Watch-time intervals are append-only and idempotent across retries/devices.
+export async function saveWatchTimeSessions(userId, sessions) {
+  if (!userId || !Array.isArray(sessions) || !sessions.length) return;
+  const rows = sessions.map(item => ({
+    user_id: userId,
+    session_id: String(item.sessionId || ""),
+    anime_id: Number(item.animeId),
+    watched_seconds: Math.round(Number(item.watchedSeconds)),
+    watched_on: String(item.watchedOn || "")
+  })).filter(row =>
+    /^[0-9a-f-]{36}$/i.test(row.session_id) &&
+    Number.isSafeInteger(row.anime_id) && row.anime_id > 0 &&
+    Number.isInteger(row.watched_seconds) && row.watched_seconds >= 1 && row.watched_seconds <= 30 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(row.watched_on)
+  );
+  if (!rows.length) return;
+  const client = await getSupabaseClient();
+  const { error } = await client.from("user_watch_time_sessions")
+    .upsert(rows, { onConflict: "user_id,session_id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export async function loadWatchTimeStats(userId) {
+  if (!userId) return { totalSeconds: 0, byAnimeSeconds: {}, byDaySeconds: {}, sessionIds: [] };
+  const client = await getSupabaseClient();
+  const stats = { totalSeconds: 0, byAnimeSeconds: {}, byDaySeconds: {}, sessionIds: [] };
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client.from("user_watch_time_sessions")
+      .select("session_id,anime_id,watched_seconds,watched_on")
+      .eq("user_id", userId)
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    rows.forEach(row => {
+      const seconds = Math.max(0, Number(row.watched_seconds) || 0);
+      const animeId = String(Number(row.anime_id));
+      const day = String(row.watched_on || "");
+      stats.totalSeconds += seconds;
+      stats.byAnimeSeconds[animeId] = (stats.byAnimeSeconds[animeId] || 0) + seconds;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) stats.byDaySeconds[day] = (stats.byDaySeconds[day] || 0) + seconds;
+      if (row.session_id) stats.sessionIds.push(String(row.session_id));
+    });
+    if (rows.length < pageSize) break;
+  }
+  return stats;
+}
