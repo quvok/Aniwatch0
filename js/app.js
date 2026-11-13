@@ -27,6 +27,7 @@ import { searchKodikAnime } from "./api/kodik.js";
 import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 import { getCalendarPushState, enableCalendarPush, disableCalendarPush } from "./core/calendar-push.js";
+import { createBannerManager } from "./components/banner.js";
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
@@ -211,7 +212,7 @@ V.home=()=>{
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
  renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,row});
- loadFeaturedBanners(H).catch(error=>console.warn("[AniWatch] Featured banners could not be loaded:",error));
+ bannerManager.loadFeatured(H).catch(error=>console.warn("[AniWatch] Featured banners could not be loaded:",error));
  loadHomeRecommendations();
  refreshContinueShelf();
  if(H.length>1)T.push(setInterval(()=>{featuredIndex=(featuredIndex+1)%H.length;showFeatured()},7000));
@@ -1334,7 +1335,7 @@ async function loadHomeCollections(){
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xXC={},xIO=null,xGenrePromise=null,xGenreOptions=null;
+xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -1489,51 +1490,19 @@ async function xrandom(){
 V.random=()=>{xrandom()};
 listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-900)xcq()},{passive:true});
 listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();});
-// страница тайтла: таймер следующей серии и трейлер
-// Баннер из AniList: один общий запрос на тайтл (баннер, следующая серия, трейлер), без дублей
-var xXP={};
-function applyBanner(d){
- var tb=$(".title-backdrop");if(tb&&isRoute("title",d.id))tb.style.background=bn(d);
- var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
- var hero=$("#hw .hero-editorial");if(hero&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id){hero.style.background=bn(d);}
-}
-function aniMedia(d){
- var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
- if(d.source&&!(Number(d.mal)>0))return Promise.resolve(null);
- if(xXP[id])return xXP[id];
- var query,vars;
- if(d.source){query="query($mal:Int){Media(idMal:$mal,type:ANIME){id bannerImage}}";vars={mal:Number(d.mal)}}
- else{query="query($id:Int){Media(id:$id,type:ANIME){id bannerImage}}";vars={id:Number(d.aniId||d.id)}}
- xXP[id]=xgq(query,vars).then(function(r){
-  var m=r&&r.Media||null;xXC[id]=m;
-  var t=M[id]||d;if(m&&m.bannerImage&&!t.ban){t.ban=m.bannerImage;if(t.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=t}applyBanner(t);sv()}
-  return m;
- }).finally(function(){delete xXP[id]});
- return xXP[id];
-}
-function loadBanner(d){if(d&&!d.ban)aniMedia(d).catch(function(){})}
-// Загружаем баннеры всех слайдов одной серией GraphQL-запросов, а не ждём,
-// пока пользователь долистает до каждого слайда. MAL ID — ключ связи Shikimori и AniList.
-async function loadFeaturedBanners(list){
- var pending=(list||[]).filter(function(d){return d&&Number(d.mal)>0&&!d.ban});
- for(var offset=0;offset<pending.length;offset+=8){
-  var batch=pending.slice(offset,offset+8),parts=[];
-  batch.forEach(function(d,i){parts.push("b"+i+":Media(idMal:"+Number(d.mal)+",type:ANIME){id bannerImage}")});
-  try{
-   var data=await xgq("query{"+parts.join(" ")+"}");
-   batch.forEach(function(d,i){
-    var media=data&&data["b"+i];
-    xXC[d.id]=media||null;
-    if(!media||typeof media.bannerImage!=="string"||!media.bannerImage)return;
-    d.ban=media.bannerImage;
-    if(d.source){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
-    applyBanner(d);
-   });
-  }catch(error){console.warn("[AniWatch] Featured banner batch failed:",error)}
- }
- sv();
-}
-var xvt=V.title;V.title=p=>{xvt(p);loadBanner(M[+p[0]])};
+// Баннеры главной, страниц тайтлов и плеера вынесены в отдельный модуль.
+var bannerManager=createBannerManager({
+ query:xgq,
+ getAnimeMap:()=>M,
+ getState:()=>S,
+ getFeatured:()=>H,
+ getFeaturedIndex:()=>featuredIndex,
+ getPlayer:()=>P,
+ isTitleRoute:id=>isRoute("title",id),
+ background:bn,
+ save:sv
+});
+var xvt=V.title;V.title=p=>{xvt(p);bannerManager.load(M[+p[0]])};
 
 function activePage(){return getActivePage()}
 function hd(){updateNavigation(S)}
