@@ -39,7 +39,8 @@ export function createBannerManager(options){
   if(!anime)return null;
   if(anime.source==="shikimori"){
    // Shikimori IDs are MAL IDs. Never pass a Shikimori/app ID as AniList's id.
-   var mal=Number(anime.mal)||Number(anime.shikiId);
+   var mal=Number(anime.mal);
+   if(!Number.isInteger(mal)||mal<=0)mal=Number(anime.shikiId);
    if(Number.isInteger(mal)&&mal>0)return {field:"idMal",value:mal,key:"mal:"+mal};
    var mappedId=Number(anime.aniId);
    if(Number.isInteger(mappedId)&&mappedId>0)return {field:"id",value:mappedId,key:"id:"+mappedId};
