@@ -149,7 +149,7 @@ function featured(){
  ru(d);
  var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);
  var rating=d.r?Number(d.r).toFixed(1):"—";
- var poster=shikiImageUrl(d.img);
+ var poster=shikiImageUrl(d.ban)||shikiImageUrl(d.img);
  return '<section class="hero hero-editorial aurora-hero" style="--hero-poster:url(\''+(poster||"")+'\');background:'+bn(d)+'">'+
   '<div class="hero-copy">'+
    '<div class="eyebrow"><span class="live-dot"></span> В центре внимания</div>'+
