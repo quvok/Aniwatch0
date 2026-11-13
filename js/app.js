@@ -59,8 +59,8 @@ var watchTimeBuffers=new Map(),watchTimeFlushes=new Map(),watchTimeGuestLastSave
 function watchDateKey(date=new Date()){return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0")}
 function createWatchTimeSessionId(){if(globalThis.crypto?.randomUUID)return globalThis.crypto.randomUUID();var bytes=new Uint8Array(16);if(globalThis.crypto?.getRandomValues)globalThis.crypto.getRandomValues(bytes);else for(var i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;var hex=Array.from(bytes,value=>value.toString(16).padStart(2,"0")).join("");return hex.slice(0,8)+"-"+hex.slice(8,12)+"-"+hex.slice(12,16)+"-"+hex.slice(16,20)+"-"+hex.slice(20)}
 function enqueueWatchTimeSegment(userId,animeId,milliseconds,day){var seconds=Math.min(30,Math.round(milliseconds/1000));if(seconds<1)return;S.watchTimePending=Array.isArray(S.watchTimePending)?S.watchTimePending:[];S.watchTimePending.push({userId:String(userId),sessionId:createWatchTimeSessionId(),animeId:Number(animeId),watchedSeconds:seconds,watchedOn:day||watchDateKey()})}
-function flushWatchTimeQueue(userId=AUTH_USER?.id){if(!userId)return Promise.resolve(false);userId=String(userId);var existing=watchTimeFlushes.get(userId);if(existing)return existing;var batch=(Array.isArray(S.watchTimePending)?S.watchTimePending:[]).filter(item=>item&&item.userId===userId).slice(0,100);if(!batch.length)return Promise.resolve(true);var task=(async()=>{try{await saveWatchTimeSessions(userId,batch);var ids=new Set(batch.map(item=>item.sessionId));S.watchTimePending=(S.watchTimePending||[]).filter(item=>!ids.has(item.sessionId));saveLocalState(S,M);return true}catch(error){console.warn("[AniWatch] Watch-time sync deferred; intervals remain queued:",error);return false}})();watchTimeFlushes.set(userId,task);return task.finally(()=>{watchTimeFlushes.delete(userId);if((S.watchTimePending||[]).some(item=>item&&item.userId===userId))setTimeout(()=>flushWatchTimeQueue(userId),0)})}
-function flushWatchTimeBuffers(){var owners=new Set();watchTimeBuffers.forEach((buffer,key)=>{if(buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,buffer.animeId,buffer.ms,buffer.day);owners.add(buffer.userId)}buffer.ms=0});if(owners.size)saveLocalState(S,M);owners.forEach(owner=>flushWatchTimeQueue(owner))}
+function flushWatchTimeQueue(userId=AUTH_USER?.id){if(!userId)return Promise.resolve(false);userId=String(userId);var existing=watchTimeFlushes.get(userId);if(existing)return existing;var batch=(Array.isArray(S.watchTimePending)?S.watchTimePending:[]).filter(item=>item&&item.userId===userId).slice(0,100);if(!batch.length)return Promise.resolve(true);var task=(async()=>{try{await saveWatchTimeSessions(userId,batch);var ids=new Set(batch.map(item=>item.sessionId));S.watchTimePending=(S.watchTimePending||[]).filter(item=>!ids.has(item.sessionId));saveLocalState(S,M);return true}catch(error){console.warn("[AniWatch] Watch-time sync deferred; intervals remain queued:",error);return false}})();watchTimeFlushes.set(userId,task);return task.then(success=>{watchTimeFlushes.delete(userId);if(success&&(S.watchTimePending||[]).some(item=>item&&item.userId===userId))setTimeout(()=>flushWatchTimeQueue(userId),0);return success},error=>{watchTimeFlushes.delete(userId);throw error})}
+function flushWatchTimeBuffers(){var owners=new Set();watchTimeBuffers.forEach(buffer=>{if(buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,buffer.animeId,buffer.ms,buffer.day);buffer.ms=0;owners.add(buffer.userId)}});if(owners.size)saveLocalState(S,M);owners.forEach(owner=>flushWatchTimeQueue(owner))}
 function recordWatchedTime(animeId,seconds,meta={},ownerId=null){var id=Number(animeId),ms=Math.round(Math.max(0,Math.min(8,Number(seconds)||0))*1000);if(!Number.isSafeInteger(id)||id<=0||ms<50)return;var day=watchDateKey();if(ownerId){var key=String(ownerId)+":"+id,buffer=watchTimeBuffers.get(key);if(!buffer){buffer={userId:String(ownerId),animeId:id,ms:0,day};watchTimeBuffers.set(key,buffer)}if(buffer.day!==day){if(buffer.ms>=1000)enqueueWatchTimeSegment(buffer.userId,id,buffer.ms,buffer.day);buffer.ms=0;buffer.day=day}buffer.ms+=ms;var queued=false;while(buffer.ms>=30000){enqueueWatchTimeSegment(buffer.userId,id,30000,buffer.day);buffer.ms-=30000;queued=true}if(meta?.flush&&buffer.ms>=1000){enqueueWatchTimeSegment(buffer.userId,id,buffer.ms,buffer.day);buffer.ms=0;queued=true}if(queued){saveLocalState(S,M);flushWatchTimeQueue(buffer.userId)}return}
  var guest=S.watchTimeGuest||(S.watchTimeGuest={totalMs:0,byAnimeMs:{},byDayMs:{}});guest.totalMs=(Number(guest.totalMs)||0)+ms;guest.byAnimeMs=guest.byAnimeMs||{};guest.byDayMs=guest.byDayMs||{};guest.byAnimeMs[id]=(Number(guest.byAnimeMs[id])||0)+ms;guest.byDayMs[day]=(Number(guest.byDayMs[day])||0)+ms;if(Date.now()-watchTimeGuestLastSave>=15000||meta?.flush){watchTimeGuestLastSave=Date.now();saveLocalState(S,M)}}
 function buildLocalWatchTimeStats(){var guest=S.watchTimeGuest||{},stats={totalSeconds:Math.floor((Number(guest.totalMs)||0)/1000),byAnimeSeconds:{},byDaySeconds:{},sessionIds:[]};Object.entries(guest.byAnimeMs||{}).forEach(([id,value])=>stats.byAnimeSeconds[id]=Math.floor((Number(value)||0)/1000));Object.entries(guest.byDayMs||{}).forEach(([day,value])=>stats.byDaySeconds[day]=Math.floor((Number(value)||0)/1000));return stats}
@@ -833,7 +833,27 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
   }
  }
  V.calendar=()=>loadCalendar(false);
- V.profile=async()=>{var targetId=routeArgs()[0];if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){app.innerHTML='<p class="empty">Загружаем профиль…</p>';try{var publicProfile=await fetchPublicProfile(targetId);if(!publicProfile){app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}var publicIds=(publicProfile.favorite_ids||[]).map(Number);if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}if(activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M})}catch(error){console.error("[AniWatch] Public profile load failed:",error);app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}return}renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER});if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}};
+ var profileStatsRequest=0;
+ V.profile=async()=>{
+  var request=++profileStatsRequest,targetId=routeArgs()[0];
+  if(targetId&&(!AUTH_USER||targetId!==AUTH_USER.id)){
+   app.innerHTML='<p class="empty">Загружаем профиль…</p>';
+   try{
+    var publicProfile=await fetchPublicProfile(targetId);
+    if(!publicProfile){if(request===profileStatsRequest)app.innerHTML='<p class="empty">Профиль недоступен или пользователь ограничил доступ.</p>';return}
+    var publicIds=(publicProfile.favorite_ids||[]).map(Number);
+    if(publicIds.length){try{(await fetchAnimeByIds(publicIds)).forEach(item=>{var d=shikiToItem(item);M[d.id]=d})}catch(error){console.warn("[AniWatch] Public profile favorites could not be hydrated:",error)}}
+    if(request===profileStatsRequest&&activePage()==="profile")renderPublicProfile({app,profile:publicProfile,escapeHtml:esc,mediaMap:M});
+   }catch(error){console.error("[AniWatch] Public profile load failed:",error);if(request===profileStatsRequest)app.innerHTML='<p class="empty">Не удалось загрузить профиль. Попробуй позже.</p>'}
+   return;
+  }
+  app.innerHTML='<p class="empty">Загружаем статистику просмотра…</p>';
+  var userId=AUTH_USER&&AUTH_USER.id||null,watchStats=null,watchStatsError="";
+  try{watchStats=await loadProfileWatchTimeStats(userId)}catch(error){console.warn("[AniWatch] Watch-time statistics unavailable:",error);watchStats=userId?{totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{},sessionIds:[]}:buildLocalWatchTimeStats();watchStatsError="Не удалось загрузить облачную статистику. Накопленные интервалы останутся в очереди и будут отправлены при восстановлении связи."}
+  if(request!==profileStatsRequest||activePage()!=="profile")return;
+  renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER,watchStats,watchStatsError});
+  if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}
+ };
 function openAuthModal(){
  if(AUTH_USER){location.href=PAGES.profile;return}
  if(document.getElementById("auth-modal"))return;
@@ -872,7 +892,7 @@ async function handleAuthSubmit(form){
     try{
      var restored=await restoreCloudState(S,signedInUserId);
      if(!AUTH_USER||AUTH_USER.id!==signedInUserId)return;
-     S=restored;saveLocalState(S,M);syncCurrentVoicePreference();
+     S=restored;saveLocalState(S,M);syncCurrentVoicePreference();flushWatchTimeQueue(signedInUserId);
      await xhyd();myListCloudAt=Date.now();
      var cloudFeedback=await loadRecommendationFeedback(signedInUserId);
      S.recommendationDismissed={...(S.recommendationDismissed||{}),...cloudFeedback};
@@ -1209,7 +1229,7 @@ async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
  if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
