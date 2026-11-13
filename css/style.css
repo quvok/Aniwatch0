@@ -4162,3 +4162,10 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 :root[data-theme="light"] .theme-choice[aria-pressed="true"]{color:#6842c4;background:#eee8fb;border-color:rgba(118,81,213,.45)}
 :root[data-theme="light"] .theme-choice-swatch{border-color:rgba(54,61,91,.2)}
 @media(max-width:700px){:root[data-theme="light"] nav{background:rgba(255,255,255,.96);border-top-color:var(--ln)}}
+
+#site-header .theme-toggle{display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;padding:0;border:1px solid rgba(190,170,240,.28);border-radius:50%;background:rgba(255,255,255,.055);color:#f2eaff;cursor:pointer;transition:background .18s,border-color .18s,color .18s,transform .18s}
+#site-header .theme-toggle:hover{background:rgba(167,139,250,.16);border-color:rgba(190,170,240,.58);transform:translateY(-1px)}
+#site-header .theme-toggle svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+:root[data-theme="light"] #site-header .theme-toggle{color:#6041a8;background:#f3effb;border-color:rgba(104,66,196,.2)}
+:root[data-theme="light"] #site-header .theme-toggle:hover{background:#e9e1f8;border-color:rgba(104,66,196,.45)}
+@media(max-width:700px){#site-header .header-tools{gap:9px}#site-header .theme-toggle{width:38px;height:38px;flex-basis:38px}}
