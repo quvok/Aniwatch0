@@ -4076,3 +4076,8 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
     margin-right: 12px;
   }
 }
+
+/* Keep editorial hero background layers behind all banner content. */
+.hero-editorial{position:relative;isolation:isolate;overflow:hidden}
+.hero-editorial::before,.hero-editorial::after{z-index:-1}
+.hero-editorial > *{position:relative;z-index:1}
