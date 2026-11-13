@@ -903,7 +903,7 @@ function mp(m){
  var title=m.title||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
  var primary=title.english||title.romaji||title.native||"Без названия";
  var alternate=title.romaji&&title.romaji!==primary?title.romaji:(title.native&&title.native!==primary?title.native:"");
- return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:"",c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(m.format||"").toLowerCase()}
+ return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:"",c:["#7c3aed","#0f0f1a"],img:"",ban:typeof m.bannerImage==="string"?m.bannerImage:"",kind:String(m.format||"").toLowerCase()}
 }
 
 // AniList is the source of truth for catalog metadata and navigation IDs.
@@ -1183,8 +1183,8 @@ async function boot(){
  (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||!c.a||c.a.length>30||Date.now()-c.t>216e5){
-  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
+ if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
+  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={v:2,t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
  }
  if(c&&c.a&&c.a.length)D=c.a;else D=[];
  idx();hydrateStash();initRouteFilters();
@@ -1537,8 +1537,10 @@ function hydrateStash(){
 function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
- var image=a.image||{},path=image.original||image.preview||image.x96||"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:"",kind:String(a.kind||"").toLowerCase()}
+ var image=a.image||{},path=image.original||image.preview||image.x96||"",mal=Number(a.myanimelist_id)||null;
+ // Reuse banners already returned by the initial AniList catalog query; keep aniMedia as a fallback for misses.
+ var banner=mal&&Array.isArray(D)?((D.find(item=>Number(item.mal)===mal&&item.ban)||{}).ban||""):"";
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){
