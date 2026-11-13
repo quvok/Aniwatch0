@@ -18,12 +18,13 @@
   #hw .hero-editorial{
     min-height:300px;
     padding:24px 20px 30px;
-    background-position:center center!important;
+    background-size:100% auto!important;
+    background-repeat:no-repeat!important;
+    background-position:top center!important;
+    background-color:#080910!important;
   }
   #hw .hero-editorial::before{
-    background:
-      linear-gradient(0deg,rgba(5,6,12,.96) 0%,rgba(5,6,12,.68) 48%,rgba(5,6,12,.08) 100%),
-      linear-gradient(90deg,rgba(5,6,12,.25),transparent);
+    background:linear-gradient(180deg,rgba(5,6,12,.08) 0%,rgba(5,6,12,.48) 48%,rgba(5,6,12,.98) 100%);
   }
   #hw .hero-copy{gap:10px}
 }
