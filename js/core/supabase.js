@@ -621,8 +621,10 @@ export async function loadWatchTimeStats(userId) {
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await client.from("user_watch_time_sessions")
-      .select("session_id,anime_id,watched_seconds,watched_on")
+      .select("session_id,anime_id,watched_seconds,watched_on,created_at")
       .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .order("session_id", { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (error) throw error;
     const rows = data || [];
