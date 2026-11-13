@@ -85,3 +85,15 @@ const genreLoader=read("js/api/genders.js");
 assert.ok(genreLoader.includes("fetchAnimeGenres"),"dedicated genders.js module must export the genre loader");
 assert.ok(genreLoader.includes("?fields=genres"),"dedicated genre loader must request only genre data from Shikimori");
 assert.ok(read("js/app.js").includes("loadAnimeGenres(d)"),"anime detail route must call the dedicated genre loader");
+
+const watchTimePlayer=read("js/core/streaming-player.js");
+const watchTimeApp=read("js/app.js");
+const watchTimeProfile=read("js/pages/collection.js");
+const watchTimeSupabase=read("js/core/supabase.js");
+const watchTimeMigration=read("supabase/migrations/20261114090000_user_watch_time_sessions.sql");
+assert.ok(watchTimePlayer.includes("sampleWatchTime")&&watchTimePlayer.includes("onWatchTime(watchedSeconds"),"player must report measured playback intervals");
+assert.ok(watchTimeApp.includes("recordWatchedTime")&&watchTimeApp.includes("watchTimePending"),"app must buffer watch-time intervals for retries");
+assert.ok(watchTimeSupabase.includes("ignoreDuplicates: true")&&watchTimeSupabase.includes("loadWatchTimeStats"),"cloud watch-time writes must be idempotent and readable");
+assert.ok(watchTimeProfile.includes("Время просмотра")&&watchTimeProfile.includes("Последние 6 месяцев"),"profile must render daily and monthly watch-time charts");
+assert.ok(watchTimeMigration.includes("enable row level security")&&watchTimeMigration.includes("auth.uid()")&&watchTimeMigration.includes("primary key (user_id, session_id)"),"watch-time migration must enforce ownership and interval deduplication");
+console.log("✓ watch-time tracking, profile, idempotency and RLS checks passed");
