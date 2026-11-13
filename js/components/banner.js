@@ -3,6 +3,10 @@ export function createBannerManager(options){
  var cache=Object.create(null),pending=Object.create(null),negativeCacheTtl=5*60*1000;
  var getAnimeMap=options.getAnimeMap,getState=options.getState;
  var maxFeaturedLookups=30,batchSize=8;
+ function isBannerUrl(value){
+  if(typeof value!=="string"||!value.trim())return false;
+  try{var url=new URL(value);return url.protocol==="https:"||url.protocol==="http:"}catch(error){return false}
+ }
  function apply(anime){
   if(!anime)return;
   var background=options.background(anime),player=options.getPlayer();
@@ -16,13 +20,13 @@ export function createBannerManager(options){
    var active=featured[((index%featured.length)+featured.length)%featured.length];
    if(active&&Number(active.id)===Number(anime.id)){
     hero.style.background=background;
-    var image=anime.ban;
-    hero.style.setProperty("--hero-poster",typeof image==="string"&&image?"url("+JSON.stringify(image)+")":"none");
+    var image=isBannerUrl(anime.ban)?anime.ban:"";
+    hero.style.setProperty("--hero-poster",image?"url("+JSON.stringify(image)+")":"none");
    }
   }
  }
  function saveBanner(anime,media){
-  if(!anime||!media||typeof media.bannerImage!=="string"||!media.bannerImage||anime.ban)return false;
+  if(!anime||!media||!isBannerUrl(media.bannerImage)||isBannerUrl(anime.ban))return false;
   anime.ban=media.bannerImage;
   if(anime.source){
    var state=getState();
@@ -38,12 +42,12 @@ export function createBannerManager(options){
  function lookupFor(anime){
   if(!anime)return null;
   if(anime.source==="shikimori"){
-   // Shikimori IDs are MAL IDs. Never pass a Shikimori/app ID as AniList's id.
-   var mal=Number(anime.mal);
-   if(!Number.isInteger(mal)||mal<=0)mal=Number(anime.shikiId);
-   if(Number.isInteger(mal)&&mal>0)return {field:"idMal",value:mal,key:"mal:"+mal};
+   // aniId is an AniList ID; mal is a MyAnimeList ID. shikiId belongs to a
+   // third namespace and must never be sent to AniList as idMal.
    var mappedId=Number(anime.aniId);
    if(Number.isInteger(mappedId)&&mappedId>0)return {field:"id",value:mappedId,key:"id:"+mappedId};
+   var mal=Number(anime.mal);
+   if(Number.isInteger(mal)&&mal>0)return {field:"idMal",value:mal,key:"mal:"+mal};
    return null;
   }
   var id=Number(anime.aniId||anime.id);
@@ -58,7 +62,7 @@ export function createBannerManager(options){
   if(!anime)return Promise.resolve(null);
   var id=Number(anime.id),lookup=lookupFor(anime);
   if(!Number.isInteger(id)||id<=0||!lookup)return Promise.resolve(null);
-  if(anime.ban){apply(anime);return Promise.resolve(null)}
+  if(isBannerUrl(anime.ban)){apply(anime);return Promise.resolve(null)}
   var cached=cache[lookup.key];
   if(cacheValid(cached)){
    var current=(getAnimeMap()||{})[id]||anime;
@@ -97,7 +101,7 @@ export function createBannerManager(options){
    if(!Number.isInteger(id)||id<=0||!lookup||seen.has(lookup.key))return;
    seen.add(lookup.key);
    var cached=cache[lookup.key];
-   if(anime.ban){
+   if(isBannerUrl(anime.ban)){
     if(isNearActive(index))warmBanner(anime.ban,index===activeIndex);
     return;
    }
