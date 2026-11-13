@@ -66,7 +66,7 @@ function shikiImageUrl(path){
  try{var parsed=new URL(url);if(/\/missing_original(?:\.[a-z0-9]+)?$/i.test(parsed.pathname))return "";return url}catch(e){return ""}
 }
 var bg=d=>{var image=shikiImageUrl(d.img);return(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
-var bn=d=>{var image=shikiImageUrl(d.ban)||shikiImageUrl(d.img);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
+var bn=d=>{var image=shikiImageUrl(d.ban);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
 var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
 function card(d,pr,href,badge){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id),badge:badge})}
@@ -149,8 +149,8 @@ function featured(){
  ru(d);
  var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);
  var rating=d.r?Number(d.r).toFixed(1):"—";
- var poster=shikiImageUrl(d.ban)||shikiImageUrl(d.img);
- return '<section class="hero hero-editorial aurora-hero" style="--hero-poster:url(\''+(poster||"")+'\');background:'+bn(d)+'">'+
+ var banner=shikiImageUrl(d.ban);
+ return '<section class="hero hero-editorial aurora-hero" style="--hero-poster:'+(banner?"url(\'"+banner+"\')":"none")+';background:'+bn(d)+'">'+
   '<div class="hero-copy">'+
    '<div class="eyebrow"><span class="live-dot"></span> В центре внимания</div>'+
    '<small class="hero-meta">'+d.g.slice(0,3).map(esc).join(" · ")+' <i>•</i> '+esc(d.y)+' <i>•</i> '+esc(d.s||"Аниме")+'</small>'+
@@ -1543,9 +1543,10 @@ function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
  var image=a.image||{},path=image.original||image.preview||image.x96||"",mal=Number(a.myanimelist_id)||null;
- // Reuse banners already returned by the initial AniList catalog query; keep aniMedia as a fallback for misses.
- var banner=mal&&Array.isArray(D)?((D.find(item=>Number(item.mal)===mal&&item.ban)||{}).ban||""):"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
+ // Reuse the real AniList ID and banner when this MAL ID exists in the initial AniList result.
+ var aniMatch=mal&&Array.isArray(D)?D.find(item=>Number(item.mal)===mal):null;
+ var aniId=Number(aniMatch&&aniMatch.id)||null,banner=aniMatch&&typeof aniMatch.ban==="string"?aniMatch.ban:"";
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),aniId:aniId,source:"shikimori",mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){
