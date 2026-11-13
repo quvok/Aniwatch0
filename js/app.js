@@ -164,7 +164,7 @@ function featured(){
     '<a class="btn ghost hero-details" href="'+titleUrl(d.id)+'"><span>Подробнее</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></a>'+
    '</div>'+
   '</div>'+
-  '<div class="hero-poster" role="img" aria-label="Постер: '+esc(d.n)+'" style="background:'+bg(d)+'">'+(poster?"":'<b>'+esc(String(d.n||"А").slice(0,1))+'</b>')+'</div>'+
+
   (H.length>1?'<button class="hero-arrow hero-prev" data-a="slide" data-v="-1" aria-label="Предыдущий баннер"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="hero-arrow hero-next" data-a="slide" data-v="1" aria-label="Следующий баннер"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="hero-dots">'+H.map((x,i)=>'<button data-a="slide-to" data-v="'+i+'" class="'+(i===featuredIndex%H.length?"on":"")+'" aria-label="Баннер '+(i+1)+'"></button>').join("")+'</div>':"")+
  '</section>';
 }
@@ -1494,7 +1494,7 @@ var xXP={};
 function applyBanner(d){
  var tb=$(".title-backdrop");if(tb&&isRoute("title",d.id))tb.style.background=bn(d);
  var pl=$(".player");if(pl&&P&&P.d.id===d.id)pl.style.background=bn(d);
- var hero=$("#hw .hero-editorial");if(hero&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id){hero.style.background=bn(d);hero.style.setProperty("--hero-poster","url('"+(shikiImageUrl(d.img)||"")+"')");}
+ var hero=$("#hw .hero-editorial");if(hero&&H[featuredIndex%H.length]&&H[featuredIndex%H.length].id===d.id){hero.style.background=bn(d);}
 }
 function aniMedia(d){
  var id=d.id;if(xXC[id])return Promise.resolve(xXC[id]);
