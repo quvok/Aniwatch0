@@ -299,7 +299,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    render();
    kodikTranslationSync=(translationId,state={})=>new Promise(resolve=>{
     const match=available.find(item=>String(item.translation?.id??"")===String(translationId??""));
-    if(!match){setStatus("Участнику недоступна выбранная ведущим озвучка");resolve(false);return}
+    if(!match){setStatus("Сохранённая озвучка недоступна для этой серии");resolve(false);return}
     if(String(selected.translation?.id??"")===String(translationId??"")){resolve(true);return}
     selected=match;saveKodikVoice(selected.translation?.id);render();try{onTranslationChange({translationId:selected.translation?.id??null,title:String(selected.translation?.title||""),time:Number(state.time)||0,duration:Number(state.duration)||0,playing:!!state.playing,speed:Number(state.speed)||1})}catch(error){console.warn("[AniWatch] Kodik translation callback failed:",error)}playSelected(state,resolve);
    });
