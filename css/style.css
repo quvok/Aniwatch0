@@ -3901,3 +3901,7 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .profile-top-identity h1{font-size:18px}
  .profile-account-inline{margin-left:10px;margin-right:10px}
 }
+
+
+/* Profile headers must not inherit the global sticky site-header behavior. */
+.profile-top-card{position:static;top:auto;z-index:auto}
