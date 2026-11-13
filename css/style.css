@@ -3802,3 +3802,110 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .home-primary .shelf-head h2{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){#hw .aurora-hero,#hw .hero-copy>*,#hw .hero-poster{animation:none!important;transition:none!important}}
+
+/* Profile header: repair narrow layouts and keep the identity card visible while scrolling. */
+.profile-top-card{
+ position:sticky;
+ top:72px;
+ z-index:40;
+ align-self:start;
+ background:linear-gradient(135deg,rgba(29,27,47,.99),rgba(13,16,27,.99));
+}
+@media(max-width:760px){
+ .profile-top-card{
+  top:58px;
+  border-radius:0 0 14px 14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.34);
+ }
+ .profile-banner{
+  min-height:86px;
+  padding:12px 14px;
+  background-position:center 38%;
+ }
+ .profile-banner-label{
+  left:15px;
+  top:13px;
+  font-size:8px;
+ }
+ .profile-banner-edit{
+  right:10px;
+  top:9px;
+  padding:7px 9px;
+  font-size:9px;
+ }
+ .profile-top-main{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-width:0;
+  padding:0 13px;
+  margin-top:-25px;
+ }
+ .profile-top-main .profile-avatar,
+ .profile-top-main .profile-avatar-edit{
+  flex:0 0 58px;
+  width:58px;
+  height:58px;
+  min-width:58px;
+  border-width:3px;
+  border-radius:17px;
+  font-size:23px;
+ }
+ .profile-top-identity{
+  flex:1 1 auto;
+  min-width:0;
+  padding:23px 0 0;
+ }
+ .profile-top-identity .eyebrow{
+  font-size:8px;
+  letter-spacing:.12em;
+ }
+ .profile-top-identity h1{
+  margin:3px 0;
+  font-size:clamp(18px,5vw,22px);
+  line-height:1.15;
+  overflow-wrap:anywhere;
+ }
+ .profile-top-identity p{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  font-size:10px;
+  line-height:1.35;
+ }
+ .profile-account-inline{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  margin:8px 13px 0;
+  padding:8px 0 10px;
+  font-size:9px;
+ }
+ .profile-account-inline>span:nth-child(2){
+  min-width:0;
+  overflow-wrap:anywhere;
+ }
+ .profile-account-inline button,
+ .profile-account-inline a{
+  margin-left:auto;
+  flex:0 0 auto;
+  padding:7px 9px;
+  font-size:9px;
+ }
+}
+@media(max-width:390px){
+ .profile-banner{min-height:76px}
+ .profile-top-main{gap:9px;padding:0 10px}
+ .profile-top-main .profile-avatar,
+ .profile-top-main .profile-avatar-edit{
+  flex-basis:52px;
+  width:52px;
+  height:52px;
+  min-width:52px;
+  border-radius:15px;
+ }
+ .profile-top-identity h1{font-size:18px}
+ .profile-account-inline{margin-left:10px;margin-right:10px}
+}
