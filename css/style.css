@@ -3891,3 +3891,188 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
  .profile-account-inline{margin-left:11px;margin-right:11px;gap:6px;font-size:9px}
  .profile-account-inline button{padding:6px 8px;font-size:8px}
 }
+
+
+/* Final profile mobile layout correction */
+@media (max-width: 760px) {
+  .profile-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .profile-top-card {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    position: static;
+    box-sizing: border-box;
+  }
+
+  .profile-banner {
+    display: block;
+    position: relative;
+    width: 100%;
+    min-height: 112px;
+    padding: 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .profile-banner-label {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    max-width: calc(100% - 150px);
+  }
+
+  .profile-banner-edit {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    max-width: calc(100% - 20px);
+    white-space: nowrap;
+  }
+
+  .profile-top-main {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 14px;
+    margin: -30px 0 0;
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+  }
+
+  .profile-top-main .profile-avatar-edit {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    flex: none;
+    width: 68px;
+    height: 68px;
+    min-width: 68px;
+    min-height: 68px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .profile-top-identity {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .profile-top-identity .eyebrow,
+  .profile-top-identity h1,
+  .profile-top-identity p {
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .profile-top-identity h1 {
+    margin: 3px 0 5px;
+    font-size: clamp(19px, 5.8vw, 24px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .profile-top-identity p {
+    display: block;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+  }
+
+  .profile-account-inline {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    width: auto;
+    min-width: 0;
+    margin: 14px 14px 0;
+    padding: 12px 0 14px;
+    box-sizing: border-box;
+  }
+
+  .profile-account-inline .profile-online-dot {
+    grid-column: 1;
+    grid-row: 1;
+    margin-top: 4px;
+  }
+
+  .profile-account-inline > span:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-account-inline button {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    width: auto;
+    max-width: 100%;
+    margin: 4px 0 0;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 390px) {
+  .profile-banner {
+    min-height: 104px;
+  }
+
+  .profile-top-main {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 12px;
+    margin-top: -27px;
+  }
+
+  .profile-top-main .profile-avatar-edit {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    min-height: 60px;
+  }
+
+  .profile-top-identity h1 {
+    font-size: 19px;
+  }
+
+  .profile-top-identity p {
+    font-size: 11px;
+  }
+
+  .profile-account-inline {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+}
