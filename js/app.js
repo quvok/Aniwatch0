@@ -561,7 +561,7 @@ function jumpToEpisode(value,animeId){
 }
 
 var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
-function syncCurrentVoicePreference(){var voice=P&&S.hist&&S.hist[P.d.id]&&S.hist[P.d.id].voice;if(!voice||voice.provider!=="kodik"||!voice.translationId||!STREAM_PLAYER||!STREAM_PLAYER.syncTranslation)return;var media=STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():{time:P.t||0,duration:0,playing:!!P.on,speed:P.sp||1};STREAM_PLAYER.syncTranslation(voice.id,media,voice.provider).then(changed=>{if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(media)}).catch(error=>console.warn("[AniWatch] Cloud voice preference restore failed:",error))}
+function syncCurrentVoicePreference(){var voice=P&&S.hist&&S.hist[P.d.id]&&S.hist[P.d.id].voice;if(!voice||!["kodik","liberty"].includes(voice.provider)||!voice.id||!STREAM_PLAYER||!STREAM_PLAYER.syncTranslation)return;var media=STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():{time:P.t||0,duration:0,playing:!!P.on,speed:P.sp||1};STREAM_PLAYER.syncTranslation(voice.id,media,voice.provider).then(changed=>{if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(media)}).catch(error=>console.warn("[AniWatch] Cloud voice preference restore failed:",error))}
 function broadcastPlayback(type){
  if(!ROOM_CONNECTED||!P)return;
  var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
