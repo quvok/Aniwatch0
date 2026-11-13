@@ -265,8 +265,8 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
        const target=Math.max(0,Number(restoreState.time)||0),speed=Math.max(0.25,Math.min(2,Number(restoreState.speed)||1));
        if(target>0)kodikCommand({method:"seek",seconds:target});
        kodikCommand({method:"speed",speed});
-       if(restoreState.playing)kodikCommand({method:"play"});else kodikCommand({method:"pause"});
-       kodikMedia.time=target;kodikMedia.speed=speed;kodikMedia.playing=!!restoreState.playing;
+       if(typeof restoreState.playing==="boolean"){if(restoreState.playing)kodikCommand({method:"play"});else kodikCommand({method:"pause"});}
+       kodikMedia.time=target;kodikMedia.speed=speed;if(typeof restoreState.playing==="boolean")kodikMedia.playing=restoreState.playing;
       }
       try{onReady()}catch(error){console.warn("[AniWatch] Player-ready callback failed:",error)}
       if(typeof onLoaded==="function")onLoaded(true);
@@ -296,7 +296,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     if(String(selected.translation?.id??"")===String(translationId??"")){resolve(true);return}
     selected=match;saveKodikVoice(selected.translation?.id);render();playSelected(state,resolve);
    });
-   playSelected();
+   playSelected({time:savedTime,speed:savedSpeed});
   }catch(error){
    options.innerHTML='<button type="button" class="stream-load" id="kodik-retry">Повторить поиск <span>↻</span></button>';
    options.querySelector("#kodik-retry").addEventListener("click",showKodik);
