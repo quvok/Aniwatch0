@@ -1503,6 +1503,7 @@ var bannerManager=createBannerManager({
  save:sv
 });
 var xvt=V.title;V.title=p=>{xvt(p);bannerManager.load(M[+p[0]])};
+var xvw=V.watch;V.watch=p=>{xvw(p);bannerManager.load(M[+p[0]])};
 
 function activePage(){return getActivePage()}
 function hd(){updateNavigation(S)}
