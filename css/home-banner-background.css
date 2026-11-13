@@ -13,9 +13,6 @@
     linear-gradient(90deg,rgba(5,6,12,.96) 0%,rgba(5,6,12,.76) 42%,rgba(5,6,12,.08) 100%),
     linear-gradient(0deg,rgba(5,6,12,.72),transparent 68%);
 }
-#hw .hero-editorial::after{
-  display:none!important;
-}
 #hw .hero-copy{width:min(720px,100%);max-width:720px;position:relative;z-index:1}
 @media(max-width:700px){
   #hw .hero-editorial{
