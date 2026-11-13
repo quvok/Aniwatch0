@@ -3803,17 +3803,9 @@ main{width:calc(100% - 252px);max-width:1480px;margin:0 auto 0 252px;padding:28p
 }
 @media(prefers-reduced-motion:reduce){#hw .aurora-hero,#hw .hero-copy>*,#hw .hero-poster{animation:none!important;transition:none!important}}
 
-/* Profile header: repair narrow layouts and keep the identity card visible while scrolling. */
-.profile-top-card{
- position:sticky;
- top:72px;
- z-index:40;
- align-self:start;
- background:linear-gradient(135deg,rgba(29,27,47,.99),rgba(13,16,27,.99));
-}
+/* Profile header: repair narrow layouts; the card scrolls with the page. */
 @media(max-width:760px){
  .profile-top-card{
-  top:58px;
   border-radius:0 0 14px 14px;
   box-shadow:0 12px 30px rgba(0,0,0,.34);
  }
