@@ -28,6 +28,16 @@ import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 import { getCalendarPushState, enableCalendarPush, disableCalendarPush } from "./core/calendar-push.js";
 import { createBannerManager } from "./components/banner.js";
+function applySiteTheme(preference){
+ const mode=["dark","light","system"].includes(preference)?preference:"dark";
+ const resolved=mode==="system"?(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):mode;
+ document.documentElement.dataset.theme=resolved;
+ document.documentElement.dataset.themePreference=mode;
+ return mode;
+}
+try{applySiteTheme(localStorage.getItem("aw.theme")||"dark")}catch(error){applySiteTheme("dark")}
+if(window.matchMedia){const themeMedia=window.matchMedia("(prefers-color-scheme: light)");themeMedia.addEventListener?.("change",()=>{if(document.documentElement.dataset.themePreference==="system")applySiteTheme("system")})}
+
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
@@ -1622,7 +1632,8 @@ function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
- if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
+ if(a==="theme-set"){e.preventDefault();const preference=applySiteTheme(v);try{localStorage.setItem("aw.theme",preference)}catch(error){}document.querySelectorAll("[data-a='theme-set']").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.v===preference)));toast(preference==="light"?"Светлая тема включена":preference==="system"?"Используется тема системы":"Тёмная тема включена")}
+ else if(a==="profile-entry"){e.preventDefault();if(AUTH_USER)location.href=PAGES.profile;else openAuthModal()}
  else if(a==="auth-close"){var authModal=document.getElementById("auth-modal");if(authModal)closeDialog(authModal)}
  else if(a==="recommendation-genre"){e.preventDefault();e.stopPropagation();S.recommendationGenres=Array.isArray(S.recommendationGenres)?S.recommendationGenres.slice():[];var genreName=String(v||"");var genreIndex=S.recommendationGenres.indexOf(genreName);if(genreIndex>=0)S.recommendationGenres.splice(genreIndex,1);else if(S.recommendationGenres.length<3)S.recommendationGenres.push(genreName);else{toast("Можно выбрать не больше трёх жанров");return}sv();renderRecommendationStarter($("#recommendation-cards"),S.recommendationGenres)}
  else if(a==="recommendation-start"){e.preventDefault();e.stopPropagation();if(!(S.recommendationGenres||[]).length){toast("Выбери хотя бы один жанр");return}loadHomeRecommendations()}
