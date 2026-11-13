@@ -58,7 +58,7 @@ export function createBannerManager(options){
   return {query:"query($id:Int){Media("+lookup.field+":$id,type:ANIME){id title{romaji english native} seasonYear bannerImage}}",variables:{id:lookup.value}};
  }
  function normalizeTitle(value){
-  return String(value||"").toLocaleLowerCase().normalize("NFKC").replace(/[^\\p{L}\\p{N}]/gu,"");
+  return String(value||"").toLocaleLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]/gu,"");
  }
  function verifiedMedia(anime,media,lookup){
   if(!media)return null;
