@@ -1,41 +1,109 @@
-// AniList GraphQL transport: serialized requests, rate-limit handling and retries.
+// AniList GraphQL transport: serialized requests, adaptive cooldown and bounded retries.
+const ENDPOINT="https://graphql.anilist.co";
+const MIN_REQUEST_GAP=2200;
+const REQUEST_TIMEOUT=15000;
+const MAX_ATTEMPTS=3;
+
 let queue=Promise.resolve();
 let lastRequestAt=0;
-function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+let cooldownUntil=0;
 
-export async function query(q,v){
- const run=async()=>{
-  let last;
-  for(let attempt=0;attempt<4;attempt++){
-   const gap=2100-(Date.now()-lastRequestAt);if(gap>0)await wait(gap);
-   try{
-    const response=await fetch("https://graphql.anilist.co",{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:q,variables:v})});
-    lastRequestAt=Date.now();
-    const raw=await response.text();let json;try{json=JSON.parse(raw)}catch(error){throw new Error("AniList вернул HTTP "+response.status+" без JSON: "+String(raw||"").slice(0,500))}
-    const errors=Array.isArray(json.errors)?json.errors:[];
-    const message=errors.map(item=>item.message).filter(Boolean).join("; ");
-    const limited=response.status===429||errors.some(item=>Number(item.status)===429||/too many requests/i.test(item.message||""));
-    const temporary=response.status>=500&&response.status<600;
-    if(limited||temporary){
-     if(attempt>=3)throw new Error(limited?"Слишком много запросов. Повторите позже.":"AniList вернул HTTP "+response.status+(message?": "+message:"")+(json.errors&&json.errors[0]&&json.errors[0].status?" [код "+json.errors[0].status+"]":""));
-     const retryAfter=Number(response.headers.get("Retry-After"));
-     const resetAt=Number(response.headers.get("X-RateLimit-Reset"));
-     const delay=retryAfter>0?retryAfter*1000:resetAt>0?Math.max(1000,resetAt*1000-Date.now()+1000):limited?60000:Math.min(15000,2000*Math.pow(2,attempt));
-     await wait(delay);continue;
-    }
-    if(!response.ok)throw new Error("Ошибка загрузки (HTTP "+response.status+(message?": "+message:""));
-    if(errors.length)throw new Error("Ошибка обработки данных: "+message);
-    if(!json.data)throw new Error("Получен пустой ответ");
-    return json.data;
-   }catch(error){
-    last=error;if(attempt>=3)break;
-    if(error&&/^Ошибка загрузки \(HTTP 4/.test(error.message))throw error;
-    if(error&&/^AniList вернул HTTP 5/.test(error.message))throw error;
-    if(error&&/превышен лимит запросов|временно недоступен/.test(error.message))throw error;
-    await wait(Math.min(8000,1000*Math.pow(2,attempt)));
-   }
+function wait(ms){
+ return new Promise(resolve=>setTimeout(resolve,Math.max(0,ms)));
+}
+function headerDelay(response){
+ const retryAfter=response.headers.get("Retry-After");
+ if(retryAfter){
+  const seconds=Number(retryAfter);
+  if(Number.isFinite(seconds)&&seconds>=0)return seconds*1000;
+  const date=Date.parse(retryAfter);
+  if(Number.isFinite(date))return Math.max(0,date-Date.now());
+ }
+ const resetAt=Number(response.headers.get("X-RateLimit-Reset"));
+ if(Number.isFinite(resetAt)&&resetAt>0)return Math.max(0,resetAt*1000-Date.now());
+ return 60000;
+}
+function errorMessage(json,status){
+ const errors=Array.isArray(json&&json.errors)?json.errors:[];
+ const detail=errors.map(item=>item&&item.message).filter(Boolean).join("; ");
+ return detail||("HTTP "+status);
+}
+function makeError(message,status){
+ const error=new Error(message);
+ error.status=status||0;
+ return error;
+}
+
+async function request(query,variables){
+ let lastError=null;
+ for(let attempt=0;attempt<MAX_ATTEMPTS;attempt++){
+  const waitForSlot=Math.max(MIN_REQUEST_GAP-(Date.now()-lastRequestAt),cooldownUntil-Date.now());
+  if(waitForSlot>0)await wait(waitForSlot);
+
+  const controller=typeof AbortController!=="undefined"?new AbortController():null;
+  const timeout=controller?setTimeout(()=>controller.abort(),REQUEST_TIMEOUT):null;
+  lastRequestAt=Date.now();
+  let response;
+  try{
+   response=await fetch(ENDPOINT,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Accept":"application/json"},
+    body:JSON.stringify({query,variables:variables||{}}),
+    signal:controller?controller.signal:undefined
+   });
+  }catch(error){
+   lastError=makeError(error&&error.name==="AbortError"?"AniList не ответил за 15 секунд.":("Не удалось подключиться к AniList: "+(error&&error.message||"сетевая ошибка")));
+   if(attempt+1>=MAX_ATTEMPTS)throw lastError;
+   await wait(Math.min(8000,1000*Math.pow(2,attempt)));
+   continue;
+  }finally{
+   if(timeout)clearTimeout(timeout);
   }
-  throw last||new Error("Не удалось загрузить данные");
- };
- const task=queue.then(run,run);queue=task.catch(()=>{});return task;
+
+  let json;
+  try{
+   json=await response.json();
+  }catch(error){
+   lastError=makeError("AniList вернул некорректный JSON (HTTP "+response.status+").",response.status);
+   if(response.status>=500&&attempt+1<MAX_ATTEMPTS){
+    await wait(Math.min(8000,1000*Math.pow(2,attempt)));
+    continue;
+   }
+   throw lastError;
+  }
+
+  const errors=Array.isArray(json&&json.errors)?json.errors:[];
+  const rateLimited=response.status===429||errors.some(item=>Number(item&&item.status)===429||/too many requests/i.test(item&&item.message||""));
+  if(rateLimited){
+   const delay=Math.max(1000,headerDelay(response));
+   cooldownUntil=Math.max(cooldownUntil,Date.now()+delay);
+   lastError=makeError("AniList ограничил частоту запросов. Повтор через "+Math.ceil(delay/1000)+" сек.",429);
+   if(attempt+1>=MAX_ATTEMPTS)throw lastError;
+   continue;
+  }
+
+  if(response.status>=500&&response.status<600){
+   lastError=makeError("AniList временно недоступен (HTTP "+response.status+").",response.status);
+   if(attempt+1>=MAX_ATTEMPTS)throw lastError;
+   await wait(Math.min(8000,1000*Math.pow(2,attempt)));
+   continue;
+  }
+
+  if(!response.ok)throw makeError("Ошибка AniList (HTTP "+response.status+"): "+errorMessage(json,response.status),response.status);
+
+  // GraphQL may return useful partial data together with errors, even on HTTP 200.
+  if(json&&json.data){
+   if(errors.length)console.warn("[AniWatch] AniList returned partial GraphQL data:",errors);
+   return json.data;
+  }
+  if(errors.length)throw makeError("Ошибка GraphQL AniList: "+errorMessage(json,response.status),response.status);
+  throw makeError("AniList вернул пустой ответ.",response.status);
+ }
+ throw lastError||makeError("Не удалось загрузить данные AniList.");
+}
+
+export function query(queryText,variables){
+ const task=queue.then(()=>request(queryText,variables),()=>request(queryText,variables));
+ queue=task.catch(()=>{});
+ return task;
 }
