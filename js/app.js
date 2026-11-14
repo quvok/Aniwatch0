@@ -28,6 +28,7 @@ import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
 import { getCalendarPushState, enableCalendarPush, disableCalendarPush } from "./core/calendar-push.js";
 import { createBannerManager } from "./components/banner.js";
+import { applyAnimeTheme } from "./core/anime-theme.js";
 function applySiteTheme(preference){
  const mode=["dark","light","system"].includes(preference)?preference:"dark";
  const resolved=mode==="system"?(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):mode;
@@ -555,6 +556,7 @@ V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
+  applyAnimeTheme(d,d.ban||d.img);
  setupEpisodeNavigator(d);
  loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);ru(d);loadRelated(d)
 };
@@ -954,7 +956,7 @@ function mp(m){
  var title=m.title||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
  var primary=title.english||title.romaji||title.native||"Без названия";
  var alternate=title.romaji&&title.romaji!==primary?title.romaji:(title.native&&title.native!==primary?title.native:"");
- return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:"",c:["#7c3aed","#0f0f1a"],img:"",ban:typeof m.bannerImage==="string"?m.bannerImage:"",kind:String(m.format||"").toLowerCase()}
+ return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:"",c:[m.coverImage&&m.coverImage.color||"#7c3aed","#0f0f1a"],img:"",ban:typeof m.bannerImage==="string"?m.bannerImage:"",kind:String(m.format||"").toLowerCase()}
 }
 
 // AniList is the source of truth for catalog metadata and navigation IDs.
@@ -1596,7 +1598,7 @@ function shikiToItem(a){
  // Reuse the real AniList ID and banner when this MAL ID exists in the initial AniList result.
  var aniMatch=mal&&Array.isArray(D)?D.find(item=>Number(item.mal)===mal):null;
  var aniId=Number(aniMatch&&aniMatch.id)||null,banner=aniMatch&&typeof aniMatch.ban==="string"?aniMatch.ban:"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),aniId:aniId,source:"shikimori",mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
+ return{id:1000000000+Number(a.id),shikiId:Number(a.id),aniId:aniId,source:"shikimori",mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:aniMatch&&Array.isArray(aniMatch.c)?aniMatch.c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
 }
 // Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
 async function ensureRouteItem(){

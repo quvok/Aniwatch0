@@ -401,3 +401,14 @@ body{
  .card,.poster,.btn{transition:none!important}
 }
 
+
+/* Per-title adaptive palette: artwork colors affect the detail hero only. */
+.title-page{--anime-base:#17131e;--anime-accent:#aa91cf;--anime-accent-soft:#514166;background:var(--anime-base)!important;border-color:color-mix(in srgb,var(--anime-accent) 28%,rgba(255,255,255,.12))!important;transition:background-color .45s ease,border-color .45s ease}
+.title-page:before{background:radial-gradient(ellipse at 82% 8%,color-mix(in srgb,var(--anime-accent) 24%,transparent),transparent 48%),linear-gradient(90deg,rgba(8,9,16,.96) 0%,rgba(8,9,16,.88) 45%,rgba(8,9,16,.66) 100%),linear-gradient(0deg,#080910 0%,transparent 70%)!important}
+.title-backdrop{filter:saturate(.9) contrast(1.03)!important}
+.title-kicker{color:var(--anime-accent)!important}
+.title-tags span{border-color:color-mix(in srgb,var(--anime-accent) 38%,transparent)!important;background:color-mix(in srgb,var(--anime-accent-soft) 52%,rgba(18,18,24,.72))!important}
+.title-watch-primary{background:linear-gradient(115deg,var(--anime-accent-soft),color-mix(in srgb,var(--anime-accent) 68%,#17131e))!important;border-color:color-mix(in srgb,var(--anime-accent) 45%,transparent)!important}
+.title-fav-btn:hover,.title-actions .btn.ghost:hover{border-color:color-mix(in srgb,var(--anime-accent) 55%,transparent)!important}
+.title-page .title-metrics{border-color:color-mix(in srgb,var(--anime-accent) 22%,rgba(255,255,255,.1))}
+@media(prefers-reduced-motion:reduce){.title-page{transition:none!important}}
