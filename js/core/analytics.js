@@ -33,14 +33,16 @@ function deviceType(){
   return "desktop";
 }
 export function trackPageView(){
-  if(trackingStarted||!window.location||/(^|\\/)stats\\.html$/i.test(location.pathname))return;
+  const pathname=window.location?.pathname||"/";
+  const lowerPath=pathname.toLowerCase();
+  if(trackingStarted||lowerPath.endsWith("/stats.html")||lowerPath==="stats.html")return;
   if(navigator.doNotTrack==="1"||window.doNotTrack==="1"||navigator.webdriver)return;
   if(/bot|crawler|spider|headless/i.test(navigator.userAgent||""))return;
   trackingStarted=true;
-  const pathname=location.pathname||"/";
   const routeId=Number(new URLSearchParams(location.search).get("id"))||0;
-  const routeMatch=pathname.match(/\\/(anime|watch)\\.html$/i);
-  const path=routeMatch&&routeId>0?pathname.replace(/\\/$/,"")+"/"+routeId:pathname;
+  const isAnimeRoute=lowerPath.endsWith("/anime.html")||lowerPath.endsWith("/watch.html");
+  const basePath=pathname.endsWith("/")?pathname.slice(0,-1):pathname;
+  const path=isAnimeRoute&&routeId>0?basePath+"/"+routeId:pathname;
   let referrerHost="";
   try{if(document.referrer){const referrer=new URL(document.referrer);if(referrer.origin!==location.origin)referrerHost=referrer.hostname}}catch(_){}
   const event={action:"track",visitor_id:visitorId(),page_path:path.slice(0,180),referrer_host:referrerHost,device_type:deviceType()};
