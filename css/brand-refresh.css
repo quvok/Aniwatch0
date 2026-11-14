@@ -162,6 +162,11 @@ h2::before{content:none!important;display:none!important}
 }
 .poster span{backdrop-filter:none!important}
 .poster u{box-shadow:none!important}
+.poster u{
+ background:#aeb4bd!important;
+ box-shadow:none!important;
+ filter:none!important;
+}
 .card-preview{backdrop-filter:none!important}
 .panel,.chat,.rail-panel,.catalog-tools,.auth-box,.profile-edit-card,.profile-overview,.profile-status-block,.profile-achievements-section,.profile-top-card{
  background:var(--sf)!important;
