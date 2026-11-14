@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabase.js";
-const VISITOR_KEY="aw.analytics.visitor.v2";
+const VISITOR_KEY="aw.analytics.visitor.v1";
 const QUALIFIED_AFTER_MS=10000;
 let trackingStarted=false;
 function createVisitorId(){
