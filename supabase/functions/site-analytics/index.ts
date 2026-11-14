@@ -55,19 +55,19 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Invalid event" }, 400, origin);
     }
 
-    const { error } = await service.rpc("record_site_pageview", {
+    const { data: recorded, error } = await service.rpc("record_site_pageview", {
       p_visitor_id: visitorId,
       p_page_path: pagePath,
       p_referrer_host: referrerHost,
       p_device_type: deviceType,
     });
     if (error) return json({ error: "Analytics storage unavailable" }, 503, origin);
-    return json({ ok: true }, 200, origin);
+    return json({ ok: true, recorded: recorded === true }, 200, origin);
   }
 
   if (payload.action === "stats") {
     const authorization = req.headers.get("authorization") || "";
-    const token = authorization.replace(/^Bearer\s+/i, "");
+    const token = authorization.replace(/^Bearer\\s+/i, "");
     if (!token || !PUBLIC_KEY) return json({ error: "Unauthorized" }, 401, origin);
 
     const authClient = createClient(SUPABASE_URL, PUBLIC_KEY, {
