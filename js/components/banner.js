@@ -1,4 +1,5 @@
 // AniList banner loading and live banner updates.
+import { applyAnimeTheme } from "../core/anime-theme.js";
 export function createBannerManager(options){
  var cache=Object.create(null),pending=Object.create(null),negativeCacheTtl=5*60*1000;
  var getAnimeMap=options.getAnimeMap,getState=options.getState;
@@ -7,7 +8,7 @@ export function createBannerManager(options){
   if(!anime)return;
   var background=options.background(anime),player=options.getPlayer();
   var backdrop=document.querySelector(".title-backdrop");
-  if(backdrop&&options.isTitleRoute(anime.id))backdrop.style.background=background;
+  if(backdrop&&options.isTitleRoute(anime.id)){backdrop.style.background=background;applyAnimeTheme(anime,anime.ban||anime.img)}
   var playerElement=document.querySelector(".player");
   if(playerElement&&player&&player.d&&Number(player.d.id)===Number(anime.id))playerElement.style.background=background;
   var featured=options.getFeatured()||[],index=Number(options.getFeaturedIndex())||0;
