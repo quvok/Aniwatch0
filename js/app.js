@@ -271,7 +271,7 @@ function recommendationSeeds(library){
 function renderRecommendationStarter(host,selected){
  if(!host)return;
  var choices=Array.isArray(selected)?selected:[];
- host.innerHTML='<div class="recommendation-starter"><p>Пока мало данных о твоём вкусе. Выбери до трёх любимых жанров — по ним начнём подборку.</p><div class="recommendation-starter-genres">'+GN.map(genre=>'<button type="button" class="btn ghost'+(choices.includes(genre)?' active':'')+'" data-a="recommendation-genre" data-v="'+esc(genre)+'" aria-pressed="'+choices.includes(genre)+'">'+esc(genre)+'</button>').join("")+'</div><button type="button" class="btn" data-a="recommendation-start" '+(choices.length?'':'disabled')+'>Подобрать аниме</button></div>';
+ host.innerHTML='<div class="recommendation-starter"><p>Выбери до трёх жанров, чтобы настроить эту подборку.</p><div class="recommendation-starter-genres">'+GN.map(genre=>'<button type="button" class="btn ghost'+(choices.includes(genre)?' active':'')+'" data-a="recommendation-genre" data-v="'+esc(genre)+'" aria-pressed="'+choices.includes(genre)+'">'+esc(genre)+'</button>').join("")+'</div><button type="button" class="btn" data-a="recommendation-start" '+(choices.length?'':'disabled')+'>Показать аниме</button></div>';
 }
 function recommendationCacheKey(profile,seeds){
  return (profile.topGenres||[]).slice(0,3).map(item=>item.name).join(",")+"|"+seeds.map(item=>item.shikiId).join(",");
@@ -297,7 +297,7 @@ async function loadHomeRecommendations(){
  if(!host||recommendationLoading)return;
  recommendationLoading=true;
  var request=++recommendationRequest;
- host.innerHTML='<p class="m">Подбираем аниме по твоей библиотеке…</p>';
+ host.innerHTML='<p class="m">Загружаем подборку…</p>';
  try{
   var library=recommendationLibrary(),profile=buildTasteProfile(library,S.recommendationGenres||[]),raw=[],seeds=recommendationSeeds(library);
   var shelf=host.closest(".shelf");
