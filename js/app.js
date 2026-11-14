@@ -29,6 +29,7 @@ import { renderCalendarPage } from "./pages/calendar.js";
 import { getCalendarPushState, enableCalendarPush, disableCalendarPush } from "./core/calendar-push.js";
 import { createBannerManager } from "./components/banner.js";
 import { applyAnimeTheme } from "./core/anime-theme.js";
+import { trackPageView } from "./core/analytics.js";
 function applySiteTheme(preference){
  const mode=["dark","light","system"].includes(preference)?preference:"dark";
  const resolved=mode==="system"?(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):mode;
@@ -42,6 +43,7 @@ if(window.matchMedia){const themeMedia=window.matchMedia("(prefers-color-scheme:
 (function(){
 if(legacyRedirect())return;
 renderSiteHeader();
+trackPageView();
 var collectionSearchTimer=null,collectionSearchRequest=0,myListCloudAt=0,myListCloudPromise=null,myListRenderRequest=0;
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
 // Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
