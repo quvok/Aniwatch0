@@ -19,6 +19,7 @@ for(const {key,file} of pages){
  if(!html.includes('data-page="'+key+'"'))problems.push(file+': <body data-page="'+key+'"> is missing');
  if(!html.includes('src="js/app.js"'))problems.push(file+": does not load js/app.js");
  if(!html.includes('id="site-header"'))problems.push(file+': <header id="site-header"> is missing');
+ if(!html.includes('href="css/brand-refresh.css"'))problems.push(file+": does not load css/brand-refresh.css");
  if(!sw.includes('"'+file+'"'))problems.push("sw.js SHELL does not list "+file);
 }
 
