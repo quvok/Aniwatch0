@@ -437,3 +437,4 @@ body{
  .tonight-pick{grid-template-columns:88px minmax(0,1fr);gap:12px;margin-top:12px;padding:10px}
  .tonight-pick .card{width:88px}
 }
+.tonight-fallback-note{max-width:470px;margin:12px 0 0;padding:10px 12px;border-left:2px solid var(--ac);background:var(--sf2);color:var(--mt);font-size:11px;line-height:1.5}
