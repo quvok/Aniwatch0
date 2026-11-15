@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
 
   if (payload.action === "stats") {
     const authorization = req.headers.get("authorization") || "";
-    const token = authorization.replace(/^Bearer\\s+/i, "");
+    const token = authorization.replace(/^Bearer\s+/i, "");
     if (!token || !PUBLIC_KEY) return json({ error: "Unauthorized" }, 401, origin);
 
     const authClient = createClient(SUPABASE_URL, PUBLIC_KEY, {
