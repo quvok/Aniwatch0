@@ -3,7 +3,7 @@ import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js"
 import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
-import { loadLocalState, initializeLocalState, saveLocalState } from "./core/storage.js";
+import { loadLocalState, initializeLocalState, saveLocalState, normalizeState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, saveEpisodeProgressBatch, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow, saveWatchTimeSessions, loadWatchTimeStats } from "./core/supabase.js";
 import { buildTasteProfile, rankRecommendations, normalizeRecommendationGenre } from "./core/recommendations.js";
 import { activePage as getActivePage, updateNavigation, renderRoute, pageUrl, titleUrl, watchUrl as routeWatchUrl, routeArgs, isRoute, legacyRedirect } from "./core/router.js";
@@ -80,7 +80,7 @@ function buildLocalWatchTimeStats(){var guest=S.watchTimeGuest||{},stats={totalS
 async function loadProfileWatchTimeStats(userId){if(!userId)return buildLocalWatchTimeStats();await flushWatchTimeQueue(userId);var stats;try{stats=await loadWatchTimeStats(userId)}catch(error){stats={totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{},sessionIds:[],error:"Облачная статистика временно недоступна. Локальная очередь сохранена."}}var known=new Set(stats.sessionIds||[]);(S.watchTimePending||[]).filter(item=>item&&item.userId===String(userId)&&!known.has(item.sessionId)).forEach(item=>{var seconds=Number(item.watchedSeconds)||0,id=String(item.animeId),day=String(item.watchedOn||"");stats.totalSeconds+=seconds;stats.byAnimeSeconds[id]=(stats.byAnimeSeconds[id]||0)+seconds;if(day)stats.byDaySeconds[day]=(stats.byDaySeconds[day]||0)+seconds});return stats}
 window.addEventListener("online",()=>flushWatchTimeQueue());
 window.addEventListener("pagehide",flushWatchTimeBuffers);
-function df(){S.autoNextEpisode=S.autoNextEpisode!==false;S.fav=S.fav||[];S.hist=S.hist||{};S.watchedEpisodes=S.watchedEpisodes||{};S.rate=S.rate||{};S.watchlist=S.watchlist||{};S.name=S.name||"Гость";S.acc=S.acc||"#8b5cf6"}
+function df(){S=normalizeState(S)}
 df();
 function watchUrl(id,episode){var url=routeWatchUrl(id,episode);if(S&&S.room)url+=(url.indexOf("?")>=0?"&":"?")+"room="+encodeURIComponent(S.room);return url}
 var LISTS=[["watching","Смотрю"],["planned","Запланировано"],["completed","Просмотрено"],["dropped","Брошено"]];
