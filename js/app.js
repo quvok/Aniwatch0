@@ -864,6 +864,13 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
   app.innerHTML='<p class="empty">Загружаем статистику просмотра…</p>';
   var userId=AUTH_USER&&AUTH_USER.id||null,watchStats=null,watchStatsError="";
   try{watchStats=await loadProfileWatchTimeStats(userId);watchStatsError=watchStats.error||""}catch(error){console.warn("[AniWatch] Watch-time statistics unavailable:",error);watchStats=userId?{totalSeconds:0,byAnimeSeconds:{},byDaySeconds:{},sessionIds:[]}:buildLocalWatchTimeStats();watchStatsError="Не удалось загрузить облачную статистику. Накопленные интервалы останутся в очереди и будут отправлены при восстановлении связи."}
+  try{
+   await xhyd();
+   if(request!==profileStatsRequest||activePage()!=="profile")return;
+   var profilePosterIds=[...(S.fav||[]).slice(0,5),...Object.entries(S.hist||{}).filter(([id,item])=>item&&Number(item.at)>0).sort((a,b)=>Number(b[1].at)-Number(a[1].at)).slice(0,5).map(([id])=>Number(id))];
+   var profilePosterItems=[...new Set(profilePosterIds.map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))].map(id=>M[id]||(S.shikiAnime&&S.shikiAnime[id])).filter(Boolean);
+   if(profilePosterItems.length)await xshikiPosters(profilePosterItems);
+  }catch(error){console.warn("[AniWatch] Profile anime posters could not be hydrated:",error)}
   if(request!==profileStatsRequest||activePage()!=="profile")return;
   renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER,watchStats,watchStatsError});
   if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}
@@ -1432,6 +1439,9 @@ async function xhyd(){
 // Shikimori is the single source for poster artwork. Keep image URLs transient.
 async function xshikiPosters(L,{resolveMalIds=false}={}){
  L=(L||[]).filter(Boolean);
+ // AniList MAL IDs and Shikimori IDs share the same numeric namespace.
+ // Use that mapping to retrieve Shikimori artwork for saved AniList titles.
+ L.forEach(d=>{if(!Number(d.shikiId)&&Number(d.mal)>0)d.shikiId=Number(d.mal)});
  var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
  if(needsLookup.length)await enrichShikimori(needsLookup);
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
