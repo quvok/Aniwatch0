@@ -1,29 +1,48 @@
 let localDB=null,localDBReady=null;
 
 export function loadLocalState(){
- try{return JSON.parse(localStorage.getItem("aw"))||{}}catch(e){return{}}
+ try{return normalizeState(JSON.parse(localStorage.getItem("aw")))}catch(e){return normalizeState({})}
 }
 
+function isRecord(value){return Boolean(value)&&typeof value==="object"&&!Array.isArray(value)}
+
 function normalizeState(state){
- state.fav=state.fav||[];
- state.hist=state.hist||{};
- state.rate=state.rate||{};
- state.watchlist=state.watchlist||{};
- state.name=state.name||"Гость";
- state.acc=state.acc||"#8b5cf6";
+ state=isRecord(state)?state:{};
+ state.fav=Array.isArray(state.fav)?state.fav:[];
+ state.hist=isRecord(state.hist)?state.hist:{};
+ state.rate=isRecord(state.rate)?state.rate:{};
+ state.watchlist=isRecord(state.watchlist)||Array.isArray(state.watchlist)?state.watchlist:{};
+ state.watchedEpisodes=isRecord(state.watchedEpisodes)?state.watchedEpisodes:{};
+ state.recommendationGenres=Array.isArray(state.recommendationGenres)?state.recommendationGenres:[];
+ state.recommendationDismissed=isRecord(state.recommendationDismissed)?state.recommendationDismissed:{};
+ state.calendarFollows=isRecord(state.calendarFollows)?state.calendarFollows:{};
+ state.name=typeof state.name==="string"&&state.name.trim()?state.name:"Гость";
+ state.acc=typeof state.acc==="string"&&state.acc.trim()?state.acc:"#8b5cf6";
+ state.autoNextEpisode=state.autoNextEpisode!==false;
  return state;
 }
 
+export {normalizeState};
+
 function openLocalDB(){
  if(localDBReady)return localDBReady;
- localDBReady=new Promise(resolve=>{
-  if(!window.indexedDB){resolve(null);return}
-  const req=indexedDB.open("AniWatchLocal",1);
-  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("state"))db.createObjectStore("state")};
-  req.onsuccess=()=>{localDB=req.result;resolve(localDB)};
-  req.onerror=()=>resolve(null);
- });
- return localDBReady;
+ let resolveReady;
+ const ready=new Promise(resolve=>{resolveReady=resolve});
+ localDBReady=ready;
+ let settled=false;
+ const settle=db=>{if(settled)return;settled=true;resolveReady(db)};
+ if(!window.indexedDB){settle(null);return ready}
+ let req;
+ try{req=window.indexedDB.open("AniWatchLocal",1)}catch(error){localDBReady=null;settle(null);return ready}
+ req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("state"))db.createObjectStore("state")};
+ req.onsuccess=()=>{
+  localDB=req.result;
+  localDB.onversionchange=()=>{localDB.close();localDB=null;localDBReady=null};
+  if(settled)localDBReady=Promise.resolve(localDB);else settle(localDB);
+ };
+ req.onerror=()=>{settle(null);if(!localDB)localDBReady=null};
+ req.onblocked=()=>{console.warn("[AniWatch] Local database is blocked; using browser storage for now");settle(null)};
+ return ready;
 }
 
 export async function initializeLocalState(state,setState){
@@ -71,7 +90,7 @@ function stripCachedArtwork(value){
 
 export function saveLocalState(state,mediaMap){
  let snapshot;
- try{snapshot=JSON.parse(JSON.stringify(state))}catch(e){return}
+ try{snapshot=normalizeState(JSON.parse(JSON.stringify(state)))}catch(e){return}
  pruneState(snapshot,mediaMap||{});
  // Poster URLs are transient display data, not persistent application state.
  stripCachedArtwork(snapshot.shikiAnime);
