@@ -127,6 +127,7 @@ export function renderProfile({app,state,escapeHtml,user,mediaMap={},watchStats=
    '</form>'+
    '<p id="library-import-status" class="profile-import-status" role="status" aria-live="polite">Импортируются только публичные списки. Оценки переводятся в 5-звёздочную шкалу приблизительно, прогресс серий объединяется с локальными отметками.</p>'+
   '</section>'+
+  '<div class="profile-recap-action"><button type="button" class="btn ghost" data-a="profile-recap">Скачать карточку итогов</button><small>Изображение создаётся на устройстве, ничего не публикуется автоматически.</small></div>'+
   watchTimeHtml+
   '<section class="profile-overview"><div class="profile-block-title"><div><span class="eyebrow">ТВОЯ АКТИВНОСТЬ</span><h2>Статистика</h2></div><span>'+total+' в списках</span></div>'+
    '<div class="profile-metric-grid profile-metric-grid-expanded">'+
