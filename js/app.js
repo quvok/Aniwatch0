@@ -1274,9 +1274,16 @@ async function boot(){
  var enrichment=rn(),hydration=xhyd();
  await ensureRouteItem();
  if(activePage()==="home"){
-  try{await loadHomeCollections(homeSourcePromise)}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}
+  // Paint the homepage as soon as the initial catalog is available. Release-to-
+  // Shikimori matching can involve several remote requests, so it must not block
+  // the first meaningful render.
   draw();
-  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}});
+  var homePromise=loadHomeCollections(homeSourcePromise).then(()=>{
+   if(activePage()==="home")draw();
+  }).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e));
+  Promise.allSettled([enrichment,hydration,homePromise]).then(()=>{
+   if(activePage()==="home")refreshContinueShelf();
+  });
  }else{await Promise.allSettled([enrichment,hydration]);draw()}
 }
 
