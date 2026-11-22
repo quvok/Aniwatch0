@@ -1,4 +1,5 @@
 name: Validate AniWatch
+# Run syntax, regression and production artifact checks on every performance-branch update.
 
 on:
   push:
