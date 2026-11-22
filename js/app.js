@@ -1266,10 +1266,33 @@ async function boot(){
  (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
-  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={v:2,t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
+ var hasCatalogCache=!!(c&&c.v===2&&Array.isArray(c.a)&&c.a.length>0&&c.a.length<=30);
+ async function refreshAniListCatalog(){
+  try{
+   var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),response=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
+   clearTimeout(tm);
+   if(!response.ok)throw new Error("AniList HTTP "+response.status);
+   var payload=await response.json(),items=payload&&payload.data&&payload.data.Page&&Array.isArray(payload.data.Page.media)?payload.data.Page.media.map(mp):[];
+   if(!items.length)throw new Error("AniList вернул пустой каталог");
+   var updated={v:2,t:Date.now(),a:items};
+   try{localStorage.setItem("awc",JSON.stringify(updated))}catch(e){}
+   return items;
+  }catch(error){console.warn("[AniWatch] AniList catalog refresh failed:",error);return null}
  }
- if(c&&c.a&&c.a.length)D=c.a;else D=[];
+ if(hasCatalogCache){
+  // Use even an expired snapshot for the first paint; refresh it without blocking
+  // navigation. The cache is only a display fallback, not a permanent data source.
+  D=c.a;
+  if(Date.now()-Number(c.t||0)>216e5){
+   refreshAniListCatalog().then(items=>{
+    if(!items)return;
+    D=items;idx();
+    if(activePage()==="home")draw();
+   });
+  }
+ }else{
+  D=await refreshAniListCatalog()||[];
+ }
  idx();hydrateStash();initRouteFilters();
  var enrichment=rn(),hydration=xhyd();
  await ensureRouteItem();
