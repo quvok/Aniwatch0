@@ -7,7 +7,7 @@ function waitMs(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function fetchCatalogJSON(url,{signal,ttl=5*60*1000,force=false}={}){
  const key=String(url),cached=catalogCache.get(key);
  if(!force&&cached&&cached.expires>Date.now())return JSON.parse(JSON.stringify(cached.data));
- if(!signal&&catalogPending.has(key))return JSON.parse(JSON.stringify(await catalogPending.get(key)));
+ if(catalogPending.has(key))return JSON.parse(JSON.stringify(await catalogPending.get(key)));
  const task=catalogQueue.then(async()=>{
   const pause=Math.max(catalogNextAt-Date.now(),0);
   if(pause)await waitMs(pause);
@@ -30,10 +30,10 @@ async function fetchCatalogJSON(url,{signal,ttl=5*60*1000,force=false}={}){
   catalogCache.set(key,{data,expires:Date.now()+ttl});
   return data;
  });
- if(!signal)catalogPending.set(key,task);
+ catalogPending.set(key,task);
  catalogQueue=task.catch(()=>{});
  try{return JSON.parse(JSON.stringify(await task))}
- finally{if(!signal)catalogPending.delete(key)}
+ finally{catalogPending.delete(key)}
 }
 
 
