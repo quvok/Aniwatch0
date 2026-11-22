@@ -1399,7 +1399,8 @@ async function loadHomeCollections(sourcePromise){
   return output;
  }
  var mappedLists={};
- for(var key of lists)mappedLists[key]=await resolveShelf(key);
+ var resolvedShelves=await Promise.all(lists.map(async key=>[key,await resolveShelf(key)]));
+ resolvedShelves.forEach(([key,items])=>{mappedLists[key]=items});
  async function fillShelf(key,options){
   var output=mappedLists[key];
   if(output.length>=15)return;
@@ -1415,10 +1416,12 @@ async function loadHomeCollections(sourcePromise){
    }
   }catch(error){console.warn("[AniWatch] Shikimori home fallback failed ("+key+"):",error)}
  }
- await fillShelf("recent",{order:"aired_on",status:"released"});
- await fillShelf("ongoing",{order:"popularity",status:"ongoing"});
- await fillShelf("popular",{order:"popularity"});
- await fillShelf("recommended",{order:"ranked"});
+ await Promise.all([
+  fillShelf("recent",{order:"aired_on",status:"released"}),
+  fillShelf("ongoing",{order:"popularity",status:"ongoing"}),
+  fillShelf("popular",{order:"popularity"}),
+  fillShelf("recommended",{order:"ranked"})
+ ]);
  homeCollections=mappedLists;
  var allHome=homeCollections.recent.concat(homeCollections.ongoing,homeCollections.popular,homeCollections.recommended);
  allHome.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
