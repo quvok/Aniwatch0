@@ -1,9 +1,10 @@
-var V="aw-v234",SHELL=["./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html","profile.html","random.html","anime.html","watch.html","collections.html","js/components/site-header.js","css/style.css","css/brand-refresh.css","js/app.js","js/core/anime-theme.js","js/api/anilist.js","js/api/shikimori.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js","js/api/anilibria.js","js/pages/calendar.js","calendar.html","js/components/anime-card.js","js/core/storage.js","js/core/library-import.js","js/core/recommendations.js","js/core/router.js","js/core/supabase.js","js/core/calendar-push.js","js/core/analytics.js","js/pages/stats.js","js/core/collections.js","js/pages/collections.js","js/core/rooms.js","js/core/friends.js","js/core/streaming-player.js","js/pages/collection.js","js/pages/catalog.js","js/core/events.js","js/pages/discovery.js","js/pages/together.js","js/pages/watch.js","js/pages/anime.js","js/pages/home.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
+var V="aw-v234",SHELL=["./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html","profile.html","random.html","anime.html","watch.html","collections.html","js/components/site-header.js","css/style.css","css/brand-refresh.css","js/app.js","js/core/anime-theme.js","js/api/anilist.js","js/api/shikimori.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js","js/api/anilibria.js","js/pages/calendar.js","calendar.html","js/components/anime-card.js","js/components/banner.js","js/core/storage.js","js/core/library-import.js","js/core/recommendations.js","js/core/plot-tags.js","js/core/router.js","js/core/supabase.js","js/core/calendar-push.js","js/core/analytics.js","js/pages/stats.js","js/core/collections.js","js/pages/collections.js","js/core/rooms.js","js/core/friends.js","js/core/streaming-player.js","js/pages/collection.js","js/pages/catalog.js","js/core/events.js","js/pages/discovery.js","js/pages/together.js","js/pages/watch.js","js/pages/anime.js","js/pages/home.js","manifest.webmanifest","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
-// App modules are network-first: after a deploy the page must not mix fresh HTML
-// with stale JS/CSS from the previous cache version. Offline still falls back to
-// the precached shell. Everything else uses stale-while-revalidate.
+// Production builds stamp V with a hash of every published file. Cache-first is
+// therefore safe for app modules: changed deployments get a new cache name, while
+// repeat page visits can reuse precached JS/CSS immediately. Other assets use
+// stale-while-revalidate. Remote images/posters are never cached.
 // Remote images/posters are never cached.
 // Cache writes are best-effort: cloning a response can fail if another consumer
 // has already used its body. Never let that prevent the original response from
@@ -33,10 +34,10 @@ self.addEventListener("fetch",e=>{
   return;
  }
  if(/\.(?:js|css)$/i.test(u.pathname)){
-  e.respondWith(fetch(r).then(x=>{
-   if(x.ok)caches.open(V).then(c=>cacheResponse(c,r,x));
-   return x;
-  }).catch(()=>caches.open(V).then(c=>c.match(r))).then(h=>h||Response.error()));
+  e.respondWith(caches.open(V).then(c=>c.match(r).then(hit=>{
+   if(hit)return hit;
+   return fetch(r).then(x=>{if(x.ok)cacheResponse(c,r,x);return x});
+  })));
   return;
  }
  e.respondWith(caches.open(V).then(c=>c.match(r).then(h=>{
