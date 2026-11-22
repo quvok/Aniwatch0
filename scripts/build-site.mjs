@@ -16,7 +16,7 @@ const root = process.cwd();
 const out = join(root, "_site");
 const siteUrl = String(process.env.SITE_URL || "").trim().replace(/\/+$/, "");
 
-const rootFiles = ["manifest.webmanifest", "sw.js", "CNAME"];
+const rootFiles = ["manifest.webmanifest", "sw.js"];
 const rootDirs = ["css", "js", "icons"];
 
 async function copyRootPages() {

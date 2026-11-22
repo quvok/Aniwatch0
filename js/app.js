@@ -1252,61 +1252,21 @@ async function ru(d){
 async function rn(){await enrichShikimori(D)}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
- // Start the home release request alongside the initial catalog request below.
- // Mapping to Shikimori IDs still happens later, after the catalog data is ready.
- var homeSourcePromise=null;
- if(activePage()==="home"){
-  var cachedHomeSource=null;
-  try{cachedHomeSource=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v3")||"null")}catch(e){}
-  if(!(cachedHomeSource&&cachedHomeSource.data&&Date.now()-Number(cachedHomeSource.at)<20*60*1000)){
-   homeSourcePromise=fetchAniLibriaHomeCollections().catch(error=>{console.warn("[AniWatch] Early home source request failed:",error);return null});
-  }
- }
  // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
  (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- var hasCatalogCache=!!(c&&c.v===2&&Array.isArray(c.a)&&c.a.length>0&&c.a.length<=30);
- async function refreshAniListCatalog(){
-  try{
-   var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),response=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});
-   clearTimeout(tm);
-   if(!response.ok)throw new Error("AniList HTTP "+response.status);
-   var payload=await response.json(),items=payload&&payload.data&&payload.data.Page&&Array.isArray(payload.data.Page.media)?payload.data.Page.media.map(mp):[];
-   if(!items.length)throw new Error("AniList вернул пустой каталог");
-   var updated={v:2,t:Date.now(),a:items};
-   try{localStorage.setItem("awc",JSON.stringify(updated))}catch(e){}
-   return items;
-  }catch(error){console.warn("[AniWatch] AniList catalog refresh failed:",error);return null}
+ if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
+  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={v:2,t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
  }
- if(hasCatalogCache){
-  // Use even an expired snapshot for the first paint; refresh it without blocking
-  // navigation. The cache is only a display fallback, not a permanent data source.
-  D=c.a;
-  if(Date.now()-Number(c.t||0)>216e5){
-   refreshAniListCatalog().then(items=>{
-    if(!items)return;
-    D=items;idx();
-    if(activePage()==="home")draw();
-   });
-  }
- }else{
-  D=await refreshAniListCatalog()||[];
- }
+ if(c&&c.a&&c.a.length)D=c.a;else D=[];
  idx();hydrateStash();initRouteFilters();
  var enrichment=rn(),hydration=xhyd();
  await ensureRouteItem();
  if(activePage()==="home"){
-  // Paint the homepage as soon as the initial catalog is available. Release-to-
-  // Shikimori matching can involve several remote requests, so it must not block
-  // the first meaningful render.
+  try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}
   draw();
-  var homePromise=loadHomeCollections(homeSourcePromise).then(()=>{
-   if(activePage()==="home")draw();
-  }).catch(e=>console.warn("[AniWatch] Home collections unavailable:",e));
-  Promise.allSettled([enrichment,hydration,homePromise]).then(()=>{
-   if(activePage()==="home")refreshContinueShelf();
-  });
+  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}});
  }else{await Promise.allSettled([enrichment,hydration]);draw()}
 }
 
@@ -1346,14 +1306,13 @@ function matchAniLibriaRelease(release,candidates){
  var unique=new Map(matches.filter(item=>Number(item&&item.id)>0).map(item=>[Number(item.id),item]));
  return unique.size===1?[...unique.values()][0]:null;
 }
-async function loadHomeCollections(sourcePromise){
+async function loadHomeCollections(){
  var source=null,cache=null;
  try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v3")||"null")}catch(e){}
  if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
  if(!source){
   try{
-   source=sourcePromise?await sourcePromise:await fetchAniLibriaHomeCollections();
-   if(!source)throw new Error("Пустой ответ источника главной страницы");
+   source=await fetchAniLibriaHomeCollections();
    try{localStorage.setItem("aw-home-anilibria-shiki-v3",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
   }catch(error){
    console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
@@ -1422,8 +1381,7 @@ async function loadHomeCollections(sourcePromise){
   return output;
  }
  var mappedLists={};
- var resolvedShelves=await Promise.all(lists.map(async key=>[key,await resolveShelf(key)]));
- resolvedShelves.forEach(([key,items])=>{mappedLists[key]=items});
+ for(var key of lists)mappedLists[key]=await resolveShelf(key);
  async function fillShelf(key,options){
   var output=mappedLists[key];
   if(output.length>=15)return;
@@ -1439,12 +1397,10 @@ async function loadHomeCollections(sourcePromise){
    }
   }catch(error){console.warn("[AniWatch] Shikimori home fallback failed ("+key+"):",error)}
  }
- await Promise.all([
-  fillShelf("recent",{order:"aired_on",status:"released"}),
-  fillShelf("ongoing",{order:"popularity",status:"ongoing"}),
-  fillShelf("popular",{order:"popularity"}),
-  fillShelf("recommended",{order:"ranked"})
- ]);
+ await fillShelf("recent",{order:"aired_on",status:"released"});
+ await fillShelf("ongoing",{order:"popularity",status:"ongoing"});
+ await fillShelf("popular",{order:"popularity"});
+ await fillShelf("recommended",{order:"ranked"});
  homeCollections=mappedLists;
  var allHome=homeCollections.recent.concat(homeCollections.ongoing,homeCollections.popular,homeCollections.recommended);
  allHome.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
@@ -1455,7 +1411,7 @@ async function loadHomeCollections(sourcePromise){
 }
 var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
 xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xSearchController=null,xIO=null,xGenrePromise=null,xGenreOptions=null;
+xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
 xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
@@ -1557,9 +1513,9 @@ V.catalog=()=>{
 };
 rc=()=>{var s=$("#cs");xCF.q=s?s.value.trim():(F.q||"");F.q=xCF.q;if(s&&s!==document.activeElement)s.value=xCF.q;clearTimeout(xCF.h);xCF.h=setTimeout(()=>xcq(true),450)};
 async function xcq(reset){
- if(reset){if(xSearchController){xSearchController.abort();xSearchController=null}xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
+ if(reset){xSearchRequest++;xCF.p=1;xCF.more=true;xCF.busy=false;var c0=$("#cr");if(c0)c0.innerHTML="";syncCatalogUrl()}
  if(!xCF.more||xCF.busy||!$("#cr"))return;
- var requestId=++xSearchRequest,controller=new AbortController();xSearchController=controller;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
+ var requestId=++xSearchRequest;xCF.busy=true;var k=++xCF.k,box=$("#more");if(box)box.textContent="Загрузка…";
  try{
   var q=xCF.q.trim(),sourcePage=xCF.p;
   var key="aw-shikimori-catalog-v4:"+JSON.stringify([q,sourcePage,xCF.g,xCF.y,xCF.season,xCF.st,xCF.f,xCF.o,xCF.minScore]);
@@ -1568,7 +1524,7 @@ async function xcq(reset){
   if(cached&&Date.now()-cached.at<10*60*1000)raw=cached.data;
   if(!raw){
    var order=xCF.o==="SCORE_DESC"?"ranked":xCF.o==="START_DATE_DESC"?"aired_on":xCF.o==="TITLE_ROMAJI"?"name":"popularity";
-   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g,signal:controller.signal});
+   raw=await fetchCatalogPage({query:q,page:sourcePage,order,format:xCF.f,status:xCF.st,genre:xCF.g});
    try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data:raw}))}catch(e){}
   }
   if(requestId!==xSearchRequest||k!==xCF.k||activePage()!=="catalog")return;
@@ -1590,12 +1546,8 @@ async function xcq(reset){
   if(!cr.children.length)$("#cc").textContent=q?"Ничего не найдено":"В каталоге пока нет результатов";
   sv();
  }catch(e){
-  if(e&&e.name==="AbortError")return;
   console.error("[AniWatch] Shikimori catalog:",e);
   if(requestId===xSearchRequest&&k===xCF.k){xCF.busy=false;if(box)box.textContent="Ошибка загрузки. Нажмите, чтобы повторить";toast("Не удалось загрузить каталог. Попробуй позже.")}
- }finally{
-  if(xSearchController===controller)xSearchController=null;
-  if(requestId===xSearchRequest&&controller.signal.aborted)xCF.busy=false;
  }
 }
 async function xrandom(){
@@ -1695,7 +1647,7 @@ function syncCatalogUrl(){
  var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore};
  try{history.replaceState(null,"",pageUrl("catalog",o))}catch(e){}
 }
-function draw(){if(activePage()!=="catalog"&&xSearchController){xSearchController.abort();xSearchController=null;xCF.busy=false}renderRoute(V,T,()=>{P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
+function draw(){renderRoute(V,T,()=>{P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
 function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,document.createTextNode(String(t||"")));m.append(d);m.scrollTop=1e5}
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});

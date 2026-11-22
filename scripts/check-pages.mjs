@@ -82,14 +82,6 @@ console.log("✓ catalog plot-tag removal checks passed");
 if(problems.length){console.error(problems.map(p=>"✗ "+p).join("\n"));process.exit(1)}
 console.log("✓ "+pages.length+" pages OK: "+pages.map(p=>p.file).join(", "));
 
-const catalogClient=read("js/api/shikimori.js");
-assert.ok(catalogClient.includes("if(!signal&&catalogPending.has(key))"),"abortable Shikimori requests must not inherit another caller's AbortSignal through shared pending work");
-assert.ok(catalogClient.includes("if(!signal)catalogPending.set(key,task)"),"only non-abortable Shikimori requests may be shared in the pending map");
-const appCatalog=read("js/app.js");
-assert.ok(appCatalog.includes("xSearchController.abort()"),"changing routes or catalog filters must cancel stale catalog requests");
-assert.ok(appCatalog.includes("genre:xCF.g,signal:controller.signal"),"catalog API calls must receive the active request signal");
-console.log("✓ stale catalog request cancellation and signal-safe deduplication checks passed");
-
 const genreLoader=read("js/api/genders.js");
 assert.ok(genreLoader.includes("fetchAnimeGenres"),"dedicated genders.js module must export the genre loader");
 assert.ok(genreLoader.includes("?fields=genres"),"dedicated genre loader must request only genre data from Shikimori");
