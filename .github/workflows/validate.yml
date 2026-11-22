@@ -1,9 +1,8 @@
 name: Validate AniWatch
-# Run syntax, regression and production artifact checks on every performance-branch update.
 
 on:
   push:
-    branches: [main, redesign/product-audit-2026-11-08, perf/fast-pages-build-and-deploy]
+    branches: [main, redesign/product-audit-2026-11-08]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -16,34 +15,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  checks:
+  syntax:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check JavaScript syntax
+      - name: Check all JavaScript modules
         run: |
           set -e
           while IFS= read -r -d '' file; do
             echo "Checking $file"
             node --check "$file"
           done < <(find js -type f -name '*.js' -print0 | sort -z)
-          node --check sw.js
-
-      - name: Run project regression checks
-        run: npm run check
-
-      - name: Verify production build
-        env:
-          SITE_URL: https://aniwatch1.ru
-        run: npm run build
+      - name: Check Service Worker syntax
+        run: node --check sw.js
+      - name: Validate pages and Service Worker
+        run: node scripts/check-pages.mjs
+      - name: Test recommendation scoring
+        run: node scripts/check-recommendations.mjs
