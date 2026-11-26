@@ -265,7 +265,12 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     if(!link){setStatus("У этой озвучки нет серии "+episode+". Выбери другую озвучку.");return}
     destroyHls();
     kodikFrame=null;kodikTranslation={id:current.translation?.id??null,title:String(current.translation?.title||"")};kodikMedia={time:0,duration:0,playing:false,speed:1};
-    stage.innerHTML='<iframe class="stream-video" src="'+esc(link)+'" title="Видеоплеер" allow="autoplay *; fullscreen *; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+    // Kodik supports hide_selectors=true on its embed URL. This hides the
+    // in-player translation/episode selectors; AniWatch keeps its own controls.
+    let lockedPlayerLink=link;
+    try{const playerUrl=new URL(link);playerUrl.searchParams.set("hide_selectors","true");lockedPlayerLink=playerUrl.toString()}
+    catch{lockedPlayerLink=link+(link.includes("?")?"&":"?")+"hide_selectors=true"}
+    stage.innerHTML='<iframe class="stream-video" src="'+esc(lockedPlayerLink)+'" title="Видеоплеер" allow="autoplay *; fullscreen *; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>';
     kodikFrame=stage.querySelector("iframe");
     if(kodikFrame)kodikFrame.addEventListener("load",()=>{
      if(kodikFrame){
