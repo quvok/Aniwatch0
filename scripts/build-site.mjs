@@ -27,13 +27,13 @@ async function copyRootPages() {
   }
 }
 
-async function listPublishedFiles(dir, out = []) {
+async function listPublishedFiles(dir, files = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) await listPublishedFiles(path, out);
-    else out.push(path);
+    if (entry.isDirectory()) await listPublishedFiles(path, files);
+    else files.push(relative(out, path).split(sep).join("/"));
   }
-  return out;
+  return files;
 }
 
 async function readRouterPages() {
@@ -43,30 +43,22 @@ async function readRouterPages() {
   return [...block[1].matchAll(/(\w+):"([^"]+)"/g)].map(match => match[2]);
 }
 
-function assertServiceWorkerShell(swSource) {
-  // Every shipped module must be precached; a forgotten entry only shows up as
-  // a broken offline page, which is hard to notice during manual testing.
+function assertServiceWorkerShell(swSource, files) {
+  // The browser rejects the entire precache if any listed URL is missing.
   const shell = /SHELL=\[([\s\S]*?)\];/.exec(swSource);
   if (!shell) throw new Error("SHELL list not found in sw.js");
   const listed = new Set([...shell[1].matchAll(/"([^"]+)"/g)].map(match => match[1]));
-  const required = [];
-  const walkJs = dir => readdir(join(root, dir), { withFileTypes: true }).then(async entries => {
-    for (const entry of entries) {
-      const rel = join(dir, entry.name).split(sep).join("/");
-      if (entry.isDirectory()) await walkJs(rel);
-      else if (entry.name.endsWith(".js")) required.push(rel);
-    }
-  });
-  return walkJs("js").then(() => {
-    required.push("css/style.css", "manifest.webmanifest");
-    const missing = required.filter(file => !listed.has(file));
-    if (missing.length) throw new Error("sw.js SHELL is missing: " + missing.join(", "));
-  });
+  const published = new Set(files);
+  const required = files.filter(file => /^(?:css|js|icons)\//.test(file) || file.endsWith(".html") || file === "manifest.webmanifest");
+  const missing = ["./", ...required].filter(file => !listed.has(file));
+  if (missing.length) throw new Error("sw.js SHELL is missing: " + missing.join(", "));
+  const stale = [...listed].filter(file => file !== "./" && !published.has(file));
+  if (stale.length) throw new Error("sw.js SHELL lists unpublished files: " + stale.join(", "));
 }
 
 async function contentHash(files) {
   const hash = createHash("sha256");
-  for (const file of files.map(file => relative(out, file)).sort()) {
+  for (const file of files) {
     hash.update(file);
     hash.update(await readFile(join(out, file)));
   }
@@ -153,20 +145,19 @@ async function main() {
 
   const swPath = join(out, "sw.js");
   const originalSw = await readFile(swPath, "utf8");
-  await assertServiceWorkerShell(originalSw);
 
   const pages = await readRouterPages();
   await injectSeo();
   const withSitemap = await writeSeoFiles(pages);
 
-  // Hash every published file except sw.js itself, which is about to be stamped.
-  const published = (await listPublishedFiles(out)).filter(file => file !== swPath);
-  const version = await contentHash(published);
+  // Include the original worker so changes to its logic also invalidate the cache.
+  const publishedFiles = (await listPublishedFiles(out)).sort();
+  assertServiceWorkerShell(originalSw, publishedFiles);
+  const version = await contentHash(publishedFiles);
   const stamped = originalSw.replace(/var V="[^"]*"/, `var V="aw-${version}"`);
   if (stamped === originalSw) throw new Error("Service Worker version placeholder not found");
   await writeFile(swPath, stamped);
 
-  const publishedFiles = (await listPublishedFiles(out)).map(file => relative(out, file)).sort();
   console.log(`Built _site: ${publishedFiles.length} files, cache version aw-${version}`);
   console.log(withSitemap ? "Generated robots.txt and sitemap.xml" : "Generated robots.txt (set SITE_URL for sitemap.xml)");
   for (const file of publishedFiles) {

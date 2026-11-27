@@ -1,5 +1,4 @@
-# Retry Pages deployment after a runnerless Actions failure (2026-11-10)
-name: Deploy AniWatch to GitHub Pages (modular branch)
+name: Deploy AniWatch to GitHub Pages
 on:
   push:
     branches: [main, refactor/modular-architecture-2026-11-08]
@@ -20,20 +19,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          enablement: true
+          node-version: 22
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Check JavaScript syntax
         run: |
           find js -type f -name '*.js' -print0 | xargs -0 -n1 node --check
           node --check sw.js
-      - name: Validate pages and Service Worker
-        run: node scripts/check-pages.mjs
+      - name: Validate site
+        run: npm run check
+      - name: Build site
+        env:
+          SITE_URL: ${{ vars.SITE_URL || steps.pages.outputs.base_url }}
+        run: npm run build
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

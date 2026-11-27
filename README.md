@@ -363,7 +363,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`build-site.mjs` публикует только файлы сайта: HTML-страницы, `js/`, `css/`, `icons/`, манифест и Service Worker. Скриншоты, архивы плагинов, PHP-файлы и документация в артефакт не попадают. Версия кэша Service Worker вычисляется из содержимого собранных файлов. Если в переменной репозитория `SITE_URL` задан адрес сайта, сборка добавляет canonical, Open Graph, JSON-LD и `sitemap.xml`.
+`build-site.mjs` собирает HTML-страницы, `js/`, `css/`, `icons/`, манифест и Service Worker в `_site`. GitHub Actions публикует эту папку в GitHub Pages. Версия кэша Service Worker вычисляется из содержимого файлов сборки. Для canonical, Open Graph, JSON-LD и `sitemap.xml` автоматическая сборка использует адрес GitHub Pages или значение переменной репозитория `SITE_URL`, если она задана.
 
 Проверка структуры не заменяет ручное тестирование интерфейса, внешних API, авторизации, видеопотоков и Realtime-комнат.
 
