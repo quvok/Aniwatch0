@@ -53,10 +53,13 @@ export function createBannerManager(options){
   if(!Number.isInteger(id)||id<=0)return null;
   return {field:"id",value:id,key:"id:"+id};
  }
+ function bannerPage(argument){
+  // An empty list keeps a missing title from failing the whole banner batch.
+  return "Page(perPage:1){media("+argument+",type:ANIME){id title{romaji english native} seasonYear bannerImage}}";
+ }
  function queryFor(lookup){
-  if(!lookup)return null;
-  if(lookup.field==="search")return {query:"query($search:String!){Media(search:$search,type:ANIME){id title{romaji english native} seasonYear bannerImage}}",variables:{search:lookup.value}};
-  return {query:"query($id:Int){Media("+lookup.field+":$id,type:ANIME){id title{romaji english native} seasonYear bannerImage}}",variables:{id:lookup.value}};
+  var type=lookup.field==="search"?"String!":"Int!";
+  return {query:"query($value:"+type+"){"+bannerPage(lookup.field+":$value")+"}",variables:{value:lookup.value}};
  }
  function normalizeTitle(value){
   return String(value||"").toLocaleLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]/gu,"");
@@ -85,7 +88,7 @@ export function createBannerManager(options){
   if(pending[lookup.key])return pending[lookup.key];
   var request=queryFor(lookup);
   pending[lookup.key]=options.query(request.query,request.variables).then(function(response){
-   var responseMedia=response&&response.Media||null;
+   var responseMedia=response?.Page?.media?.[0]||null;
    var current=(getAnimeMap()||{})[id]||anime;
    var media=verifiedMedia(current,responseMedia,lookup);
    cache[lookup.key]={media:media,at:Date.now()};
@@ -132,12 +135,12 @@ export function createBannerManager(options){
    var aliases=[];
    batch.forEach(function(entry,index){
     var argument=entry.lookup.field==="search"?"search:"+JSON.stringify(entry.lookup.value):entry.lookup.field+":"+Number(entry.lookup.value);
-    aliases.push("b"+index+":Media("+argument+",type:ANIME){id title{romaji english native} seasonYear bannerImage}");
+    aliases.push("b"+index+":"+bannerPage(argument));
    });
    try{
     var data=await options.query("query{"+aliases.join(" ")+"}");
     batch.forEach(function(entry,index){
-     var responseMedia=data&&data["b"+index]||null;
+     var responseMedia=data?.["b"+index]?.media?.[0]||null;
      var media=verifiedMedia(entry.anime,responseMedia,entry.lookup);
      cache[entry.lookup.key]={media:media,at:Date.now()};
      if(saveBanner(entry.anime,media))changed=true;
