@@ -4,6 +4,7 @@ on:
     branches: [main, refactor/modular-architecture-2026-11-08]
   workflow_dispatch:
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -12,6 +13,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    env:
+      PAGES_ARTIFACT_NAME: github-pages-${{ github.run_attempt }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,9 +40,26 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL || steps.pages.outputs.base_url }}
         run: npm run build
       - name: Upload site
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
+          name: ${{ env.PAGES_ARTIFACT_NAME }}
           path: _site
+      - name: Wait for the Pages artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+        run: |
+          for attempt in {1..10}; do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$PAGES_ARTIFACT_ID" --silent; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::The uploaded Pages artifact did not become available."
+          exit 1
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT_NAME }}
