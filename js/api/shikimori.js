@@ -110,6 +110,14 @@ export function fetchHomeAnime(){
  fragment Tile on Anime { ${ANIME_FIELDS} description }`);
 }
 
+export async function fetchAnimeTilesByIds(ids){
+ const data=await fetchGraphQL(`query($ids: String) {
+  animes(ids: $ids, limit: 50) { ${ANIME_FIELDS} description }
+ }`,{ids:ids.join(",")});
+ if(!Array.isArray(data.animes))throw new Error("Shikimori не вернул карточки");
+ return data.animes;
+}
+
 export async function fetchAnimeScreenshots(ids){
  if(!ids.length)return [];
  const data=await fetchGraphQL("query($ids: String) { animes(ids: $ids, limit: 8) { id screenshots { originalUrl x332Url } } }",{ids:ids.join(",")});

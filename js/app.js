@@ -21,6 +21,7 @@ import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./co
 import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
 import { fetchLibrary, mergeImportedLibrary } from "./core/library-import.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
+import { fetchAniLibriaHomeCollections } from "./api/anilibria.js";
 import { searchKodikAnime } from "./api/kodik.js";
 import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
@@ -1076,6 +1077,40 @@ async function boot(){
 }
 
 async function loadHomeCollections(){
+ var source=activePage()==="home"?await loadCuratedHomeCollections():null;
+ if(!source)source=await loadShikimoriHomeCollections();
+ var seen=new Set();
+ homeCollections={};
+ for(var key of ["popular","ongoing","recent"]){
+  var shelf=homeCollections[key]=[];
+  for(var anime of (source?.[key]||[])){
+   var id=Number(anime.id);
+   if(!id||seen.has(id))continue;
+   seen.add(id);
+   shelf.push(shikiToItem(anime));
+   if(shelf.length===15)break;
+  }
+ }
+ D=homeCollections.popular.concat(homeCollections.ongoing,homeCollections.recent);
+ H=D.slice(0,8);
+ D.forEach(anime=>{M[anime.id]=anime});
+}
+
+async function loadCuratedHomeCollections(){
+ var cached;
+ try{cached=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v4")||"null")}catch(error){}
+ if(cached?.source&&Date.now()-cached.at<15*60*1000)return cached.source;
+ try{
+  var source=await fetchAniLibriaHomeCollections();
+  try{localStorage.setItem("aw-home-anilibria-shiki-v4",JSON.stringify({source,at:Date.now()}))}catch(error){}
+  return source;
+ }catch(error){
+  console.warn("[AniWatch] AniLibria home collections unavailable:",error);
+  return cached?.source||null;
+ }
+}
+
+async function loadShikimoriHomeCollections(){
  var source,cached;
  try{cached=JSON.parse(localStorage.getItem("aw-shiki-home")||"null")}catch(error){}
  if(cached?.source&&Date.now()-cached.at<15*60*1000)source=cached.source;
@@ -1097,21 +1132,7 @@ async function loadHomeCollections(){
    }
   }
  }
- var seen=new Set();
- homeCollections={};
- for(var key of ["popular","ongoing","recent"]){
-  var shelf=homeCollections[key]=[];
-  for(var anime of (source?.[key]||[])){
-   var id=Number(anime.id);
-   if(!id||seen.has(id))continue;
-   seen.add(id);
-   shelf.push(shikiToItem(anime));
-   if(shelf.length===15)break;
-  }
- }
- D=homeCollections.popular.concat(homeCollections.ongoing,homeCollections.recent);
- H=D.slice(0,8);
- D.forEach(anime=>{M[anime.id]=anime});
+ return source;
 }
 var xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xIO=null,xGenrePromise=null,xGenreOptions=null;
 var xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],

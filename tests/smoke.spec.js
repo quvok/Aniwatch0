@@ -1,4 +1,4 @@
-import { test, expect, installApiMocks, seedState, SHIKI_ITEM, SHIKI_SCREENSHOT } from "./fixtures.js";
+import { test, expect, installApiMocks, seedState, SHIKI_ITEM, SHIKI_SCREENSHOT, SHIKI_NAME_MATCH, SHIKI_OTHER } from "./fixtures.js";
 
 const SHIKI_INTERNAL_ID = 1_000_000_000 + SHIKI_ITEM.id;
 
@@ -11,7 +11,7 @@ test("home renders the catalog, hero and primary navigation", async ({ page }) =
   const metadataHosts = [];
   page.on("request", request => {
     const host = new URL(request.url()).hostname;
-    if (/anilist\.co|anilibria\.|aniliberty\.|ani\.zip|kitsu\.io|jikan\.moe/.test(host)) metadataHosts.push(host);
+    if (/anilist\.co|ani\.zip|kitsu\.io|jikan\.moe/.test(host)) metadataHosts.push(host);
   });
   await page.goto("/");
 
@@ -20,6 +20,8 @@ test("home renders the catalog, hero and primary navigation", async ({ page }) =
   await expect(page.locator(".hero-editorial")).toHaveAttribute("style", new RegExp(SHIKI_SCREENSHOT.replaceAll(".", "\\.")));
   await expect(page.locator('#site-header a[data-page="catalog"]').first()).toBeVisible();
   await expect(page.locator("#app .card").first()).toBeVisible();
+  const popular = page.locator("section.shelf").filter({ has: page.getByRole("heading", { name: "Популярное", exact: true }) });
+  await expect(popular.locator(".card > b")).toHaveText([SHIKI_ITEM.russian, SHIKI_NAME_MATCH.russian, SHIKI_OTHER.russian]);
   // The offline placeholder must never replace real catalog data.
   await expect(page.locator(".offline-state")).toHaveCount(0);
   expect(metadataHosts).toEqual([]);

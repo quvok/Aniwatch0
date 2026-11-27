@@ -41,6 +41,12 @@ export function createClient() {
 `;
 
 export const SHIKI_SCREENSHOT = "https://shikimori.io/uploads/screenshot/test.jpg";
+export const SHIKI_NAME_MATCH = {
+  ...SHIKI_ITEM, id: 4343, myanimelist_id: 21, name: "Bleach Test", russian: "Блич из Shikimori", aired_on: "2004-10-05"
+};
+export const SHIKI_OTHER = {
+  ...SHIKI_ITEM, id: 4444, myanimelist_id: 22, name: "Third Test", russian: "Третий из Shikimori"
+};
 
 function json(route, body, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -57,6 +63,18 @@ export async function installApiMocks(page) {
 
     if (url.hostname === "esm.sh") {
       return route.fulfill({ status: 200, contentType: "text/javascript", body: TINY_SUPABASE });
+    }
+
+    if (url.hostname === "anilibria.top" && url.pathname === "/api/v1/anime/catalog/releases") {
+      if (url.searchParams.has("f[publish_statuses]") || url.searchParams.get("f[sorting]") === "FRESH_AT_DESC") {
+        return json(route, { data: [] });
+      }
+      return json(route, { data: [
+        { name: { main: "Название из AniLibria" }, shikimori: { id: SHIKI_ITEM.id } },
+        { name: { main: "Bleach Test" }, year: 2004 },
+        { name: { main: "Нет в Shikimori" }, year: 2001 },
+        { name: { main: "Ещё одно название из AniLibria" }, shikimori: { id: SHIKI_OTHER.id } }
+      ] });
     }
 
     if (url.hostname === "shikimori.io") {
@@ -76,20 +94,21 @@ export async function installApiMocks(page) {
           const wanted = ids.split(",").map(Number);
           return json(route, wanted.includes(SHIKI_ITEM.id) ? [SHIKI_ITEM] : []);
         }
+        if (url.searchParams.get("search") === SHIKI_NAME_MATCH.name) return json(route, [SHIKI_NAME_MATCH]);
         if (url.searchParams.get("search")) return json(route, [SHIKI_ITEM]);
         return json(route, [SHIKI_ITEM]);
       }
       if (path === "/api/graphql") {
         const { query, variables } = request.postDataJSON();
-        const title = {
-          ...SHIKI_ITEM, id: String(SHIKI_ITEM.id), malId: String(SHIKI_ITEM.myanimelist_id),
-          airedOn: { date: SHIKI_ITEM.aired_on }, poster: { mainUrl: SHIKI_ITEM.image.original }
-        };
+        const tile = item => ({ ...item, id: String(item.id), malId: String(item.myanimelist_id),
+          airedOn: { date: item.aired_on }, poster: { mainUrl: item.image.original } });
+        const title = tile(SHIKI_ITEM);
         if (query.includes("popular: animes")) return json(route, { data: { popular: [title], ongoing: [], recent: [] } });
         if (query.includes("screenshots")) return json(route, { data: { animes: [{ id: title.id, screenshots: [{ originalUrl: SHIKI_SCREENSHOT }] }] } });
         if (query.includes("personRoles")) return json(route, { data: { animes: [{ studios: [{ name: "Студия из Shikimori" }] }] } });
         const ids = variables?.ids?.split(",").map(Number)||[];
-        const animes = ids.includes(SHIKI_ITEM.id) || ids.includes(SHIKI_ITEM.myanimelist_id) ? [title] : [];
+        const animes = [SHIKI_OTHER, SHIKI_ITEM]
+          .filter(item => ids.includes(item.id) || ids.includes(item.myanimelist_id)).map(tile);
         return json(route, { data: { animes } });
       }
       if (/\/api\/users\/[^/]+\/anime_rates$/.test(path)) {

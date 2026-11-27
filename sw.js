@@ -1,9 +1,9 @@
-var V="aw-v236",SHELL=[
+var V="aw-v237",SHELL=[
  "./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html",
  "profile.html","random.html","anime.html","watch.html","collections.html","calendar.html",
  "css/style.css","css/brand-refresh.css","css/favorite-position-fix.css","css/home-banner-background.css",
  "js/app.js","js/components/site-header.js","js/components/anime-card.js","js/components/banner.js",
- "js/api/shikimori.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js",
+ "js/api/shikimori.js","js/api/anilibria.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js",
  "js/core/anime-theme.js","js/core/storage.js","js/core/library-import.js","js/core/recommendations.js",
  "js/core/router.js","js/core/supabase.js","js/core/calendar-push.js","js/core/analytics.js",
  "js/core/collections.js","js/core/rooms.js","js/core/friends.js","js/core/streaming-player.js","js/core/events.js","js/core/plot-tags.js",
