@@ -1,5 +1,6 @@
 // Shikimori HTTP client. UI and anime-model normalization stay outside this module.
 const API_ROOT="https://shikimori.io/api";
+const ANIME_FIELDS="id malId name russian kind status score episodes episodesAired airedOn{date} poster{mainUrl originalUrl} genres{name russian}";
 // Catalog requests are shared, cached in memory and serialized to respect Shikimori limits.
 const catalogCache=new Map(),catalogPending=new Map();
 let catalogQueue=Promise.resolve(),catalogNextAt=0;
@@ -88,13 +89,49 @@ export async function fetchAnimeByIds(ids,{signal}={}){
 export async function fetchAnimePostersByIds(ids,{signal}={}) {
  const unique=[...new Set((ids||[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))];
  if(!unique.length)return [];
- const response=await fetch("https://shikimori.io/api/graphql",{method:"POST",signal,headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({query:"query($ids: String) { animes(ids: $ids, limit: 50) { id malId poster { originalUrl mainUrl } } }",variables:{ids:unique.join(",")}})});
+ const data=await fetchGraphQL("query($ids: String) { animes(ids: $ids, limit: 50) { id malId poster { originalUrl mainUrl } } }",{ids:unique.join(",")},signal);
+ return data.animes||[];
+}
+
+async function fetchGraphQL(query,variables,signal){
+ const response=await fetch(API_ROOT+"/graphql",{method:"POST",signal:signal||AbortSignal.timeout(8000),headers:{Accept:"application/json","Content-Type":"application/json"},body:JSON.stringify({query,variables})});
  if(!response.ok)throw new Error("Ошибка GraphQL Shikimori (HTTP "+response.status+")");
  const payload=await response.json();
- if(payload.errors&&payload.errors.length)throw new Error(payload.errors.map(e=>e.message).join("; "));
- const result=payload.data&&payload.data.animes;
- if(!Array.isArray(result))throw new Error("Некорректный ответ GraphQL Shikimori");
- return result;
+ if(!payload.data)throw new Error(payload.errors?.map(e=>e.message).join("; ")||"Некорректный ответ GraphQL Shikimori");
+ return payload.data;
+}
+
+export function fetchHomeAnime(){
+ return fetchGraphQL(`query {
+  popular: animes(limit: 15, order: popularity, censored: true) { ...Tile }
+  ongoing: animes(limit: 24, order: popularity, status: "ongoing", censored: true) { ...Tile }
+  recent: animes(limit: 30, order: aired_on, status: "released", censored: true) { ...Tile }
+ }
+ fragment Tile on Anime { ${ANIME_FIELDS} description }`);
+}
+
+export async function fetchAnimeScreenshots(ids){
+ if(!ids.length)return [];
+ const data=await fetchGraphQL("query($ids: String) { animes(ids: $ids, limit: 8) { id screenshots { originalUrl x332Url } } }",{ids:ids.join(",")});
+ return data.animes||[];
+}
+
+export async function fetchAnimeCredits(id){
+ const data=await fetchGraphQL(`query($ids: String) {
+  animes(ids: $ids, limit: 1) {
+   malId studios { name }
+   personRoles { rolesRu rolesEn person { id name russian poster { mainUrl } } }
+   chronology { ${ANIME_FIELDS} }
+  }
+ }`,{ids:String(id)});
+ return data.animes?.[0]||null;
+}
+
+export async function fetchPersonAnime(id){
+ const numeric=Number(id);
+ if(!Number.isInteger(numeric)||numeric<=0)return [];
+ const person=await fetchCatalogJSON(API_ROOT+"/people/"+numeric,{signal:AbortSignal.timeout(8000)});
+ return (person.works||[]).map(work=>work.anime).filter(Boolean);
 }
 
 export async function fetchAnimeById(id,{signal,force=false}={}){

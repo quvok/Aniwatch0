@@ -1,5 +1,5 @@
 // Home composition: clear editorial shelves without promotional filler.
-export function renderHomePage({app,featured,continueCards,popularCards=[],recommendedCards=[],ongoingCards=[],recentCards,row}){
+export function renderHomePage({app,featured,continueCards,popularCards=[],ongoingCards=[],recentCards,row}){
  const continueShelf=row("Продолжить просмотр",continueCards.length?continueCards:['<p class="m">Начни смотреть аниме — здесь появится твой прогресс.</p>'],"Вернись к серии, на которой остановился","continue-shelf");
  const popularShelf=popularCards.length?row("Популярное",popularCards,"Популярные тайтлы"): "";
  const ongoingShelf=ongoingCards.length?row("Сейчас выходит",ongoingCards,"Аниме с продолжающимся выходом серий"): "";

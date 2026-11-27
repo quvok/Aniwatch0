@@ -1,7 +1,6 @@
-import { query as xgq } from "./api/anilist.js";
 import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
 import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar, fetchHomeAnime, fetchAnimeCredits, fetchPersonAnime } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState, normalizeState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, saveEpisodeProgressBatch, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow, saveWatchTimeSessions, loadWatchTimeStats } from "./core/supabase.js";
@@ -22,7 +21,6 @@ import { createRoomCode, connectRoom, sendRoomEvent, disconnectRoom } from "./co
 import { searchProfiles, loadSocialHub, sendFriendRequest, respondFriendRequest, removeFriend, sendWatchInvite, respondWatchInvite, subscribeSocialUpdates } from "./core/friends.js";
 import { fetchLibrary, mergeImportedLibrary } from "./core/library-import.js";
 import { mountStreamPlayer } from "./core/streaming-player.js";
-import { fetchAniLibriaHomeCollections } from "./api/anilibria.js";
 import { searchKodikAnime } from "./api/kodik.js";
 import { fetchShikimoriCalendar } from "./api/shikimori.js";
 import { renderCalendarPage } from "./pages/calendar.js";
@@ -47,21 +45,7 @@ renderSiteHeader();
 trackPageView();
 var collectionSearchTimer=null,collectionSearchRequest=0,myListCloudAt=0,myListCloudPromise=null,myListRenderRequest=0,profileWatchStatsCache=null;
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
-// Тайтлы: [название, жанры, год, рейтинг, серий, статус, описание, цвет1, цвет2]
-var D=[
-["Тени Этерии","Фэнтези,Экшен",2026,8.9,12,"Онгоинг","Юный маг теряет память и попадает в мир, где магия — валюта.","#7c3aed","#db2777"],
-["Хроники безмолвного моря","Приключения,Драма",2025,8.4,24,"Завершён","Команда исследователей ищет город, ушедший под воду.","#0891b2","#1e3a8a"],
-["Последний маг","Экшен,Фэнтези",2026,8.7,12,"Онгоинг","Последний хранитель древней магии против империи.","#dc2626","#7c2d12"],
-["Весна в Сакурагаве","Романтика,Драма",2024,8.1,13,"Завершён","Тихий городок, старая школа и одно неотправленное письмо.","#f472b6","#fb923c"],
-["Кибер-ронин","Sci-Fi,Экшен",2026,8.6,12,"Онгоинг","Бывший самурай-киборг ищет создателя в неоновом мегаполисе.","#06b6d4","#6d28d9"],
-["Школа звёздных ключей","Комедия,Sci-Fi",2025,7.8,12,"Завершён","Обычная школа оказывается порталом между галактиками.","#eab308","#ea580c"],
-["Тихий детектив","Детектив,Драма",2023,8.8,24,"Завершён","Молчаливый сыщик раскрывает дела, которых не существует.","#475569","#0f172a"],
-["Император пустоты","Фэнтези,Приключения",2025,9.0,25,"Завершён","Мальчик из трущоб наследует трон разрушенного мира.","#059669","#064e3b"],
-["Девочка и дракон","Приключения,Комедия",2024,7.9,12,"Завершён","Дракон-пенсионер и юная путешественница меняют карту.","#f97316","#be123c"],
-["Нулевой отряд","Экшен,Sci-Fi",2023,8.2,24,"Завершён","Отряд смертников защищает последнюю станцию.","#64748b","#7f1d1d"],
-["Лунная кофейня","Романтика,Комедия",2026,8.0,12,"Онгоинг","Кофейня открывается только в полнолуние.","#a78bfa","#312e81"],
-["Осколки миров","Фэнтези,Sci-Fi",2025,8.5,13,"Завершён","Разбитое зеркало открывает двери в соседние реальности.","#2dd4bf","#4c1d95"]
-].map((a,i)=>({id:i,n:a[0],g:a[1].split(","),y:a[2],r:a[3],e:a[4],s:a[5],d:a[6],c:[a[7],a[8]]}));
+var D=[];
 var M={},H=[],AUTH_USER=null,AUTH_BUSY=false,socialChannelCleanup=null,socialLoadRequest=0,socialRefreshPending=false;
 var $=s=>document.querySelector(s),app=$("#app"),S=loadLocalState(),F={g:"",s:"r",q:"",status:""},T=[],P=null,AP=false,V={};
 function sv(){saveLocalState(S,M);scheduleCloudSync(S);if(activePage()==="home")refreshContinueShelf()}
@@ -97,13 +81,16 @@ function shikiImageUrl(path){
 var bg=d=>{var image=shikiImageUrl(d.img);return(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var bn=d=>{var image=shikiImageUrl(d.ban);return "linear-gradient(0deg,#000 5%,rgba(0,0,0,.12) 65%,rgba(0,0,0,.08)), "+(image?"url('"+image+"') center/cover no-repeat,":"")+gr(d)};
 var fm=t=>{t=Math.floor(t);return(t/60|0)+":"+("0"+t%60).slice(-2)};
-var srt=k=>D.slice().sort((a,b)=>k=="n"?a.n.localeCompare(b.n):b[k]-a[k]);
 function card(d,pr,href,badge){return renderAnimeCard(d,{state:S,background:bg,progress:pr,href:href||titleUrl(d.id),badge:badge,imageUrl:optimizedPoster})}
 function optimizedPoster(path){if(!path)return "";var value=shikiImageUrl(path);if(document.documentElement.dataset.dataSaver!=="true")return value;return value.replace(/\/cover\/large\//,"/cover/medium/").replace(/\/original\//,"/preview/")}
 var row=(t,a,sub,id)=>'<section class="shelf"'+(id?' id="'+id+'"':"")+'><div class="shelf-head"><div><h2>'+t+'</h2>'+(sub?'<p class="shelf-sub">'+sub+'</p>':"")+'</div></div><div class="row">'+a.join("")+'</div></section>';
 var epLabel=d=>d.e>0?d.e+" серий":d.ae>0?"Вышло "+d.ae+" серий":"Количество серий уточняется";
 var epTotal=d=>Math.max(Number(d&&d.e)||0,Number(d&&d.kodikEpisodeCount)||0,Number(d&&d.ae)||0);
-var availableEpCount=d=>{if(Number(d&&d.kodikAvailableEpisodes)>0)return Number(d.kodikAvailableEpisodes);var id=Number(d&&d.id),mal=Number(d&&d.mal),records=[S.aniEpisodes&&S.aniEpisodes[id],S.aniZipEpisodes&&S.aniZipEpisodes[id],S.kitsuEpisodes&&S.kitsuEpisodes[mal]].filter(x=>x&&Number.isFinite(Number(x.available))),counts=records.map(x=>Math.max(0,Number(x.available)));if(Number(d&&d.ae)>0)counts.push(Number(d.ae));if(counts.length)return Math.max(...counts);return ["Завершён","FINISHED"].includes(d&&d.s)?epTotal(d):null};
+var availableEpCount=d=>{
+ if(Number(d?.kodikAvailableEpisodes)>0)return Number(d.kodikAvailableEpisodes);
+ if(["Завершён","FINISHED"].includes(d?.s))return epTotal(d);
+ return Number(d?.ae)>0?Number(d.ae):null;
+};
 var watchedFor=id=>Array.isArray(S.watchedEpisodes&&S.watchedEpisodes[id])?S.watchedEpisodes[id].map(Number):[];
 function nextUnwatchedEpisode(anime,afterEpisode){var available=anime?availableEpCount(anime):null;if(available===null||available<=0)return null;var watched=new Set(watchedFor(anime.id));for(var episode=Math.max(1,Number(afterEpisode)||0)+1;episode<=available;episode++)if(!watched.has(episode))return episode;return null;}
 var eps=(d,cur,inline=false)=>{var total=epTotal(d);if(!total)return '<p class="m">Количество серий пока неизвестно.</p>';var watched=watchedFor(d.id),available=availableEpCount(d);return Array.from({length:total},(_,k)=>{var n=k+1,done=watched.includes(n),upcoming=available!==null&&n>available;return '<span class="episode-item'+(done?' is-watched':'')+(upcoming?' is-upcoming':'')+'">'+(upcoming?'<span class="episode-number" aria-label="Серия '+n+' ещё не вышла">'+n+'</span><small class="episode-upcoming-label">Скоро</small>':'<a href="'+watchUrl(d.id,n)+'" class="'+(n==cur?'on':'')+'" aria-label="Открыть отдельную страницу просмотра, серия '+n+'">'+n+'</a>')+(inline?'<button type="button" class="episode-inline-play" data-a="inline-watch" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':'Смотреть серию '+n+' здесь')+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>▶</button>':'')+'<button type="button" class="episode-watch-toggle'+(done?' is-watched':'')+'" data-a="episode-toggle" data-i="'+d.id+'" data-v="'+n+'" aria-label="'+(upcoming?'Серия ещё не вышла':done?'Убрать отметку о просмотре серии ':'Отметить серию как просмотренную ')+n+'" aria-pressed="'+done+'" '+(upcoming?'disabled title="Серия ещё не вышла"':'')+'>'+(upcoming?'–':done?'✓':'○')+'</button></span>'}).join('')};
@@ -177,10 +164,9 @@ function shortDesc(v,n){var s=cleanDesc(v);if(s.length<=n)return s;var cut=s.sli
 var featuredIndex=0;
 function featured(){
  var d=H[featuredIndex%H.length]||D[0];
- ru(d);
- var rd=shortDesc((S.ru&&S.ru[d.id]&&S.ru[d.id].d)||d.d,190);
+ var rd=shortDesc(d.d,190);
  var rating=d.r?Number(d.r).toFixed(1):"—";
- var banner=shikiImageUrl(d.ban);
+ var banner=shikiImageUrl(d.ban)||shikiImageUrl(d.img);
  return '<section class="hero hero-editorial aurora-hero" style="--hero-poster:'+(banner?"url(\'"+banner+"\')":"none")+';background:'+bn(d)+'">'+
   '<div class="hero-copy">'+
    '<div class="eyebrow"><span class="live-dot"></span> В центре внимания</div>'+
@@ -234,16 +220,14 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshClo
 setInterval(()=>{if(!document.hidden)refreshCloudProgress(false)},30000);
 
 V.home=()=>{
- if(!D.length&&!(homeCollections&&homeCollections.popular&&homeCollections.popular.length)){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
- if(!D.length&&homeCollections&&homeCollections.popular.length)D=homeCollections.popular;
+ if(!D.length){app.innerHTML='<section class="offline-state"><div class="eyebrow">КАТАЛОГ</div><h1>Не удалось загрузить каталог</h1><p>Проверь подключение к интернету и попробуй ещё раз. Мы не будем показывать выдуманные карточки вместо реальных данных.</p><button class="btn" type="button" data-a="reload">Повторить загрузку</button></section>';return}
  featuredIndex=0;
  var cont=continueWatchingCards();
- var source=homeCollections||{popular:D,recommended:[],ongoing:D.filter(d=>/Онгоинг|RELEASING/i.test(d.s||"")),recent:[]};
+ var source=homeCollections;
  var popular=source.popular.map(d=>{M[d.id]=d;return card(d)});
- var recommended=source.recommended.map(d=>{M[d.id]=d;return card(d)});
  var ongoing=source.ongoing.map(d=>{M[d.id]=d;return card(d)});
  var recent=source.recent.map(d=>{M[d.id]=d;return card(d)});
- renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,recommendedCards:recommended,ongoingCards:ongoing,recentCards:recent,row});
+ renderHomePage({app,featured:featured(),continueCards:cont,popularCards:popular,ongoingCards:ongoing,recentCards:recent,row});
  var genreSelect=$("#tonight-genre");if(genreSelect){genreSelect.innerHTML='<option value="">Загружаем жанры…</option>';fetchShikimoriGenreList().then(list=>{if(activePage()!=="home"||!$("#tonight-genre"))return;var genres=(list||[]).filter(g=>g&&g.kind==="genre"&&String(g.entry_type||"").toLowerCase()==="anime").map(g=>({id:String(g.id||""),name:String(g.russian||g.name||"")})).filter(g=>g.id&&g.name).sort((a,b)=>a.name.localeCompare(b.name,"ru"));$("#tonight-genre").innerHTML='<option value="">Любой</option>'+genres.map(g=>'<option value="'+esc(g.id)+'">'+esc(g.name)+'</option>').join("")}).catch(error=>{console.warn("[AniWatch] Tonight picker genres unavailable:",error);if($("#tonight-genre"))$("#tonight-genre").innerHTML='<option value="">Любой</option>'})}
  bannerManager.loadFeatured(H).catch(error=>console.warn("[AniWatch] Featured banners could not be loaded:",error));
  loadHomeRecommendations();
@@ -266,7 +250,7 @@ function recommendationLibrary(){
 function recommendationExcludedIds(){
  var excluded=new Set([].concat(Object.keys(S.rate||{}),Object.keys(S.watchlist||{}),Object.keys(S.hist||{}),Object.keys(S.watchedEpisodes||{}),Object.keys(S.recommendationDismissed||{}),S.fav||[]).map(Number).filter(id=>Number.isFinite(id)&&id>0));
  recommendationLibrary().forEach(item=>{if(item.mal>0)excluded.add("mal:"+item.mal)});
- ["recent","ongoing","popular","recommended"].forEach(key=>(homeCollections&&homeCollections[key]||[]).forEach(item=>{if(Number(item.id)>0)excluded.add(Number(item.id));if(Number(item.mal)>0)excluded.add("mal:"+Number(item.mal));if(Number(item.shikiId)>0)excluded.add(1000000000+Number(item.shikiId))}));
+ ["recent","ongoing","popular"].forEach(key=>(homeCollections&&homeCollections[key]||[]).forEach(item=>{if(Number(item.id)>0)excluded.add(Number(item.id));if(Number(item.mal)>0)excluded.add("mal:"+Number(item.mal));if(Number(item.shikiId)>0)excluded.add(1000000000+Number(item.shikiId))}));
  return excluded;
 }
 function recommendationSeeds(library){
@@ -563,7 +547,7 @@ V.title=p=>{
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
   applyAnimeTheme(d,d.ban||d.img);
  setupEpisodeNavigator(d);
- loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);ru(d);loadRelated(d)
+ loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);loadRelated(d)
 };
 
 
@@ -960,248 +944,75 @@ async function handleAuthLogout(){
  }catch(error){console.error("[AniWatch] Sign out failed:",error);toast("Не удалось выйти из аккаунта")}
 }
 
-// ---- Реальные данные: AniList (постеры, баннеры, описания) + Shikimori (русские названия и описания) ----
-var Q="query{Page(perPage:30){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){id idMal title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}bannerImage}}}";
-var GR={Action:"Экшен",Adventure:"Приключения",Comedy:"Комедия",Drama:"Драма",Fantasy:"Фэнтези",Romance:"Романтика",Mystery:"Детектив","Slice of Life":"Повседневность",Supernatural:"Сверхъестественное",Sports:"Спорт",Horror:"Ужасы",Mecha:"Меха",Music:"Музыка",Psychological:"Психология",Thriller:"Триллер"};
-var ST={RELEASING:"Онгоинг",FINISHED:"Завершён",NOT_YET_RELEASED:"Скоро",CANCELLED:"Отменён",HIATUS:"Пауза"};
-function mp(m){
- var title=m.title||{},genres=Array.isArray(m.genres)&&m.genres.length?m.genres:["Аниме"];
- var primary=title.english||title.romaji||title.native||"Без названия";
- var alternate=title.romaji&&title.romaji!==primary?title.romaji:(title.native&&title.native!==primary?title.native:"");
- return{id:m.id,aniId:m.id,source:"anilist",mal:m.idMal||null,n:esc(primary),o:esc(alternate),g:genres.map(g=>GR[g]||g),y:m.seasonYear||(m.startDate&&m.startDate.year)||0,r:m.averageScore?m.averageScore/10:0,e:Number(m.episodes)||0,s:ST[m.status]||"",d:"",c:[m.coverImage&&m.coverImage.color||"#7c3aed","#0f0f1a"],img:"",ban:typeof m.bannerImage==="string"?m.bannerImage:"",kind:String(m.format||"").toLowerCase()}
-}
-
-// AniList is the source of truth for catalog metadata and navigation IDs.
-// Do not treat AniList MAL IDs as Shikimori IDs. They are different ID namespaces.
-// AniList remains the source of truth; episode counts are enriched through MAL-aware services.
-async function enrichShikimori(list){return list||[];}
-
-function idx(){M={};D.forEach(d=>M[d.id]=d);var c={};D.forEach(d=>d.g.forEach(g=>c[g]=(c[g]||0)+1));GN=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,10);H=D.filter(d=>d.ban).slice(0,8);if(H.length<8){var featuredIds=new Set(H.map(d=>d.id));H=H.concat(D.filter(d=>!featuredIds.has(d.id)).slice(0,8-H.length))}}
-var aniCountPending={};
-async function anilibriaCount(d){
- if(!d)return;
- // Home releases already carry their AniLibria release ID and often episode total.
- // Avoid a redundant /search/releases title lookup when we already know the release.
- if(Number(d.e)>0){refreshEpCount(d);return}
- var cache=S.aniEpisodes=S.aniEpisodes||{},saved=cache[d.id];
- if(saved&&Date.now()-saved.at<6*36e5){d.e=Number(saved.total)||d.e;d.ae=Number(saved.available)||0;refreshEpCount(d);return}
- if(aniCountPending[d.id])return aniCountPending[d.id];
- aniCountPending[d.id]=(async()=>{
-  var releaseId=Number(d.aniLibriaReleaseId)||0;
-  if(!releaseId){
-   var names=[un(d.n),un(d.o)].filter(Boolean),match=null;
-   for(var q of names){
-    try{
-     var sr=await fetch("https://api.anilibria.app/api/v1/app/search/releases?query="+encodeURIComponent(q));
-     if(!sr.ok)continue;
-     var list=await sr.json();if(!Array.isArray(list))list=list.list||list.data||[];
-     var wanted=names.map(normTitle).filter(Boolean);
-     match=list.find(x=>{var n=x.name||{};return [n.main,n.english,n.alternative,x.name_ru,x.name_en].some(v=>wanted.includes(normTitle(v)))});
-     if(match)break;
-    }catch(e){}
-   }
-   releaseId=Number(match&&match.id)||0;
-  }
-  if(!releaseId)return;
-  try{
-   var rr=await fetch("https://api.anilibria.app/api/v1/anime/releases/"+encodeURIComponent(releaseId));
-   if(!rr.ok)return;
-   var data=await rr.json(),total=Number(data.episodes_count||data.episodes_total||(data.type&&data.type.episodes)||0);
-   var available=Array.isArray(data.episodes)?data.episodes.length:0;
-   if(!total&&data.episodes&&typeof data.episodes==="object")available=Object.keys(data.episodes).length;
-   if(!total&&!available)return;
-   cache[d.id]={total:total,available:available,at:Date.now()};sv();
-   if(total)d.e=total;d.ae=available;refreshEpCount(d);
-  }catch(e){}
- })();
- await aniCountPending[d.id];delete aniCountPending[d.id];
-}
-var aniZipPending={};
-async function aniZipCount(d){
- if(!Number(d.id))return 0;
- var cache=S.aniZipEpisodes=S.aniZipEpisodes||{},saved=cache[d.id];
- if(saved&&Date.now()-saved.at<6*36e5){if(!d.e&&saved.total>0)d.e=saved.total;if(!d.ae&&saved.available>0)d.ae=saved.available;refreshEpCount(d);return saved.total||saved.available}
- if(aniZipPending[d.id])return aniZipPending[d.id];
- aniZipPending[d.id]=(async()=>{
-  try{
-   var res=await fetch("https://api.ani.zip/v1/episodes?anilist_id="+encodeURIComponent(d.id));
-   if(!res.ok)return 0;
-   var data=await res.json(),total=Number(data.episodeCount)||0,episodes=data.episodes||{},available=Object.keys(episodes).filter(k=>/^\d+$/.test(k)).length;
-   if(!total&&!available)return 0;
-   cache[d.id]={total:total,available:available,at:Date.now()};sv();
-   if(total&&!d.e)d.e=total;
-   if(!total&&available&&!d.ae)d.ae=available;
-   refreshEpCount(d);return total||available;
-  }catch(e){return 0}
- })();
- var result=await aniZipPending[d.id];delete aniZipPending[d.id];return result;
-}
-var kitsuPending={};
-async function kitsuCount(d){
- if(!d.mal)return 0;
- var cache=S.kitsuEpisodes=S.kitsuEpisodes||{},saved=cache[d.mal];
- if(saved&&Date.now()-saved.at<6*36e5){if(!d.e&&saved.total>0)d.e=saved.total;if(!d.ae&&saved.available>0)d.ae=saved.available;refreshEpCount(d);return saved.total||saved.available}
- if(kitsuPending[d.mal])return kitsuPending[d.mal];
- kitsuPending[d.mal]=(async()=>{
-  try{
-   var map=await fetch("https://api.ani.zip/mappings?mal_id="+encodeURIComponent(d.mal));
-   if(!map.ok)return 0;
-   var mj=await map.json(),kid=mj.kitsu_id||(mj.mappings&&mj.mappings.kitsu_id);
-   if(!kid)return 0;
-   var [animeRes,epRes]=await Promise.all([
-    fetch("https://kitsu.io/api/edge/anime/"+encodeURIComponent(kid)),
-    fetch("https://kitsu.io/api/edge/episodes?filter%5BmediaType%5D=Anime&filter%5BmediaId%5D="+encodeURIComponent(kid)+"&page%5Blimit%5D=1")
-   ]);
-   var total=0,available=0;
-   if(animeRes.ok){var ad=await animeRes.json();total=Number(ad.data&&ad.data.attributes&&ad.data.attributes.episodeCount)||0}
-   if(epRes.ok){var ed=await epRes.json();available=Number(ed.meta&&ed.meta.count)||0}
-   if(!total&&!available)return 0;
-   cache[d.mal]={total:total,available:available,at:Date.now()};sv();
-   if(total&&!d.e)d.e=total;
-   if(!total&&available&&!d.ae)d.ae=available;
-   refreshEpCount(d);return total||available;
-  }catch(e){return 0}
- })();
- var result=await kitsuPending[d.mal];delete kitsuPending[d.mal];return result;
-}
-var jikanPending={};
-async function jikanCount(d,force){
- if(!d.mal)return;
- var cache=S.jikanEpisodes=S.jikanEpisodes||{},saved=cache[d.mal];
- if(saved&&Date.now()-saved.at<30*864e5){
-  if(!d.e&&saved.total>0)d.e=saved.total;
-  if(force&&d.mal===21)console.info("[AniWatch] One Piece: AniList/Shikimori =",d.e||0,"; Jikan =",saved.total);
-  refreshEpCount(d);return saved.total;
- }
- if(jikanPending[d.mal])return jikanPending[d.mal];
- jikanPending[d.mal]=(async()=>{
-  try{
-   var res=await fetch("https://api.jikan.moe/v4/anime/"+encodeURIComponent(d.mal));
-   if(!res.ok)return 0;
-   var json=await res.json(),total=Number(json.data&&json.data.episodes)||0;
-   if(!total)return 0;
-   cache[d.mal]={total:total,at:Date.now()};sv();
-   if(!d.e)d.e=total;
-   if(force&&d.mal===21)console.info("[AniWatch] One Piece: AniList/Shikimori =",d.e||0,"; Jikan =",total);
-   refreshEpCount(d);return total;
-  }catch(e){return 0}
- })();
- var result=await jikanPending[d.mal];delete jikanPending[d.mal];return result;
-}
 var relatedPending={};
 var relationNames={SEQUEL:"Продолжение",PREQUEL:"Приквел",SIDE_STORY:"Побочная история",PARENT_STORY:"Основная история",ALTERNATIVE:"Альтернативная версия",ALTERNATIVE_SETTING:"Альтернативный сюжет",SPIN_OFF:"Спин-офф",SUMMARY:"Пересказ",FULL_STORY:"Полная версия",CHARACTER:"Связанные персонажи",OTHER:"Связанный тайтл",SOURCE:"Первоисточник",COMPILATION:"Сборник"};
-var relatedFields="id idMal type format title{romaji english}genres seasonYear startDate{year}averageScore episodes statuscoverImage{extraLarge color} bannerImage";
 function relatedCards(list){return list.map(x=>card(x)).join("")}
-async function translateRelated(list){return enrichShikimori(list)}
 async function loadRelated(d){
- var root=$("#related-anime");if(!root)return;
+ if(!$("#related-anime"))return;
+ if(!d.shikiId){renderRelated(d,{});return}
  var cached=S.relatedAnime=S.relatedAnime||{},saved=cached[d.id];
- if(saved&&saved.v===15&&Date.now()-saved.at<(Array.isArray(saved.similarAnime)&&saved.similarAnime.length?7*864e5:30*60*1000)){renderRelated(d,saved);return}
+ if(saved?.v===16&&Date.now()-saved.at<(saved.similarAnime?.length?7*864e5:30*60*1000)){
+  renderRelated(d,saved);
+  return;
+ }
  if(relatedPending[d.id])return relatedPending[d.id];
  relatedPending[d.id]=(async()=>{
-  var relatedFallbackLimited=false;
-  try{
-   var relations=[],creatorName="",creatorWorks=[],studioNames=[],staffPeople=[],similarAnime=[],franchiseRelated=[];
-    // Shikimori is the primary source for franchise relations; AniList is fallback only.
-    var shikiId=Number(d.shikiId)||((Number(d.id)>1000000000)?Number(d.id)-1000000000:0);
-    if(!(shikiId>0)&&Number(d.mal)>0){
-     try{var shikiMatches=await fetchAnimeByIds([Number(d.mal)]);shikiId=Number(shikiMatches&&shikiMatches[0]&&shikiMatches[0].id)||0}
-     catch(resolveError){relatedFallbackLimited=true;console.warn("[AniWatch] Could not resolve Shikimori ID:",resolveError)}
-    }
-    if(shikiId>0){
-     var rawRelated=[],cooldownKey="aw-related-cooldown-"+shikiId,cooldownUntil=0;
-     try{cooldownUntil=Number(localStorage.getItem(cooldownKey))||0}catch(e){}
-     if(cooldownUntil>Date.now()){
-      relatedFallbackLimited=true;
-      console.info("[AniWatch] Shikimori related lookup paused after rate limit");
-     }else{
-      try{rawRelated=await fetchAnimeRelated(shikiId)}
-      catch(relatedError){
-       relatedFallbackLimited=true;
-       if(/HTTP 429/.test(String(relatedError&&relatedError.message||relatedError))){
-        try{localStorage.setItem(cooldownKey,String(Date.now()+10*60*1000))}catch(e){}
-        console.warn("[AniWatch] Shikimori rate limited related anime; AniList fallback will be used");
-       }else console.warn("[AniWatch] Shikimori primary relations unavailable; AniList fallback will be used:",relatedError);
-      }
-     }
-     var convertShiki=function(a){
-      if(!a||!Number(a.id))return null;
-      var id=1000000000+Number(a.id),genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
-      var status=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
-      return {id:id,shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:status,d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")};
-     };
-     var shikiSeen={};
-     relations=(rawRelated||[]).map(x=>{var anime=convertShiki(x&&x.anime);if(!anime)return null;return {type:String(x.relation||"OTHER").toUpperCase().replace(/-/g,"_"),anime:anime}}).filter(x=>x&&!shikiSeen[x.anime.id]&&(shikiSeen[x.anime.id]=true));
-     var shikiRelatedList=relations.map(x=>x.anime);
-     shikiRelatedList.forEach(x=>{M[x.id]=x});
-     if(shikiRelatedList.length)await xshikiPosters(shikiRelatedList);
-    }else{
-     relatedFallbackLimited=true;
-     console.info("[AniWatch] No Shikimori ID available; AniList relations will be used");
-    }
-    // Fetch Shikimori similar titles immediately and let it run alongside AniList enrichment.
-    var similarFetchFailed=false;
-    var similarTask=(async()=>{
-     if(!(shikiId>0)){similarFetchFailed=true;return}
-     try{
-      var similarRaw=await fetchAnimeSimilar(shikiId),similarSeen={};
-      similarAnime=(similarRaw||[]).map(item=>{var a=item&&item.anime?item.anime:item;if(!a||!Number(a.id)||similarSeen[a.id])return null;similarSeen[a.id]=true;var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",mal:Number(a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"",d:cleanDesc(a.description||""),c:["#7c3aed","#0f0f1a"],img:"",ban:"",kind:String(a.kind||"")}}).filter(Boolean).slice(0,12);
-     }catch(similarError){similarFetchFailed=true;console.warn("[AniWatch] Similar anime unavailable:",similarError)}
-    })();
-    try{
-    var query,vars;
-    if(d.source==="shikimori"){
-     if(!(Number(d.mal)>0))throw new Error("Не удалось найти данные для этого аниме");
-     query="query($mal:Int){Media(idMal:$mal,type:ANIME){relations{edges{relationType node{"+relatedFields+" relations{edges{relationType node{"+relatedFields+"}}}}}} studios(isMain:true){nodes{name}}}}";
-     vars={mal:Number(d.mal)};
-    }else{
-     query="query($id:Int){Media(id:$id,type:ANIME){relations{edges{relationType node{"+relatedFields+" relations{edges{relationType node{"+relatedFields+"}}}}}} studios(isMain:true){nodes{name}}}}";
-     vars={id:Number(d.aniId||d.id)};
-    }
-    var payload=await xgq(query,vars),media=payload&&payload.Media;
-    if(!media)throw new Error("Не удалось получить данные об этом аниме");
-    studioNames=(media.studios&&media.studios.nodes||[]).map(studio=>studio&&studio.name).filter(Boolean);
-    var relSeen={},franchiseSeen={},franchiseRelated=[];
-    var directEdges=(media.relations&&media.relations.edges||[]).filter(e=>e.node&&e.node.type==="ANIME"&&e.node.format!=="MUSIC"&&e.relationType!=="CHARACTER"&&e.node.id!==(d.aniId||d.id));
-    if(!relations.length)relations=directEdges.map(e=>({type:e.relationType,anime:mp(e.node)})).filter(e=>{if(relSeen[e.anime.id])return false;relSeen[e.anime.id]=true;return true});
-    // One bounded second hop from the already-fetched relation nodes; no per-title API requests.
-    directEdges.forEach(edge=>{
-     var via=mp(edge.node);
-     (edge.node.relations&&edge.node.relations.edges||[]).forEach(nested=>{
-      var node=nested&&nested.node;
-      if(!node||node.type!=="ANIME"||node.format==="MUSIC"||node.id===(d.aniId||d.id)||relSeen[node.id]||franchiseSeen[node.id]||relations.some(r=>r.anime&&r.anime.mal&&Number(r.anime.mal)===Number(node.idMal)))return;
-      franchiseSeen[node.id]=true;
-      franchiseRelated.push({anime:mp(node),viaTitle:via.n,viaId:via.id,relation:String(nested.relationType||"OTHER")});
-     });
-    });
-    franchiseRelated=franchiseRelated.slice(0,24);
-    try{
-     var staffQuery,staffVars;
-     if(d.source==="shikimori"){staffQuery="query($mal:Int){Media(idMal:$mal,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={mal:Number(d.mal)}}
-     else{staffQuery="query($id:Int){Media(id:$id,type:ANIME){staff(sort:RELEVANCE,perPage:10){edges{role node{id name{full} image{large} staffMedia(type:ANIME,sort:POPULARITY_DESC,perPage:25){nodes{"+relatedFields+"}}}}}}}";staffVars={id:Number(d.aniId||d.id)}}
-     var staffPayload=await xgq(staffQuery,staffVars),staffMedia=staffPayload&&staffPayload.Media;
-     var staffEdges=(staffMedia&&staffMedia.staff&&staffMedia.staff.edges||[]).filter(e=>e.node&&e.node.name&&e.node.name.full);
-     staffPeople=staffEdges.slice(0,8).map(e=>({name:e.node.name.full,role:e.role||"Участник команды",image:e.node.image&&e.node.image.large||""}));
-     var creatorEdges=staffEdges.filter(e=>/original creator|原作|原案/i.test(e.role||""));
-     creatorName=creatorEdges.length&&creatorEdges[0].node.name?creatorEdges[0].node.name.full:"";
-     var creatorSeen={};
-     creatorEdges.forEach(e=>(e.node.staffMedia&&e.node.staffMedia.nodes||[]).forEach(m=>{if(m&&m.type==="ANIME"&&m.format!=="MUSIC"&&m.id!==(d.aniId||d.id)&&!relSeen[m.id]&&!creatorSeen[m.id]){creatorSeen[m.id]=true;creatorWorks.push(mp(m))}}));
-     creatorWorks=creatorWorks.slice(0,12);
-    }catch(staffError){console.warn("[AniWatch] Creator works unavailable:",staffError)}
-   }catch(anilistError){
-    console.warn("[AniWatch] AniList fallback/enrichment unavailable; keeping Shikimori relations:",anilistError);
-   }
-   await similarTask;
-   var all=relations.map(x=>x.anime).concat((franchiseRelated||[]).map(x=>x.anime),creatorWorks,similarAnime);await translateRelated(all);
-   var data={v:15,relations:relations,franchiseRelated:franchiseRelated||[],similarAnime:similarAnime,creatorName:creatorName,creatorWorks:creatorWorks,studioNames:studioNames,staffPeople:staffPeople,at:Date.now()};
-   // Positive similar results may live for a week; an empty successful response is retried after 30 minutes.
-   if(!relatedFallbackLimited&&!similarFetchFailed){cached[d.id]=data;sv()}
-   renderRelated(d,data);
-  }catch(e){
-   console.warn("[AniWatch] Related anime:",e);
-   var el=$("#related-anime");if(el&&isRoute("title",d.id))el.innerHTML='<section class="shelf"><h2>Связанные релизы</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p><p class="related-state"><small>Причина: '+esc(String(e&&e.message||e).slice(0,160))+'</small></p></section>';
-  }finally{delete relatedPending[d.id]}
- })();
+  var [direct,similar,credits]=await Promise.allSettled([
+   fetchAnimeRelated(d.shikiId),fetchAnimeSimilar(d.shikiId),fetchAnimeCredits(d.shikiId)
+  ]);
+  if([direct,similar,credits].every(result=>result.status==="rejected")){
+   var host=$("#related-anime");
+   if(host&&isRoute("title",d.id))host.innerHTML='<section class="shelf"><h2>Связанные релизы</h2><p class="related-state">Не удалось загрузить связи. Попробуйте обновить страницу.</p></section>';
+   return;
+  }
+  var rawCredits=credits.value;
+  var seen=new Set([Number(d.shikiId)]);
+  var relations=(direct.value||[]).flatMap(item=>{
+   var anime=item?.anime,id=Number(anime?.id);
+   if(!id||seen.has(id))return [];
+   seen.add(id);
+   return [{type:String(item.relation||"OTHER").toUpperCase().replaceAll("-","_").replaceAll(" ","_"),anime:shikiToItem(anime)}];
+  });
+  var franchiseRelated=(rawCredits?.chronology||[]).filter(anime=>{
+   var id=Number(anime.id);
+   if(!id||seen.has(id)||anime.kind==="music")return false;
+   seen.add(id);
+   return true;
+  }).slice(0,24).map(anime=>({anime:shikiToItem(anime),relation:"OTHER"}));
+  var similarSeen=new Set([Number(d.shikiId)]);
+  var similarAnime=(similar.value||[]).map(item=>item?.anime||item).filter(anime=>{
+   var id=Number(anime?.id);
+   if(!id||similarSeen.has(id))return false;
+   similarSeen.add(id);
+   return true;
+  }).slice(0,12).map(shikiToItem);
+  var roleEntries=(rawCredits?.personRoles||[]).filter(entry=>entry.person?.name);
+  var author=roleEntries.find(entry=>entry.rolesEn?.some(role=>/original creator/i.test(role))||entry.rolesRu?.includes("Автор оригинала"));
+  var staffPeople=roleEntries.slice(0,8).map(entry=>({
+   name:entry.person.russian||entry.person.name,
+   role:(entry.rolesRu?.length?entry.rolesRu:entry.rolesEn||[]).join(", "),
+   image:shikiImageUrl(entry.person.poster?.mainUrl)
+  }));
+  var creatorWorks=[];
+  if(author){
+   try{
+    creatorWorks=(await fetchPersonAnime(author.person.id)).filter(anime=>{
+     var id=Number(anime.id);
+     if(!id||seen.has(id)||anime.kind==="music")return false;
+     seen.add(id);
+     return true;
+    }).slice(0,12).map(shikiToItem);
+   }catch(error){console.warn("[AniWatch] Shikimori creator works unavailable:",error)}
+  }
+  var data={v:16,relations,franchiseRelated,similarAnime,
+   creatorName:author?.person.russian||author?.person.name||"",
+   creatorWorks,studioNames:(rawCredits?.studios||[]).map(studio=>studio.name).filter(Boolean),staffPeople,at:Date.now()};
+  if([direct,similar,credits].every(result=>result.status==="fulfilled")){
+   cached[d.id]=data;
+   sv();
+  }
+  renderRelated(d,data);
+ })().catch(error=>console.warn("[AniWatch] Shikimori relations unavailable:",error)).finally(()=>{delete relatedPending[d.id]});
  return relatedPending[d.id];
 }
 function renderRelated(d,data){
@@ -1233,204 +1044,88 @@ function renderRelated(d,data){
  root.innerHTML=orderHtml+franchiseSections+creatorHtml+similarHtml||'<section class="shelf related-shelf related-empty"><div class="shelf-head"><div><h2>Связанные релизы</h2><p class="shelf-sub">Продолжения, фильмы, дополнительные выпуски и похожие аниме</p></div></div><p class="related-state">Для этого тайтла пока не удалось найти подтверждённые связанные произведения. Это не означает, что продолжений или фильмов не существует — источник может не содержать этих связей.</p></section>';
  xshikiPosters(rel.map(x=>x.anime).concat(franchiseRelated.map(x=>x.anime),creatorWorks,similarAnime));
 }
-function refreshEpCount(d){
- var ef=$("#featured-count"),et=$("#title-count");
- if(ef&&ef.dataset.id==d.id)ef.textContent=epLabel(d);
- if(et&&et.dataset.id==d.id){et.textContent=epLabel(d);var el=$(".title-episodes .eps"),ec=$(".title-episodes .episode-count");if(el)el.innerHTML=eps(d,0,true);if(ec)ec.textContent=epTotal(d)>0?epTotal(d)+" серий":"Серии"}
-}
-async function ru(d){
- anilibriaCount(d);if(!d.mal)return;
- // Never request /animes/{MAL_ID} from Shikimori: that endpoint expects a Shikimori ID.
- // Keep AniList's title/description intact and enrich only episode counts using MAL-aware APIs.
- if(!d.e)await jikanCount(d,false);
- if(!d.e||!d.ae)await aniZipCount(d);
- if(!d.e||!d.ae||Number(d.mal)===21)await kitsuCount(d,false);
- refreshEpCount(d);
-}
+var homeCollections=null;
+var legacyItems=new Map();
 
-// Русские названия одним запросом к Shikimori (id там совпадают с MAL), кэш в localStorage
-async function rn(){await enrichShikimori(D)}
+function loadLegacyItems(){
+ try{
+  var cached=JSON.parse(localStorage.getItem("awc")||"null");
+  for(var item of (Array.isArray(cached?.a)?cached.a:[])){
+   if(Number(item.id)>0&&Number(item.id)<1000000000)legacyItems.set(Number(item.id),item);
+  }
+ }catch(error){}
+}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
- // Облачная сессия восстанавливается в фоне: она не должна блокировать первый экран.
+ loadLegacyItems();
+ hydrateStash();
+ initRouteFilters();
+ // Cloud sign-in and library restoration run independently of the first render.
  (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
- var c;try{c=JSON.parse(localStorage.getItem("awc")||"null")}catch(e){}
- if(!c||c.v!==2||!c.a||c.a.length>30||Date.now()-c.t>216e5){
-  try{var ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000),r=await fetch("https://graphql.anilist.co",{method:"POST",signal:ctl.signal,headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({query:Q})});clearTimeout(tm);var j=await r.json();c={v:2,t:Date.now(),a:j.data.Page.media.map(mp)};try{localStorage.setItem("awc",JSON.stringify(c))}catch(e){}}catch(e){}
- }
- if(c&&c.a&&c.a.length)D=c.a;else D=[];
- idx();hydrateStash();initRouteFilters();
- var enrichment=rn(),hydration=xhyd();
  await ensureRouteItem();
- if(activePage()==="home"){
-  try{await loadHomeCollections()}catch(e){console.warn("[AniWatch] Home collections unavailable:",e)}
+ var hydration=xhyd();
+ if(activePage()==="home"||activePage()==="together"){
+  await loadHomeCollections();
   draw();
-  Promise.allSettled([enrichment,hydration]).then(()=>{if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}});
- }else{await Promise.allSettled([enrichment,hydration]);draw()}
+  hydration.then(()=>{if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}});
+ }else{
+  await hydration;
+  draw();
+ }
 }
 
-// ---- v2: каталог по всей базе AniList и трейлеры ----
-var xMF="id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}bannerImage",
-homeCollections=null;
-function normalizeMatchTitle(value){
- return String(value||"").toLocaleLowerCase("ru").normalize("NFKC").replace(/[ё]/g,"е").replace(/[\\s\\p{P}\\p{S}]+/gu,"").trim();
-}
-function aniLibriaPosterUrl(release){
- var poster=release&&release.poster||{},optimized=poster.optimized||{};
- var candidates=[optimized.src,poster.src,optimized.preview,poster.preview,optimized.thumbnail,poster.thumbnail];
- for(var value of candidates){
-  if(typeof value!=="string"||!value.trim())continue;
-  try{return new URL(value.trim(),"https://anilibria.top").href}catch(e){}
- }
- return "";
-}
-function aniLibriaNames(release){
- var name=release&&release.name||{};
- return [name.main,name.english,...String(name.alternative||"").split(",")].map(value=>String(value||"").trim()).filter(Boolean);
-}
-function matchAniLibriaRelease(release,candidates){
- var names=new Set(aniLibriaNames(release).map(normalizeMatchTitle).filter(Boolean));
- if(!names.size)return null;
- var year=Number(release&&release.year)||0;
- var matches=(candidates||[]).filter(item=>{
-  var itemNames=[item&&item.russian,item&&item.name].map(normalizeMatchTitle).filter(Boolean);
-  if(!itemNames.some(name=>names.has(name)))return false;
-  var itemYear=Number(String(item&&item.aired_on||"").slice(0,4))||0;
-  // A one-year tolerance can map a sequel to the previous season when both share a Russian title.
-  if(year&&itemYear)return year===itemYear;
-  return true;
- });
- if(year)return matches[0]||null;
- // Without a release year, never guess between seasons sharing the same title.
- var unique=new Map(matches.filter(item=>Number(item&&item.id)>0).map(item=>[Number(item.id),item]));
- return unique.size===1?[...unique.values()][0]:null;
-}
 async function loadHomeCollections(){
- var source=null,cache=null;
- try{cache=JSON.parse(localStorage.getItem("aw-home-anilibria-shiki-v3")||"null")}catch(e){}
- if(cache&&cache.data&&Date.now()-Number(cache.at)<20*60*1000)source=cache.data;
+ var source,cached;
+ try{cached=JSON.parse(localStorage.getItem("aw-shiki-home")||"null")}catch(error){}
+ if(cached?.source&&Date.now()-cached.at<15*60*1000)source=cached.source;
  if(!source){
   try{
-   source=await fetchAniLibriaHomeCollections();
-   try{localStorage.setItem("aw-home-anilibria-shiki-v3",JSON.stringify({at:Date.now(),data:source}))}catch(e){}
+   source=await fetchHomeAnime();
+   if(![source.popular,source.ongoing,source.recent].some(list=>list?.length))throw new Error("Нет данных главной");
+   try{localStorage.setItem("aw-shiki-home",JSON.stringify({source,at:Date.now()}))}catch(error){}
   }catch(error){
-   console.warn("[AniWatch] AniLibria home source unavailable; using Shikimori fallback:",error);
-   source={popular:[],recommended:[],ongoing:[],recent:[]};
-  }
- }
- var lists=["recent","ongoing","popular","recommended"],releaseIds=new Set();
- lists.forEach(key=>(source[key]||[]).forEach(release=>{
-  var id=Number(release&&release.shikimori&&release.shikimori.id);
-  if(Number.isInteger(id)&&id>0)releaseIds.add(id);
- }));
- var shikiById=new Map();
- var idList=[...releaseIds];
- for(var i=0;i<idList.length;i+=50){
-  try{
-   var batch=await fetchAnimeByIds(idList.slice(i,i+50));
-   batch.forEach(item=>shikiById.set(Number(item.id),item));
-  }catch(error){console.warn("[AniWatch] Shikimori ID mapping batch failed:",error)}
- }
- var seenIds=new Set(),seenMalIds=new Set(),searchBudget=12;
- Object.keys(S.hist||{}).forEach(id=>{
-  var saved=M[id]||(S.shikiAnime&&S.shikiAnime[id]),numeric=Number(id);
-  var shikiId=Number(saved&&saved.shikiId)||(numeric>=1000000000?numeric-1000000000:0);
-  var mal=Number(saved&&saved.mal)||0;
-  if(shikiId>0)seenIds.add(shikiId);
-  if(mal>0)seenMalIds.add(mal);
- });
- async function resolveRelease(release){
-  var shikiId=Number(release&&release.shikimori&&release.shikimori.id);
-  var item=shikiId?shikiById.get(shikiId):null;
-  if(!item){
-   var names=aniLibriaNames(release);
-   for(var name of names){
-    if(searchBudget<=0)break;
-    if(normalizeMatchTitle(name).length<3)continue;
-    searchBudget--;
-    try{
-     var matches=await fetchCatalogPage({query:name,page:1,limit:20,order:"popularity"});
-     item=matchAniLibriaRelease(release,matches);
-     if(item)break;
-    }catch(error){console.warn("[AniWatch] Shikimori title mapping failed:",error)}
+   source=cached?.source;
+   if(!source){
+    var signal=AbortSignal.timeout(8000);
+    var [popular,ongoing,recent]=await Promise.allSettled([
+     fetchCatalogPage({limit:15,order:"popularity",signal}),
+     fetchCatalogPage({limit:24,order:"popularity",status:"ongoing",signal}),
+     fetchCatalogPage({limit:30,order:"aired_on",status:"released",signal})
+    ]);
+    source={popular:popular.value,ongoing:ongoing.value,recent:recent.value};
    }
   }
-  if(!item)return null;
-  var mapped=shikiToItem(item);
-  if(!mapped||!Number(mapped.shikiId)||seenIds.has(Number(mapped.shikiId))||(Number(mapped.mal)>0&&seenMalIds.has(Number(mapped.mal))))return null;
-  // Keep the AniLibria release ID and known episode total. The hero can use these
-  // directly instead of searching AniLibria by title again.
-  mapped.aniLibriaReleaseId=Number(release&&release.id)||0;
-  var releaseEpisodeTotal=Number(release&&release.episodes_total)||0;
-  if(releaseEpisodeTotal>0)mapped.e=releaseEpisodeTotal;
-  // AniLibria supplies the primary poster; retain Shikimori artwork as an on-error fallback.
-  var aniPoster=aniLibriaPosterUrl(release);
-  if(aniPoster){mapped.posterFallback=shikiImageUrl(mapped.img);mapped.img=aniPoster;}
-  seenIds.add(Number(mapped.shikiId));
-  if(Number(mapped.mal)>0)seenMalIds.add(Number(mapped.mal));
-  return mapped;
  }
- async function resolveShelf(key){
-  var output=[];
-  for(var release of (source[key]||[])){
-   if(output.length>=15)break;
-   var mapped=await resolveRelease(release);
-   if(mapped)output.push(mapped);
+ var seen=new Set();
+ homeCollections={};
+ for(var key of ["popular","ongoing","recent"]){
+  var shelf=homeCollections[key]=[];
+  for(var anime of (source?.[key]||[])){
+   var id=Number(anime.id);
+   if(!id||seen.has(id))continue;
+   seen.add(id);
+   shelf.push(shikiToItem(anime));
+   if(shelf.length===15)break;
   }
-  return output;
  }
- var mappedLists={};
- for(var key of lists)mappedLists[key]=await resolveShelf(key);
- async function fillShelf(key,options){
-  var output=mappedLists[key];
-  if(output.length>=15)return;
-  try{
-   var candidates=await fetchCatalogPage(Object.assign({page:1,limit:50},options));
-   for(var candidate of candidates){
-    if(output.length>=15)break;
-    var id=Number(candidate&&candidate.id),mal=Number(candidate&&candidate.myanimelist_id)||0;
-    if(!id||seenIds.has(id)||(mal>0&&seenMalIds.has(mal)))continue;
-    seenIds.add(id);
-    if(mal>0)seenMalIds.add(mal);
-    output.push(shikiToItem(candidate));
-   }
-  }catch(error){console.warn("[AniWatch] Shikimori home fallback failed ("+key+"):",error)}
- }
- await fillShelf("recent",{order:"aired_on",status:"released"});
- await fillShelf("ongoing",{order:"popularity",status:"ongoing"});
- await fillShelf("popular",{order:"popularity"});
- await fillShelf("recommended",{order:"ranked"});
- homeCollections=mappedLists;
- var allHome=homeCollections.recent.concat(homeCollections.ongoing,homeCollections.popular,homeCollections.recommended);
- allHome.forEach(d=>{M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d});
- xshikiPosters(allHome).catch(error=>console.warn("[AniWatch] Shikimori poster enrichment failed:",error));
- if(homeCollections.popular.length)H=homeCollections.popular;
- console.info("[AniWatch] Home shelves resolved:",lists.map(key=>key+":"+homeCollections[key].length).join(", "),"; title searches left:",searchBudget);
- return homeCollections;
+ D=homeCollections.popular.concat(homeCollections.ongoing,homeCollections.recent);
+ H=D.slice(0,8);
+ D.forEach(anime=>{M[anime.id]=anime});
 }
-var xCQ="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){"+xMF+"}}}",
-xCQ_SAFE="query($p:Int,$s:String,$g:[String],$y:String,$season:MediaSeason,$st:MediaStatus,$f:[MediaFormat],$o:[MediaSort]){Page(page:$p,perPage:24){pageInfo{hasNextPage total}media(type:ANIME,isAdult:false,search:$s,genre_in:$g,startDate_like:$y,season:$season,status:$st,format_in:$f,sort:$o){id idMal format title{romaji english}genres seasonYear startDate{year month}averageScore episodes status coverImage{extraLarge color}}}}",
-xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xIO=null,xGenrePromise=null,xGenreOptions=null;
-var xGL=["Action","Adventure","Comedy","Drama","Fantasy","Horror","Mahou Shoujo","Mecha","Music","Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural","Thriller"],
-xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
+var xCF={g:"",y:"",season:"",st:"",f:"",o:"POPULARITY_DESC",q:"",minScore:"",p:1,more:true,busy:false,k:0},xSearchRequest=0,xIO=null,xGenrePromise=null,xGenreOptions=null;
+var xSO=[["POPULARITY_DESC","Популярные"],["SCORE_DESC","По рейтингу"],["START_DATE_DESC","Сначала новые"],["TITLE_ROMAJI","По названию"]],
 xST=[["RELEASING","Онгоинг"],["FINISHED","Завершён"],["NOT_YET_RELEASED","Скоро"]],
 xFM=[["TV","Сериал"],["MOVIE","Фильм"],["OVA","OVA"],["ONA","ONA"],["SPECIAL","Спешл"]];
-GR["Mahou Shoujo"]=GR["Mahou Shoujo"]||"Махо-сёдзё";
-// русские названия для произвольного списка (пачками по 50, кэш awr2)
-async function xrn(L){return enrichShikimori(L)}
 // избранное/история/списки, найденные через каталог, подгружаем по id после перезагрузки
 async function xhyd(){
  var ids=new Set([].concat(S.fav||[],Object.keys(S.hist||{}),Object.keys(S.rate||{}),Object.keys(S.watchedEpisodes||{})).map(Number).filter(i=>Number.isSafeInteger(i)&&i>0)),w=S.watchlist;
  if(Array.isArray(w))w.forEach(item=>{var id=Number(item&&(item.id??item.anime_id??item.animeId));if(Number.isSafeInteger(id)&&id>0)ids.add(id)});
  else if(w&&typeof w==="object")Object.keys(w).forEach(k=>{var id=Number(k);if(Number.isSafeInteger(id)&&id>0)ids.add(id)});
- var saved=S.shikiAnime||{};ids.forEach(i=>{if(!M[i]&&saved[i])M[i]=saved[i]});
- var need=[...ids].filter(i=>i<1000000000&&!M[i]);
- for(var offset=0;offset<need.length;offset+=50){
-  var batch=need.slice(offset,offset+50);
-  try{var L=(await xgq("query($i:[Int]){Page(perPage:50){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:batch})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)}
-  catch(e){console.warn("[AniWatch] Could not hydrate part of the saved list:",e);break}
- }
+ var saved=S.shikiAnime||{};
+ ids.forEach(id=>{if(!M[id]&&saved[id])M[id]=saved[id]});
+ var legacy=[...ids].filter(id=>id<1000000000);
+ for(var id of legacy)await resolveLegacyItem(id);
  var shikiNeed=[...ids].filter(i=>i>=1000000000&&!M[i]).map(i=>i-1000000000);
  for(var offset=0;offset<shikiNeed.length;offset+=50){
   try{
@@ -1442,11 +1137,6 @@ async function xhyd(){
 // Shikimori is the single source for poster artwork. Keep image URLs transient.
 async function xshikiPosters(L,{resolveMalIds=false}={}){
  L=(L||[]).filter(Boolean);
- // AniList MAL IDs and Shikimori IDs share the same numeric namespace.
- // Use that mapping to retrieve Shikimori artwork for saved AniList titles.
- L.forEach(d=>{if(!Number(d.shikiId)&&Number(d.mal)>0)d.shikiId=Number(d.mal)});
- var needsLookup=L.filter(d=>Number(d.mal)>0&&!d.shikiId&&!shikiImageUrl(d.img));
- if(needsLookup.length)await enrichShikimori(needsLookup);
  var findItem=id=>(L||[]).find(x=>Number(x.shikiId||((Number(x.id)||0)>=1000000000?Number(x.id)-1000000000:0))===Number(id));
  var ids=[...new Set((L||[]).map(d=>Number(d.shikiId||((Number(d.id)||0)>=1000000000?Number(d.id)-1000000000:0))).filter(id=>{
   if(!Number.isInteger(id)||id<=0)return false;
@@ -1474,7 +1164,7 @@ async function xshikiPosters(L,{resolveMalIds=false}={}){
     var d=findItem(a.id);if(!d)return;
     var image=a.image||{},path=shikiImageUrl(image.original||image.preview||image.x96);
     if(path)d.img=path;
-    if(Number(a.malId)>0)d.mal=Number(a.malId);
+    if(Number(a.myanimelist_id)>0)d.mal=Number(a.myanimelist_id);
     M[d.id]=d;if(d.source==="shikimori"){S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d}
    });
   }catch(e){console.warn("[AniWatch] Shikimori REST poster fallback failed:",e);break}
@@ -1487,7 +1177,8 @@ async function xshikiPosters(L,{resolveMalIds=false}={}){
   else{poster.style.background=bg(d);var img=poster.querySelector(".poster-image");if(!img){img=document.createElement("img");img.className="poster-image";img.alt="";img.loading="lazy";img.fetchPriority="low";img.decoding="async";poster.prepend(img)}if(img.src!==d.img)img.src=d.img;img.onerror=function(){var fallback=d.posterFallback;if(fallback&&this.dataset.posterFallback!=="used"){this.dataset.posterFallback="used";this.src=fallback;return}this.removeAttribute("src");this.style.display="none"};var letter=poster.querySelector("i");if(letter)letter.remove()}
  });
  var current=M[routeArgs()[0]],player=$(".player");if(current&&player&&shikiImageUrl(current.img))player.style.background=bn(current);
- var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length];if(hero&&featuredItem&&shikiImageUrl(featuredItem.img)){hero.style.setProperty("--hero-poster","url("+JSON.stringify(featuredItem.img)+")");var hp=hero.querySelector(".hero-poster");if(hp)hp.style.background=bg(featuredItem)}
+ var hero=$("#hw .hero-editorial"),featuredItem=H[featuredIndex%H.length],heroImage=shikiImageUrl(featuredItem?.ban||featuredItem?.img);
+ if(hero&&heroImage)hero.style.setProperty("--hero-poster","url("+JSON.stringify(heroImage)+")");
  sv();
 }
 function dHasImage(list,id){
@@ -1571,16 +1262,11 @@ listen(document,"scroll",()=>{if($("#more")&&xCF.more&&!xCF.busy&&window.innerHe
 listen(document,"click",e=>{if(e.target.closest("[data-cf-reset]")){F.q="";F.g="";xCF.g="";xCF.y="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.q="";xCF.minScore="";V.catalog();return}if(e.target.closest("[data-xr]"))xcq();});
 // Баннеры главной, страниц тайтлов и плеера вынесены в отдельный модуль.
 var bannerManager=createBannerManager({
- query:xgq,
- getAnimeMap:()=>M,
- getState:()=>S,
  getFeatured:()=>H,
  getFeaturedIndex:()=>featuredIndex,
  getPlayer:()=>P,
  isTitleRoute:id=>isRoute("title",id),
- background:bn,
- refreshFeatured:showFeatured,
- save:sv
+ background:bn
 });
 var xvt=V.title;V.title=p=>{xvt(p);bannerManager.load(M[+p[0]])};
 var xvw=V.watch;V.watch=p=>{xvw(p);bannerManager.load(M[+p[0]])};
@@ -1609,27 +1295,73 @@ function hydrateStash(){
 function shikiToItem(a){
  var st=a.status==="released"?"Завершён":a.status==="ongoing"?"Онгоинг":a.status==="anons"?"Скоро":"";
  var genres=Array.isArray(a.genres)?a.genres.map(g=>esc(g.russian||g.name||"")).filter(Boolean):[];
- var image=a.image||{},path=image.original||image.preview||image.x96||"",mal=Number(a.myanimelist_id)||null;
- // Reuse the real AniList ID and banner when this MAL ID exists in the initial AniList result.
- var aniMatch=mal&&Array.isArray(D)?D.find(item=>Number(item.mal)===mal):null;
- var aniId=Number(aniMatch&&aniMatch.id)||null,banner=aniMatch&&typeof aniMatch.ban==="string"?aniMatch.ban:"";
- return{id:1000000000+Number(a.id),shikiId:Number(a.id),aniId:aniId,source:"shikimori",detailsLoaded:Array.isArray(a.genres)&&(Object.prototype.hasOwnProperty.call(a,"duration")||Object.prototype.hasOwnProperty.call(a,"description")),mal:mal,n:esc(a.russian||a.name||"Без названия"),o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],y:Number(String(a.aired_on||"").slice(0,4))||0,mth:Number(String(a.aired_on||"").slice(5,7))||0,r:Number(a.score)||0,e:Number(a.episodes)||0,s:st,d:cleanDesc(a.description||""),c:aniMatch&&Array.isArray(aniMatch.c)?aniMatch.c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:banner,kind:String(a.kind||"").toLowerCase()}
+ var image=a.image||{},path=a.poster?.mainUrl||a.poster?.originalUrl||image.original||image.preview||image.x96||"";
+ var airDate=String(a.aired_on||a.airedOn?.date||"");
+ return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",
+  detailsLoaded:Array.isArray(a.genres)&&Object.hasOwn(a,"duration"),
+  mal:Number(a.malId||a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),
+  o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],
+  y:Number(airDate.slice(0,4))||0,mth:Number(airDate.slice(5,7))||0,r:Number(a.score)||0,
+  e:Number(a.episodes)||0,ae:Number(a.episodes_aired??a.episodesAired)||0,s:st,d:cleanDesc(a.description||""),
+  c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:"",kind:String(a.kind||"").toLowerCase()};
 }
-// Страница тайтла/плеера открыта по прямой ссылке — подгружаем тайтл по id, если его нет в памяти.
+var legacyPending=new Map();
+async function resolveLegacyItem(id){
+ var saved=M[id]||S.shikiAnime?.[id]||legacyItems.get(id);
+ if(saved?.source==="shikimori"&&saved.shikiId)return saved;
+ if(legacyPending.has(id))return legacyPending.get(id);
+ var linked=Object.values(S.shikiAnime||{}).find(item=>Number(item.aniId)===id&&item.source==="shikimori"&&item.shikiId);
+ if(!saved&&!linked)return null;
+ var pending=(async()=>{
+  try{
+   var shikiId=Number(linked?.shikiId),mal=Number(saved?.mal);
+   if(!shikiId&&mal>0){
+    try{
+     var verified=await fetchAnimePostersByIds([mal]);
+     shikiId=Number(verified.find(item=>Number(item.malId)===mal)?.id)||0;
+    }catch(error){console.warn("[AniWatch] Shikimori cross-ID lookup unavailable:",error)}
+   }
+   if(!shikiId&&saved){
+    var names=[saved.n,saved.o].filter(Boolean).map(un);
+    var title=names.find(Boolean);
+    if(title){
+     var matches=await fetchCatalogPage({query:title,limit:20,signal:AbortSignal.timeout(6000)});
+     var exact=matches.filter(item=>[item.name,item.russian].some(name=>name&&names.some(wanted=>normTitle(name)===normTitle(wanted)))&&(!saved.y||Number(String(item.aired_on).slice(0,4))===Number(saved.y)));
+     if(exact.length===1)shikiId=Number(exact[0].id);
+    }
+   }
+   if(shikiId){
+    var anime=shikiToItem(await fetchAnimeById(shikiId));
+    anime.id=id;anime.aniId=id;anime.mal=anime.mal||mal||null;
+    M[id]=anime;
+    S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=anime;
+    return anime;
+   }
+  }catch(error){console.warn("[AniWatch] Legacy title mapping unavailable:",error)}
+  if(saved){
+   M[id]={...saved,shikiId:0,ban:"",img:""};
+   return M[id];
+  }
+  return null;
+ })().finally(()=>legacyPending.delete(id));
+ legacyPending.set(id,pending);
+ return pending;
+}
 async function ensureRouteItem(){
  var page=activePage();if(page!=="title"&&page!=="watch")return;
- var id=routeArgs()[0],existing=M[id]||(S.shikiAnime&&S.shikiAnime[id]);if(!id)return;
- if(id>=1000000000&&existing&&existing.source==="shikimori"&&existing.detailsLoaded)return;
- if(id<1000000000&&existing)return;
+ var id=routeArgs()[0];if(!id)return;
+ if(id<1000000000){await resolveLegacyItem(id);return}
+ var existing=M[id]||S.shikiAnime?.[id];
+ if(existing?.source==="shikimori"&&existing.detailsLoaded){M[id]=existing;return}
  try{
-  if(id>=1000000000){
-   var d=shikiToItem(await fetchAnimeById(id-1000000000));
-   if(existing){d.aniId=d.aniId||existing.aniId;d.ban=d.ban||existing.ban;d.c=existing.c||d.c}
-   M[d.id]=d;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[d.id]=d;await xshikiPosters([d]);
-  }else{
-   var L=(await xgq("query($i:[Int]){Page(perPage:1){media(id_in:$i,type:ANIME){"+xMF+"}}}",{i:[id]})).Page.media.map(x=>M[x.id]=mp(x));await xrn(L)
-  }
- }catch(e){console.warn("[AniWatch] Title lookup:",e)}
+  var anime=shikiToItem(await fetchAnimeById(id-1000000000));
+  if(existing){anime.aniId=existing.aniId;anime.mal=anime.mal||existing.mal;anime.img=anime.img||existing.img}
+  M[id]=anime;S.shikiAnime=S.shikiAnime||{};S.shikiAnime[id]=anime;
+  if(!anime.img||!anime.mal)await xshikiPosters([anime],{resolveMalIds:true});
+ }catch(error){
+  if(existing)M[id]=existing;
+  console.warn("[AniWatch] Title lookup:",error);
+ }
 }
 function renderMissing(){
  document.title="Тайтл не найден — AniWatch";
@@ -1823,5 +1555,5 @@ listen(document,"input",e=>{if(e.target.id!=="cs")return;xCF.q=e.target.value;F.
  listen(document,"change",e=>{var map={"cf-g":"g","cf-y":"y","cf-season":"season","cf-st":"st","cf-f":"f","cf-r":"minScore","cf-o":"o"};if(map[e.target.id]){xCF[map[e.target.id]]=e.target.value;xcq(true)}});
  listen(document,"click",e=>{if(e.target.closest("[data-xr]")){xcq(false);return}if(e.target.closest("[data-cf-reset]")){xCF.g="";xCF.y="";xCF.season="";xCF.st="";xCF.f="";xCF.o="POPULARITY_DESC";xCF.minScore="";xCF.q="";F.q="";F.g="";["cs","cf-g","cf-y","cf-season","cf-st","cf-f","cf-r","cf-o"].forEach(id=>{var el=$("#"+id);if(el)el.value=id==="cf-o"?"POPULARITY_DESC":""});var hq=$("#q");if(hq)hq.value="";xcq(true)}});
  addEventListener("pagehide",()=>{stashItems();disconnectRoom();if(socialChannelCleanup){socialChannelCleanup();socialChannelCleanup=null}});
-idx();boot();
+boot();
 })();

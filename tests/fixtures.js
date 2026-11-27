@@ -3,12 +3,6 @@ import { test as base, expect } from "@playwright/test";
 export const test = base;
 export { expect };
 
-export const ANILIST_TITLES = [
-  { id: 101, idMal: 1001, title: { romaji: "Smoke Hero", english: "Smoke Hero" }, genres: ["Action", "Fantasy"], seasonYear: 2025, averageScore: 85, episodes: 12, status: "RELEASING", coverImage: { extraLarge: "" }, bannerImage: "" },
-  { id: 102, idMal: 1002, title: { romaji: "Smoke Second", english: "Smoke Second" }, genres: ["Drama"], seasonYear: 2024, averageScore: 78, episodes: 24, status: "FINISHED", coverImage: { extraLarge: "" }, bannerImage: "" },
-  { id: 103, idMal: 1003, title: { romaji: "Smoke Third", english: "Smoke Third" }, genres: ["Comedy"], seasonYear: 2023, averageScore: 71, episodes: 13, status: "FINISHED", coverImage: { extraLarge: "" }, bannerImage: "" }
-];
-
 export const SHIKI_ITEM = {
   id: 4242,
   name: "Naruto Test",
@@ -46,6 +40,8 @@ export function createClient() {
 }
 `;
 
+export const SHIKI_SCREENSHOT = "https://shikimori.io/uploads/screenshot/test.jpg";
+
 function json(route, body, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 }
@@ -61,18 +57,6 @@ export async function installApiMocks(page) {
 
     if (url.hostname === "esm.sh") {
       return route.fulfill({ status: 200, contentType: "text/javascript", body: TINY_SUPABASE });
-    }
-
-    if (url.hostname === "graphql.anilist.co") {
-      const body = request.postDataJSON?.() || {};
-      const query = String(body.query || "");
-      if (query.includes("Page(perPage:30)")) return json(route, { data: { Page: { media: ANILIST_TITLES } } });
-      if (query.includes("Media(") || query.includes("Page(perPage:1)")) {
-        const ids = body.variables?.i || [];
-        const media = ANILIST_TITLES.filter(item => ids.includes(item.id));
-        return json(route, { data: { Page: { media }, Media: media[0] || null } });
-      }
-      return json(route, { data: { Page: { media: [] }, Media: null } });
     }
 
     if (url.hostname === "shikimori.io") {
@@ -95,7 +79,19 @@ export async function installApiMocks(page) {
         if (url.searchParams.get("search")) return json(route, [SHIKI_ITEM]);
         return json(route, [SHIKI_ITEM]);
       }
-      if (path === "/api/graphql") return json(route, { data: { animes: [] } });
+      if (path === "/api/graphql") {
+        const { query, variables } = request.postDataJSON();
+        const title = {
+          ...SHIKI_ITEM, id: String(SHIKI_ITEM.id), malId: String(SHIKI_ITEM.myanimelist_id),
+          airedOn: { date: SHIKI_ITEM.aired_on }, poster: { mainUrl: SHIKI_ITEM.image.original }
+        };
+        if (query.includes("popular: animes")) return json(route, { data: { popular: [title], ongoing: [], recent: [] } });
+        if (query.includes("screenshots")) return json(route, { data: { animes: [{ id: title.id, screenshots: [{ originalUrl: SHIKI_SCREENSHOT }] }] } });
+        if (query.includes("personRoles")) return json(route, { data: { animes: [{ studios: [{ name: "Студия из Shikimori" }] }] } });
+        const ids = variables?.ids?.split(",").map(Number)||[];
+        const animes = ids.includes(SHIKI_ITEM.id) || ids.includes(SHIKI_ITEM.myanimelist_id) ? [title] : [];
+        return json(route, { data: { animes } });
+      }
       if (/\/api\/users\/[^/]+\/anime_rates$/.test(path)) {
         return json(route, [
           { status: "watching", score: 8, episodes: 3, anime: SHIKI_ITEM },
@@ -129,6 +125,5 @@ export async function seedState(page, state = {}) {
     if (sessionStorage.getItem("aw-smoke-seeded")) return;
     sessionStorage.setItem("aw-smoke-seeded", "1");
     localStorage.setItem("aw", JSON.stringify(value));
-    localStorage.removeItem("awc");
   }, initial);
 }

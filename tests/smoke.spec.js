@@ -1,4 +1,4 @@
-import { test, expect, installApiMocks, seedState, SHIKI_ITEM } from "./fixtures.js";
+import { test, expect, installApiMocks, seedState, SHIKI_ITEM, SHIKI_SCREENSHOT } from "./fixtures.js";
 
 const SHIKI_INTERNAL_ID = 1_000_000_000 + SHIKI_ITEM.id;
 
@@ -8,14 +8,21 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("home renders the catalog, hero and primary navigation", async ({ page }) => {
+  const metadataHosts = [];
+  page.on("request", request => {
+    const host = new URL(request.url()).hostname;
+    if (/anilist\.co|anilibria\.|aniliberty\.|ani\.zip|kitsu\.io|jikan\.moe/.test(host)) metadataHosts.push(host);
+  });
   await page.goto("/");
 
   await expect(page.locator(".hero-editorial h1")).toBeVisible();
-  await expect(page.locator(".hero-editorial h1")).toContainText("Smoke");
+  await expect(page.locator(".hero-editorial h1")).toHaveText(SHIKI_ITEM.russian);
+  await expect(page.locator(".hero-editorial")).toHaveAttribute("style", new RegExp(SHIKI_SCREENSHOT.replaceAll(".", "\\.")));
   await expect(page.locator('#site-header a[data-page="catalog"]').first()).toBeVisible();
   await expect(page.locator("#app .card").first()).toBeVisible();
   // The offline placeholder must never replace real catalog data.
   await expect(page.locator(".offline-state")).toHaveCount(0);
+  expect(metadataHosts).toEqual([]);
 });
 
 test("catalog loads cards and sends the search query to Shikimori", async ({ page }) => {
@@ -37,7 +44,35 @@ test("title page resolves a Shikimori ID and opens the episode list", async ({ p
   await expect(page.locator(".title-info h1")).toHaveText("Наруто Тест");
   await expect(page.locator(".title-watch-primary")).toBeVisible();
   await expect(page.locator(".episode-item").first()).toBeVisible();
-  await expect(page.locator('[data-episode-progress]').first()).toContainText("220 серий");
+  await expect(page.locator('[data-episode-progress]').first()).toHaveText("0 / 220 просмотрено");
+  await expect(page.locator("#anime-extra-meta")).toContainText("Студия из Shikimori");
+});
+
+test("a saved AniList link resolves using its cached MAL mapping", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("awc", JSON.stringify({ a: [{ id: 101, mal: 20, n: "Naruto Test", y: 2002 }] }));
+  });
+  await page.goto("/anime.html?id=101");
+
+  await expect(page.locator(".title-info h1")).toHaveText(SHIKI_ITEM.russian);
+  await expect(page.locator(".title-watch-primary")).toHaveAttribute("href", /watch\.html\?id=101&ep=1/);
+});
+
+test("watch page still loads Kodik by Shikimori ID", async ({ page }) => {
+  const episodeUrl = "https://example.test/kodik/episode-1";
+  await page.route("**/functions/v1/kodik-search", async route => {
+    expect(route.request().postDataJSON().params.shikimori_id).toBe(SHIKI_ITEM.id);
+    await route.fulfill({ json: { results: [{
+      id: "episode-fixture", type: "anime-serial", title: SHIKI_ITEM.russian, shikimori_id: SHIKI_ITEM.id,
+      link: episodeUrl, translation: { id: 1, title: "Тестовая озвучка" },
+      seasons: { 1: { episodes: { 1: { episode: 1, link: episodeUrl } } } }
+    }] } });
+  });
+  await page.goto(`/watch.html?id=${SHIKI_INTERNAL_ID}&ep=1`);
+
+  await expect(page.locator('[data-provider="kodik"]')).toHaveClass(/\bon\b/);
+  await expect(page.locator(".kodik-current")).toContainText("Тестовая озвучка");
+  await expect(page.locator("iframe.stream-video")).toHaveAttribute("src", `${episodeUrl}?hide_selectors=true`);
 });
 
 test("favorite action persists in local storage across reload", async ({ page }) => {
