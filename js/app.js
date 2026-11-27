@@ -1,6 +1,6 @@
 import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
 import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
-import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar, fetchHomeAnime, fetchAnimeCredits, fetchPersonAnime } from "./api/shikimori.js";
+import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar, fetchHomeAnime, fetchAnimeCredits, fetchPersonAnime, fetchAnimeGenresByIds } from "./api/shikimori.js";
 import { renderAnimeCard } from "./components/anime-card.js";
 import { loadLocalState, initializeLocalState, saveLocalState, normalizeState } from "./core/storage.js";
 import { initializeSupabaseAuth, signInWithEmail, signUpWithEmail, signOut, restoreCloudState, scheduleCloudSync, saveEpisodeProgress, saveEpisodeProgressBatch, uploadProfileAvatar, uploadProfileBanner, saveProfileDetails, saveProfilePrivacy, fetchPublicProfile, loadRecommendationFeedback, saveRecommendationFeedback, loadCalendarFollows, saveCalendarFollow, saveWatchTimeSessions, loadWatchTimeStats } from "./core/supabase.js";
@@ -290,7 +290,14 @@ async function loadHomeRecommendations(){
  var request=++recommendationRequest;
  host.innerHTML='<p class="m">Загружаем подборку…</p>';
  try{
-  var library=recommendationLibrary(),profile=buildTasteProfile(library,S.recommendationGenres||[]),raw=[],seeds=recommendationSeeds(library);
+  var library=recommendationLibrary(),raw=[],seeds=recommendationSeeds(library);
+  var unknownLibrary=library.filter(item=>item.shikiId&&!item.genres.some(normalizeRecommendationGenre));
+  var libraryGenres=await fetchAnimeGenresByIds(unknownLibrary.map(item=>item.shikiId));
+  for(var item of unknownLibrary){
+   var genres=libraryGenres.get(item.shikiId);
+   if(genres?.length)item.genres=genres.map(genre=>genre.russian||genre.name);
+  }
+  var profile=buildTasteProfile(library,S.recommendationGenres||[]);
   var shelf=host.closest(".shelf");
   if(shelf)shelf.hidden=false;
   if(profile.usefulSignals<1||profile.topGenres.length<1){renderRecommendationStarter(host,S.recommendationGenres||[]);if(shelf)shelf.hidden=false;return}
@@ -332,8 +339,14 @@ async function loadHomeRecommendations(){
     try{var rankedItems=await fetchCatalogPage({page:1,limit:50,order:"ranked"});(rankedItems||[]).forEach(item=>addCandidate(item,"catalog",""))}
     catch(error){console.warn("[AniWatch] Recommendation ranking fallback failed:",error)}
    }
-   if(raw.length)writeRecommendationPool(cacheKey,raw);
   }
+  var unknownCandidates=raw.map(entry=>entry.anime).filter(anime=>anime&&!anime.genres?.some(genre=>normalizeRecommendationGenre(genre.russian||genre.name)));
+  var candidateGenres=await fetchAnimeGenresByIds(unknownCandidates.map(anime=>Number(anime.id)));
+  for(var anime of unknownCandidates){
+   var knownGenres=candidateGenres.get(Number(anime.id));
+   if(knownGenres?.length)anime.genres=knownGenres;
+  }
+  if(raw.length&&(!cached||candidateGenres.size))writeRecommendationPool(cacheKey,raw);
   if(request!==recommendationRequest||activePage()!=="home")return;
   var candidates=raw.map(entry=>{
    var anime=shikiToItem(entry.anime||entry);

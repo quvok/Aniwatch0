@@ -41,4 +41,17 @@ const coldProfile = buildTasteProfile([]);
 assert.equal(rankRecommendations([{ id: 43, g: ["Комедия"], r: 8 }], coldProfile, new Set(), 1).length, 0,
   "cold-start users should not receive generic titles mislabeled as personal recommendations");
 
+const placeholderProfile = buildTasteProfile([{ genres: ["Аниме"], favorite: true }], ["Anime"]);
+assert.equal(placeholderProfile.hasTaste, false, "a placeholder is not a genre preference");
+assert.equal(placeholderProfile.usefulSignals, 0, "placeholders must not count as useful signals");
+
+const mixedProfile = buildTasteProfile([{ genres: ["Аниме", "Фэнтези"], rating: 9 }]);
+assert.deepEqual(mixedProfile, singleSignal, "ignoring a placeholder must preserve the weight of the real genre");
+const mixedRanked = rankRecommendations([
+  { id: 44, g: ["Anime"], r: 10 },
+  { id: 45, g: ["Аниме", "Фэнтези"], r: 8 }
+], mixedProfile, new Set());
+assert.deepEqual(mixedRanked.map(item => item.anime.id), [45]);
+assert.equal(mixedRanked[0].reason, "Подходит по жанрам: фэнтези");
+
 console.log("✓ cross-language genre matching, one-signal profiles, negative preferences, duplicate filtering");

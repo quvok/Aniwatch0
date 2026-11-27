@@ -47,6 +47,9 @@ export const SHIKI_NAME_MATCH = {
 export const SHIKI_OTHER = {
   ...SHIKI_ITEM, id: 4444, myanimelist_id: 22, name: "Third Test", russian: "Третий из Shikimori"
 };
+const SHIKI_RECOMMENDATION = {
+  ...SHIKI_ITEM, id: 4555, myanimelist_id: 23, name: "Fantasy Test", russian: "Фэнтези из каталога", genres: []
+};
 
 function json(route, body, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -82,7 +85,8 @@ export async function installApiMocks(page) {
       if (path === "/api/genres") {
         return json(route, [
           { id: "1", name: "Action", russian: "Экшен", kind: "genre", entry_type: "Anime" },
-          { id: "2", name: "Drama", russian: "Драма", kind: "genre", entry_type: "Anime" }
+          { id: "2", name: "Drama", russian: "Драма", kind: "genre", entry_type: "Anime" },
+          { id: "3", name: "Fantasy", russian: "Фэнтези", kind: "genre", entry_type: "Anime" }
         ]);
       }
       if (/^\/api\/animes\/\d+\/(related|similar)$/.test(path)) return json(route, []);
@@ -94,6 +98,7 @@ export async function installApiMocks(page) {
           const wanted = ids.split(",").map(Number);
           return json(route, wanted.includes(SHIKI_ITEM.id) ? [SHIKI_ITEM] : []);
         }
+        if (url.searchParams.get("genre_v2") === "3") return json(route, [SHIKI_RECOMMENDATION]);
         if (url.searchParams.get("search") === SHIKI_NAME_MATCH.name) return json(route, [SHIKI_NAME_MATCH]);
         if (url.searchParams.get("search")) return json(route, [SHIKI_ITEM]);
         return json(route, [SHIKI_ITEM]);
@@ -107,6 +112,9 @@ export async function installApiMocks(page) {
         if (query.includes("screenshots")) return json(route, { data: { animes: [{ id: title.id, screenshots: [{ originalUrl: SHIKI_SCREENSHOT }] }] } });
         if (query.includes("personRoles")) return json(route, { data: { animes: [{ studios: [{ name: "Студия из Shikimori" }] }] } });
         const ids = variables?.ids?.split(",").map(Number)||[];
+        if (query.includes("{ id genres") && ids.includes(SHIKI_RECOMMENDATION.id)) {
+          return json(route, { data: { animes: [{ id: SHIKI_RECOMMENDATION.id, genres: [{ name: "Fantasy", russian: "Фэнтези" }] }] } });
+        }
         const animes = [SHIKI_OTHER, SHIKI_ITEM]
           .filter(item => ids.includes(item.id) || ids.includes(item.myanimelist_id)).map(tile);
         return json(route, { data: { animes } });

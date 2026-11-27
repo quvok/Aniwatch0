@@ -118,6 +118,18 @@ export async function fetchAnimeTilesByIds(ids){
  return data.animes;
 }
 
+export async function fetchAnimeGenresByIds(ids){
+ const genres=new Map();
+ const unique=[...new Set(ids.filter(id=>Number.isInteger(id)&&id>0))];
+ for(let offset=0;offset<unique.length;offset+=50){
+  try{
+   const data=await fetchGraphQL("query($ids: String) { animes(ids: $ids, limit: 50) { id genres { name russian } } }",{ids:unique.slice(offset,offset+50).join(",")});
+   for(const anime of data.animes||[])genres.set(Number(anime.id),anime.genres||[]);
+  }catch(error){console.warn("[AniWatch] Shikimori recommendation genres unavailable:",error)}
+ }
+ return genres;
+}
+
 export async function fetchAnimeScreenshots(ids){
  if(!ids.length)return [];
  const data=await fetchGraphQL("query($ids: String) { animes(ids: $ids, limit: 8) { id screenshots { originalUrl x332Url } } }",{ids:ids.join(",")});

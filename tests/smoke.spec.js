@@ -40,6 +40,16 @@ test("catalog loads cards and sends the search query to Shikimori", async ({ pag
   await request;
 });
 
+test("recommendations hydrate missing genres and explain the actual match", async ({ page }) => {
+  await page.goto("/");
+  const shelf = page.locator("#recommendation-shelf");
+  await shelf.getByRole("button", { name: "Фэнтези", exact: true }).click();
+  await shelf.getByRole("button", { name: "Показать аниме", exact: true }).click();
+
+  await expect(shelf.locator(".card > b")).toHaveText("Фэнтези из каталога");
+  await expect(shelf.locator(".recommendation-reason")).toHaveText("Подходит по жанрам: фэнтези");
+});
+
 test("title page resolves a Shikimori ID and opens the episode list", async ({ page }) => {
   await page.goto(`/anime.html?id=${SHIKI_INTERNAL_ID}`);
 

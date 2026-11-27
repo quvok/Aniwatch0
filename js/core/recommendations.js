@@ -22,6 +22,7 @@ const GENRE_ALIASES = new Map([
 
 export function normalizeRecommendationGenre(value) {
   const key = normalize(value);
+  if (key === "аниме" || key === "anime") return "";
   return GENRE_ALIASES.get(key) || key;
 }
 
@@ -56,11 +57,11 @@ export function buildTasteProfile(library, selectedGenres = []) {
     for (const genre of genres) weights.set(genre, (weights.get(genre) || 0) + genreShare);
   }
 
-  for (const value of selectedGenres || []) {
-    const genre = normalizeRecommendationGenre(value);
-    if (genre) weights.set(genre, (weights.get(genre) || 0) + 1.4);
+  const selected = new Set((selectedGenres || []).map(normalizeRecommendationGenre).filter(Boolean));
+  for (const genre of selected) {
+    weights.set(genre, (weights.get(genre) || 0) + 1.4);
   }
-  if ((selectedGenres || []).length) usefulSignals++;
+  if (selected.size) usefulSignals++;
 
   const topGenres = [...weights.entries()]
     .filter(([, weight]) => weight > 0.2)
@@ -86,8 +87,8 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
   const ranked = [];
   const seenIds = new Set();
   const seenMal = new Set();
-  const positive = profile?.topGenres || [];
-  const avoided = profile?.avoidedGenres || [];
+  const positive = (profile?.topGenres || []).filter(item => normalizeRecommendationGenre(item.name));
+  const avoided = (profile?.avoidedGenres || []).filter(item => normalizeRecommendationGenre(item.name));
   const positiveTotal = positive.reduce((sum, item) => sum + Math.max(0, Number(item.weight) || 0), 0) || 1;
   const avoidedTotal = avoided.reduce((sum, item) => sum + Math.abs(Number(item.weight) || 0), 0) || 1;
 
@@ -98,7 +99,7 @@ export function rankRecommendations(candidates, profile, excludedIds, limit = 12
         (mal > 0 && (excluded.has("mal:" + mal) || seenMal.has(mal))) || seenIds.has(id)) continue;
 
     const genres = [...new Set((anime.genres || anime.g || [])
-      .filter(Boolean).map(normalizeRecommendationGenre))];
+      .map(normalizeRecommendationGenre).filter(Boolean))];
     if (genres.some(g => ["hentai", "хентай"].includes(g))) continue;
 
     seenIds.add(id);
