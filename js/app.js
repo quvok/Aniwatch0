@@ -1,3 +1,9 @@
+import { animeAV1MappingKey, findAnimeAV1Title, getAnimeAV1Title } from "./api/animeav1.js";
+import { getLanguage, setLanguage, startLocalization, t } from "./i18n/index.js";
+import { languageSetting, mountRoomSettings, readPreference, writePreference } from "./core/room-settings.js";
+import { readRoomPlayback, roomPosition } from "./core/watch-sync.js";
+import { translateRoomMessage, warmTranslator } from "./core/chat-translation.js";
+import { loadProfileLanguage, saveProfileLanguage } from "./core/supabase.js";
 import { fetchAnimeGenres as fetchDedicatedAnimeGenres } from "./api/genders.js";
 import { fetchAnimeGenres as fetchShikimoriGenreList } from "./api/shikimori.js";
 import { fetchRandomAnime, fetchCatalogPage, fetchAnimeByIds, fetchAnimeById, fetchAnimePostersByIds, fetchAnimeRelated, fetchAnimeSimilar, fetchHomeAnime, fetchAnimeCredits, fetchPersonAnime, fetchAnimeGenresByIds } from "./api/shikimori.js";
@@ -42,7 +48,8 @@ if(window.matchMedia){const themeMedia=window.matchMedia("(prefers-color-scheme:
 (function(){
 if(legacyRedirect())return;
 try{document.documentElement.dataset.dataSaver=localStorage.getItem("aw.dataSaver")==="1"?"true":"false"}catch(error){document.documentElement.dataset.dataSaver="false"}
-renderSiteHeader();
+renderSiteHeader(changeLanguage);
+startLocalization();
 trackPageView();
 var collectionSearchTimer=null,collectionSearchRequest=0,myListCloudAt=0,myListCloudPromise=null,myListRenderRequest=0,profileWatchStatsCache=null;
 var DUR=1420,GN=["Фэнтези","Экшен","Приключения","Романтика","Sci-Fi","Комедия","Детектив","Драма"];
@@ -470,7 +477,7 @@ async function loadKodikEpisodes(d){
 }
 function renderAnimeDescription(d,description){
  var node=$("#td");if(!node||!isRoute("title",d.id))return;
- var value=cleanDesc(description||"");
+ var value=cleanDesc((getLanguage()==="es-419"&&d.esSynopsis)||description||"");
  node.textContent=value||"Описание пока недоступно.";
  var expanded=value.length>260;
  node.classList.toggle("collapsed",expanded);
@@ -555,13 +562,29 @@ async function loadAnimeGenres(anime){
   target.innerHTML=genres.length?genres.map(genre=>"<span>"+esc(genre)+"</span>").join(""):'<span class="genre-empty">Жанры не указаны</span>';
  }catch(error){console.warn("[AniWatch] Dedicated genre lookup failed:",error)}
 }
+async function loadSpanishTitle(anime){
+ if(getLanguage()!=="es-419")return;
+ const heading=app.querySelector(".title-page h1");
+ if(!heading)return;
+ try{
+  const slug=readPreference(animeAV1MappingKey(anime.id));
+  const title=slug ? await getAnimeAV1Title(slug) : (await findAnimeAV1Title(anime)).match;
+  if(!heading.isConnected||!title)return;
+  heading.textContent=title.title;
+  document.title=title.title+" — AniWatch";
+  if(typeof title.synopsis==="string"&&title.synopsis.trim()){
+   anime.esSynopsis=title.synopsis;
+   renderAnimeDescription(anime,title.synopsis);
+  }
+ }catch{}
+}
 V.title=p=>{
  var d=M[p[0]];if(!d)return renderMissing();
  document.title=htmlText(d.n)+" — AniWatch";
  renderAnimePage({app,anime:d,state:S,lists:LISTS,cleanDescription:cleanDesc,escapeHtml:esc,background:bg,backdrop:bn,episodes:(anime,cur)=>eps(anime,cur,true),watchUrl});
   applyAnimeTheme(d,d.ban||d.img);
  setupEpisodeNavigator(d);
- loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);loadRelated(d)
+ loadNextEpisode(d);loadAnimeGenres(d);loadAnimeExtras(d);loadKodikEpisodes(d);loadRelated(d);loadSpanishTitle(d)
 };
 
 
@@ -588,54 +611,186 @@ function jumpToEpisode(value,animeId){
  location.href=watchUrl(anime.id,n);
 }
 
-var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null,ROOM_CLOCK_OFFSET=0,ROOM_CLOCK_READY=false,ROOM_CLOCK_TIMER=null,ROOM_CLOCK_ID=Math.random().toString(36).slice(2);
-function syncCurrentVoicePreference(){var voice=P&&S.hist&&S.hist[P.d.id]&&S.hist[P.d.id].voice;if(!voice||!["kodik","liberty"].includes(voice.provider)||!voice.id||!STREAM_PLAYER||!STREAM_PLAYER.syncTranslation)return;var media=STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():{time:P.t||0,duration:0,playing:!!P.on,speed:P.sp||1};STREAM_PLAYER.syncTranslation(voice.id,media,voice.provider).then(changed=>{if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(media)}).catch(error=>console.warn("[AniWatch] Cloud voice preference restore failed:",error))}
-function broadcastPlayback(type){
- if(!ROOM_CONNECTED||!P)return;
- var media=STREAM_PLAYER&&STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():null;
- var state=media||{time:P.t,playing:P.on,speed:P.sp||1};
- sendRoomEvent(type||"playback",{animeId:P.d.id,episode:P.n,time:state.time,duration:state.duration,playing:state.playing,speed:state.speed,translationId:state.translationId??null,translationTitle:state.translationTitle||"",host:true}).catch(e=>console.warn("[AniWatch] Playback broadcast failed:",e))
+var ROOM_CONNECTED=false,ROOM_LAST_SYNC=0,STREAM_PLAYER=null,INLINE_STREAM_PLAYER=null;
+var roomSequence=0,roomState=null,roomClock=0,roomClockSample=null,roomPing=null,roomRender=null,roomGeneration=0;
+var roomTimer=null,roomConnectRetry=null,roomLastControlRequest=0,roomChatSentAt=0,roomNavigation=false;
+function syncCurrentVoicePreference(){if(S.room)return;var voice=P&&S.hist&&S.hist[P.d.id]&&S.hist[P.d.id].voice;if(!voice||!["kodik","liberty"].includes(voice.provider)||!voice.id||!STREAM_PLAYER||!STREAM_PLAYER.syncTranslation)return;var media=STREAM_PLAYER.getPlaybackState?STREAM_PLAYER.getPlaybackState():{time:P.t||0,duration:0,playing:!!P.on,speed:P.sp||1};STREAM_PLAYER.syncTranslation(voice.id,media,voice.provider).then(changed=>{if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(media)}).catch(error=>console.warn("[AniWatch] Cloud voice preference restore failed:",error))}
+async function changeLanguage(value){
+ const language=setLanguage(value);
+ const user=AUTH_USER;
+ if(user){
+  const key="aw.ui.language.pending."+user.id;
+  writePreference(key,language);
+  try{
+   await Promise.race([
+    saveProfileLanguage(language,user.id),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error("Language save timed out")),3000))
+   ]);
+   writePreference(key,"");
+  }catch(error){console.warn("[AniWatch] Language preference stays local:",error)}
+ }
+ location.reload();
+}
+function roomOffsetKey(){
+ const source=STREAM_PLAYER?.sourceState();
+ return source&&P?"aw.room.offset."+[P.d.id,P.n,source.provider,source.sourceId].join("."):"";
+}
+function readRoomOffset(){return Math.max(-1800,Math.min(1800,Number(readPreference(roomOffsetKey()))||0))}
+function saveRoomOffset(value){
+ const key=roomOffsetKey();
+ if(key&&Number.isFinite(value))writePreference(key,String(Math.max(-1800,Math.min(1800,value))));
+ applyRoomPlayback();
+}
+function applyRoomPlayback(){
+ const state=roomState,local=STREAM_PLAYER?.getPlaybackState(),source=STREAM_PLAYER?.sourceState();
+ const offset=readRoomOffset();
+ const target=state&&roomPosition(state,Date.now()+roomClock,offset);
+ roomRender?.({source,local,state,offset,drift:state&&local?target-local.time:null});
+ if(!ROOM_CONNECTED||!state||!P||S.roomHost||state.animeId!==P.d.id||state.episode!==P.n||
+    Date.now()+roomClock-state.sentAt>12000||source?.compatibility!=="ready")return;
+ STREAM_PLAYER.syncPlayback({time:target,duration:state.duration,playing:state.playing,speed:state.playbackRate,buffering:state.buffering});
+}
+function broadcastPlayback(type="playback",media,episode){
+ if(!ROOM_CONNECTED||!P||!S.roomHost)return Promise.resolve(false);
+ const player=media||STREAM_PLAYER?.getPlaybackState();
+ if(!player&&type==="playback")return Promise.resolve(false);
+ const sentAt=Date.now();
+ const key="aw.room.sequence."+S.room;
+ roomSequence=Math.max(sentAt*1024,roomSequence+1,(Number(readPreference(key))||0)+1);
+ writePreference(key,String(roomSequence));
+ return sendRoomEvent(type,{
+  animeId:Number(P.d.id),episode:episode||P.n,position:player?.time||0,
+  duration:player?.duration||0,playing:!!player?.playing,playbackRate:player?.speed||1,
+  buffering:!!player?.buffering,host:true,sentAt,sequence:roomSequence
+ }).catch(error=>{console.warn("[AniWatch] Playback broadcast failed:",error);return false});
+}
+function stopWatchParty(){
+ roomGeneration++;
+ ROOM_CONNECTED=false;
+ clearInterval(roomTimer);
+ clearTimeout(roomConnectRetry);roomConnectRetry=null;
+ roomState=null;roomClock=0;roomClockSample=null;roomPing=null;roomRender=null;roomNavigation=false;
 }
 function connectWatchParty(){
- ROOM_CONNECTED=false;
- var status=$("#room-status"),online=$("#room-online");
- if(status)status.textContent="Подключение…";
- connectRoom(S.room,{name:S.name||"Гость",host:!!S.roomHost,
-  onStatus:(state,error)=>{if(status)status.textContent=state==="connected"?"На связи":"Нет связи";if(state==="error")console.warn("[AniWatch] Room status:",error)},
-  onPresence:presence=>{var users=Object.values(presence||{}).flat(),count=users.length,hostOnline=users.some(user=>user&&user.host);if(online)online.textContent=count+" "+(count===1?"участник":count<5?"участника":"участников");if(status)status.textContent=S.roomHost?"Вы ведущий":hostOnline?"Ведущий на связи":"Ожидание ведущего"},
-  onEvent:payload=>{
-   if(payload.type==="clock-ping"&&S.roomHost){sendRoomEvent("clock-pong",{echo:Number(payload.clientTime)||0,hostTime:Date.now(),pingId:payload.pingId,host:true}).catch(()=>{});return}
-   if(payload.type==="clock-pong"&&!S.roomHost&&payload.pingId===ROOM_CLOCK_ID){var receivedAt=Date.now(),sentAt=Number(payload.echo)||receivedAt,hostAt=Number(payload.hostTime)||receivedAt;if(receivedAt>=sentAt&&receivedAt-sentAt<5000){ROOM_CLOCK_OFFSET=hostAt-((sentAt+receivedAt)/2);ROOM_CLOCK_READY=true}return}
-   if(payload.type==="request-state"&&S.roomHost){broadcastPlayback("state");return}
-   if(payload.type==="chat"){var empty=$("#ms .chat-empty");if(empty)empty.remove();msg(payload.name||"Гость",String(payload.text||"").slice(0,500));return}
-   if(payload.type==="episode-change"||payload.type==="translation-change"||payload.type==="state"||payload.type==="playback"){
-    if(S.roomHost||!payload.host||!P||!payload.animeId)return;
-    if(Number(payload.animeId)!==Number(P.d.id)||Number(payload.episode)!==Number(P.n)){
-     var target=watchUrl(Number(payload.animeId),Number(payload.episode)||1)+"&room="+encodeURIComponent(S.room);
-     if(location.href.indexOf(target.split("#")[0])<0)location.href=target;
-     return;
-    }
-    var hostNow=Date.now()+(ROOM_CLOCK_READY?ROOM_CLOCK_OFFSET:0),drift=Math.max(0,(hostNow-Number(payload.sentAt||hostNow))/1000);
-    P.t=Math.max(0,Number(payload.time)||0)+(payload.playing?drift*(Number(payload.speed)||1):0);
-    P.on=!!payload.playing;P.sp=Number(payload.speed)||1;
-    var roomMedia={time:P.t,duration:Number(payload.duration)||0,playing:P.on,speed:P.sp};
-    if(payload.translationId&&STREAM_PLAYER&&STREAM_PLAYER.syncTranslation){
-     STREAM_PLAYER.syncTranslation(payload.translationId,roomMedia).then(function(changed){
-      if(changed&&STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(roomMedia);
-     }).catch(function(error){console.warn("[AniWatch] Room translation sync failed:",error)});
-    }else if(STREAM_PLAYER&&STREAM_PLAYER.syncPlayback)STREAM_PLAYER.syncPlayback(roomMedia);
-    var speed=$("#sp");if(speed)speed.textContent=P.sp+"×";
+ const generation=++roomGeneration,code=S.room,host=!!S.roomHost;
+ const status=$("#room-status"),online=$("#room-online");
+ const current=()=>generation===roomGeneration&&S.room===code&&status?.isConnected;
+ const updateStatus=key=>{if(current())status.textContent=t(key)};
+ const send=(type,payload)=>sendRoomEvent(type,payload).catch(()=>false);
+ let announced=false;
+ let retryDelay=1000;
+ let lastChat=new Map();
+ let heartbeat=0;
+ const sync=()=>{
+  if(!ROOM_CONNECTED)return;
+  if(host){
+   if(Date.now()-heartbeat>=2500){heartbeat=Date.now();broadcastPlayback()}
+   applyRoomPlayback();
+  }else{
+   applyRoomPlayback();
+   if(!roomPing||Date.now()-roomPing.at>=5000){
+    roomPing={id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),at:Date.now()};
+    send("clock-ping",{clientTime:roomPing.at,pingId:roomPing.id});
    }
   }
- }).then(()=>{
-  ROOM_CONNECTED=true;ROOM_LAST_SYNC=Date.now();
-  if(ROOM_CLOCK_TIMER)clearInterval(ROOM_CLOCK_TIMER);
-  if(!S.roomHost){var pingClock=()=>{if(ROOM_CONNECTED)sendRoomEvent("clock-ping",{clientTime:Date.now(),pingId:ROOM_CLOCK_ID}).catch(()=>{})};pingClock();ROOM_CLOCK_TIMER=setInterval(pingClock,5000)}else{ROOM_CLOCK_OFFSET=0;ROOM_CLOCK_READY=true}
-  var empty=$("#ms .chat-empty");if(empty)empty.remove();
-  msg("AniWatch","Вы подключились к комнате.");
-  if(S.roomHost)broadcastPlayback("state");
-  else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{});
- }).catch(error=>{ROOM_CONNECTED=false;if(status)status.textContent="Не удалось подключиться";console.error("[AniWatch] Room connect failed:",error);toast("Не удалось подключиться к комнате")});
+ };
+ const connect=()=>{
+  if(!current())return;
+  roomConnectRetry=null;
+  updateStatus("connecting");
+  connectRoom(code,{name:S.name||t("guest"),host,
+   onStatus:(state,error)=>{
+    if(!current())return;
+    const connected=state==="connected";
+    ROOM_CONNECTED=connected;
+    updateStatus(connected?"connected":"disconnected");
+    if(!connected){
+     if(state==="closed")retry();
+     if(error)console.warn("[AniWatch] Room status:",error);
+     return;
+    }
+    retryDelay=1000;
+    clearTimeout(roomConnectRetry);roomConnectRetry=null;
+    if(!announced){
+     announced=true;
+     $("#ms .chat-empty")?.remove();
+     msg("AniWatch",t("joined"));
+    }
+    roomClockSample=null;roomPing=null;
+    sync();
+    if(host)broadcastPlayback("state");
+    else send("request-state",{});
+   },
+   onPresence:presence=>{
+    if(!current()||!ROOM_CONNECTED)return;
+    const users=Object.values(presence||{}).flat();
+    if(online)online.textContent=t("participants")+" "+users.length;
+    if(!host&&!users.some(user=>user?.host===true))updateStatus("hostWaiting");
+    else updateStatus("connected");
+   },
+   onEvent:payload=>{
+    if(!current()||!ROOM_CONNECTED||!payload||typeof payload.type!=="string")return;
+    if(payload.type==="clock-ping"&&host){
+     if(typeof payload.pingId==="string"&&payload.pingId.length<=64&&Number.isSafeInteger(payload.clientTime)){
+      send("clock-pong",{echo:payload.clientTime,hostTime:Date.now(),pingId:payload.pingId,host:true});
+     }
+     return;
+    }
+    if(payload.type==="clock-pong"&&!host&&payload.host===true&&roomPing&&
+       payload.pingId===roomPing.id&&payload.echo===roomPing.at&&Number.isSafeInteger(payload.hostTime)){
+     const now=Date.now(),rtt=now-roomPing.at;
+     if(rtt>=0&&rtt<3000&&(!roomClockSample||rtt<roomClockSample.rtt||now-roomClockSample.at>30000)){
+      roomClock=payload.hostTime-(roomPing.at+now)/2;
+      roomClockSample={rtt,at:now};
+     }
+     return;
+    }
+    if(payload.type==="request-state"&&host){
+     if(Date.now()-roomLastControlRequest>250){roomLastControlRequest=Date.now();broadcastPlayback("state")}
+     return;
+    }
+    if(payload.type==="chat"){
+     if(typeof payload.text!=="string"||!payload.text.trim()||payload.text.length>500||
+        typeof payload.sender!=="string"||payload.sender.length>64)return;
+     const now=Date.now();
+     if(now-(lastChat.get(payload.sender)||0)<500)return;
+     if(lastChat.size>100)lastChat.delete(lastChat.keys().next().value);
+     lastChat.set(payload.sender,now);
+     $("#ms .chat-empty")?.remove();
+     msg(typeof payload.name==="string"?payload.name.slice(0,24):t("guest"),payload.text,true);
+     return;
+    }
+    if(host||!P||roomNavigation||!["episode-change","state","playback"].includes(payload.type))return;
+    const playback=readRoomPlayback(payload);
+    if(!playback||(roomState&&playback.sequence<=roomState.sequence)||
+       (roomClockSample&&Math.abs(Date.now()+roomClock-playback.sentAt)>12000))return;
+    roomState=playback;
+    if(playback.animeId!==Number(P.d.id)||playback.episode!==P.n){
+     roomNavigation=true;
+     location.href=watchUrl(playback.animeId,playback.episode);
+     return;
+    }
+    applyRoomPlayback();
+   }
+  }).catch(error=>{if(current()){updateStatus("disconnected");console.warn("[AniWatch] Room connection failed:",error);retry()}});
+ };
+ const retry=()=>{
+  if(!current()||roomConnectRetry!==null)return;
+  roomConnectRetry=setTimeout(()=>{roomConnectRetry=null;connect()},retryDelay);
+  retryDelay=Math.min(10000,retryDelay*2);
+ };
+ clearInterval(roomTimer);
+ roomTimer=setInterval(sync,700);
+ connect();
+}
+async function openNextRoomEpisode(id,episode){
+ if(roomNavigation)return;
+ roomNavigation=true;
+ if(S.roomHost&&ROOM_CONNECTED)await Promise.race([
+  broadcastPlayback("episode-change",{time:0,duration:0,playing:false,speed:P.sp},episode),
+  new Promise(resolve=>setTimeout(resolve,350))
+ ]);
+ location.href=watchUrl(id,episode);
 }
 function tick(s){if(!P)return;P.t=Math.min(DUR,P.t+s);if(P.t>=DUR){P.on=false;return nextEp()}
  var tc=$("#tc"),pg=$("#pg"),pl=$(".play");if(!tc||!pg||!pl)return;tc.textContent=fm(P.t);pg.style.width=P.t/DUR*100+"%";pl.textContent=P.on?"❚❚":"▶";if(s){setAnimeHistory(P.d.id,{ep:P.n,t:P.t,at:Date.now()});if(!tick.l||Date.now()-tick.l>5000){tick.l=Date.now();sv()}}
@@ -653,20 +808,79 @@ V.watch=p=>{
  // External iframe players cannot expose playback events; save the selected title/episode without inventing a time or percentage.
  recordWatchEntry(d,n);
  renderWatchPage({app,anime:d,episode:n,inRoom,state:S,escapeHtml:esc,backdrop:bn,episodes:eps,episodeTotal:epTotal});
+ if(inRoom){
+  roomRender=mountRoomSettings($("#stream-player"),{
+   onLanguage:changeLanguage,host:!!S.roomHost,
+   warmTranslator:()=>warmTranslator(getLanguage()),
+   onTranslationDisabled:()=>{
+    document.querySelectorAll("#ms .chat-original").forEach(details=>{
+     details.previousElementSibling.textContent=details.lastChild.textContent;
+     details.remove();
+    });
+    document.querySelectorAll("#ms .chat-translation-status").forEach(status=>status.remove());
+   },
+   onOffset:delta=>saveRoomOffset(readRoomOffset()+delta),
+   onAlign:()=>{
+    const local=STREAM_PLAYER?.getPlaybackState();
+    if(local&&roomState)saveRoomOffset(local.time-roomPosition(roomState,Date.now()+roomClock));
+   }
+  });
+  if(!S.roomHost)document.querySelectorAll(".watch-toolbar .nv a[href^='watch.html'], .watch-episodes a[href^='watch.html'], .episode-navigator")
+   .forEach(control=>{control.hidden=true});
+ }
  var historySaveAt=0;
- var playbackOwnerId=AUTH_USER&&AUTH_USER.id||null;STREAM_PLAYER=mountStreamPlayer({root:$("#stream-player"),anime:d,episode:n,resumeAt:P.t,resumeSpeed:P.sp,preferredVoice:S.hist[d.id]?.voice||null,onEpisodeChange:async change=>{if(!inRoom||!S.roomHost||!change||!Number(change.episode)||Number(change.episode)===n)return;var next=Math.floor(Number(change.episode));await sendRoomEvent("episode-change",{animeId:d.id,episode:next,host:true});location.href=watchUrl(d.id,next)+"&room="+encodeURIComponent(S.room)},onTranslationChange:change=>{if(!change)return;var voiceId=change.translationId??change.voiceId;if(!voiceId)return;setAnimeHistory(d.id,{voice:{provider:String(change.provider||"kodik"),id:String(voiceId),title:String(change.title||""),updatedAt:Date.now()}});sv();if(!inRoom||!S.roomHost||!change.translationId)return;sendRoomEvent("translation-change",{animeId:d.id,episode:n,translationId:change.translationId,translationTitle:change.title||"",time:change.time,duration:change.duration,playing:change.playing,speed:change.speed,host:true}).catch(error=>console.warn("[AniWatch] Room translation broadcast failed:",error))},onReady:()=>{syncCurrentVoicePreference();if(inRoom){if(S.roomHost)broadcastPlayback("state");else sendRoomEvent("request-state",{name:S.name||"Гость"}).catch(()=>{})}},onEpisodeEnded:()=>{setEpisodeWatched(d.id,n,true);var nextEpisode=nextUnwatchedEpisode(d,n);if(nextEpisode&&S.autoNextEpisode!==false){setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();try{sessionStorage.setItem("aw.ap","1")}catch(e){}setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)+(inRoom?"&room="+encodeURIComponent(S.room):"")},250)}else{if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});else clearAnimePlaybackHistory(d.id);sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена")}},onWatchTime:(seconds,meta)=>recordWatchedTime(d.id,seconds,meta,playbackOwnerId),onPlayback:media=>{
-  // Save real HTML5 player progress; the legacy custom-player tick is not used here.
-  var now=Date.now(),time=Math.max(0,Number(media.time)||0);
-  if(time>0){
-   setAnimeHistory(d.id,{ep:n,t:time,duration:Math.max(0,Number(media.duration)||0),at:now,speed:Number(media.speed)||1});
-   P.t=time;P.on=!!media.playing;P.sp=Number(media.speed)||1;
-   if(now-historySaveAt>=5000||!media.playing){historySaveAt=now;sv()}
+ var playbackOwnerId=AUTH_USER?.id||null;
+ STREAM_PLAYER=mountStreamPlayer({
+  root:$("#stream-player"),anime:d,episode:n,resumeAt:inRoom&&!S.roomHost?0:P.t,resumeSpeed:P.sp,
+  preferredVoice:S.hist[d.id]?.voice||null,enableAnimeAV1:true,initialPlaying:P.on&&(!inRoom||S.roomHost),
+  onSourceChange:source=>{
+   if(!inRoom)return;
+   applyRoomPlayback();
+   if(S.roomHost&&source.compatibility!=="ready"&&ROOM_CONNECTED)broadcastPlayback("state");
+  },
+  onEpisodeChange:change=>{
+   const next=Number(change?.episode);
+   if(inRoom&&S.roomHost&&Number.isSafeInteger(next)&&next>0&&next!==n)openNextRoomEpisode(d.id,next);
+  },
+  onTranslationChange:change=>{
+   const voiceId=change?.translationId??change?.voiceId;
+   if(!voiceId)return;
+   setAnimeHistory(d.id,{voice:{provider:String(change.provider||"kodik"),id:String(voiceId),title:String(change.title||""),updatedAt:Date.now()}});
+   sv();
+  },
+  onReady:()=>{
+   if(!inRoom){syncCurrentVoicePreference();return}
+   applyRoomPlayback();
+   if(S.roomHost)broadcastPlayback("state");
+   else if(!roomState&&ROOM_CONNECTED)sendRoomEvent("request-state").catch(()=>{});
+  },
+  onEpisodeEnded:()=>{
+   setEpisodeWatched(d.id,n,true);
+   if(inRoom&&!S.roomHost)return;
+   const available=availableEpCount(d);
+   const nextEpisode=inRoom ? (available!==null&&n<available?n+1:null) : nextUnwatchedEpisode(d,n);
+   if(nextEpisode&&S.autoNextEpisode!==false){
+    setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});sv();
+    try{sessionStorage.setItem("aw.ap","1")}catch{}
+    if(inRoom)openNextRoomEpisode(d.id,nextEpisode);
+    else setTimeout(()=>{location.href=watchUrl(d.id,nextEpisode)},250);
+   }else{
+    if(nextEpisode)setAnimeHistory(d.id,{ep:nextEpisode,t:0,duration:0,at:Date.now(),speed:P.sp||1});
+    else clearAnimePlaybackHistory(d.id);
+    sv();toast(nextEpisode?"Серия завершена. Автопереход отключён.":"Серия завершена");
+   }
+  },
+  onWatchTime:(seconds,meta)=>recordWatchedTime(d.id,seconds,meta,playbackOwnerId),
+  onPlayback:media=>{
+   const now=Date.now(),time=Math.max(0,Number(media.time)||0);
+   if(time>0){
+    setAnimeHistory(d.id,{ep:n,t:time,duration:Math.max(0,Number(media.duration)||0),at:now,speed:Number(media.speed)||1});
+    P.t=time;P.on=!!media.playing;P.sp=Number(media.speed)||1;
+    if(now-historySaveAt>=5000||!media.playing){historySaveAt=now;sv()}
+   }
+   if(inRoom&&S.roomHost)broadcastPlayback("playback",media);
   }
-  if(!ROOM_CONNECTED||!S.roomHost)return;
-  if(now-ROOM_LAST_SYNC<650&&media.playing)return;ROOM_LAST_SYNC=now;
-  sendRoomEvent("playback",{animeId:d.id,episode:n,time:media.time,duration:media.duration,playing:media.playing,speed:media.speed,translationId:media.translationId??null,translationTitle:media.translationTitle||"",host:true}).catch(e=>console.warn("[AniWatch] Player sync failed:",e));
- }});
- loadBanner(d);
+ });
  if(inRoom)connectWatchParty();
 };
 
@@ -874,6 +1088,10 @@ var calendarLoadRequest=0,calendarItems=[],calendarFollows={},calendarFilter="al
   }catch(error){console.warn("[AniWatch] Profile anime posters could not be hydrated:",error)}
   if(request!==profileStatsRequest||activePage()!=="profile")return;
   profileWatchStatsCache=watchStats;renderProfile({app,state:S,mediaMap:M,escapeHtml:esc,user:AUTH_USER,watchStats,watchStatsError});
+  const locale=document.createElement("div");
+  locale.className="room-playback-settings";
+  locale.append(languageSetting(changeLanguage));
+  (app.querySelector("#playback-settings-form")||app).append(locale);
   if(AUTH_USER&&AUTH_USER.id==="a0cf372c-5d93-4899-ab5d-1fb507387c06"&&String(AUTH_USER.email||"").trim().toLowerCase()==="demid.prim@gmail.com"){app.insertAdjacentHTML("afterbegin",'<a class="site-stats-shortcut" href="stats.html"><span><b>Статистика сайта</b><small>demid.prim@gmail.com · панель владельца</small></span><strong>↗</strong></a>')}
  };
 function openAuthModal(){
@@ -902,6 +1120,7 @@ async function handleAuthSubmit(form){
   AUTH_USER=result.session?.user||result.data?.session?.user||null;
   if(AUTH_USER){
    var signedInUserId=AUTH_USER.id;
+   restoreInterfaceLanguage(signedInUserId);
    var initialName=mode==="signup"?username:AUTH_USER.user_metadata?.username;
    if(initialName&&(!S.name||S.name==="Гость"||S.name==="Аноним"))S.name=String(initialName).slice(0,20);
    saveLocalState(S,M);hd();
@@ -1069,13 +1288,31 @@ function loadLegacyItems(){
   }
  }catch(error){}
 }
+async function restoreInterfaceLanguage(userId){
+ try{
+  const language=await loadProfileLanguage(userId);
+  if(AUTH_USER?.id!==userId)return;
+  const pendingKey="aw.ui.language.pending."+userId,pending=readPreference(pendingKey);
+  if(pending){
+   await saveProfileLanguage(pending,userId);
+   writePreference(pendingKey,"");
+   return;
+  }
+  if(language&&language!==getLanguage()){
+   setLanguage(language);
+   location.reload();
+  }else if(!language&&readPreference("aw.ui.language")){
+   await saveProfileLanguage(getLanguage(),userId);
+  }
+ }catch(error){console.warn("[AniWatch] Cloud language preference unavailable:",error)}
+}
 async function boot(){
  S=await initializeLocalState(S,value=>{S=value});
  loadLegacyItems();
  hydrateStash();
  initRouteFilters();
  // Cloud sign-in and library restoration run independently of the first render.
- (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
+ (async()=>{try{var auth=await initializeSupabaseAuth();AUTH_USER=auth.user;if(AUTH_USER){restoreInterfaceLanguage(AUTH_USER.id);S=await restoreCloudState(S,AUTH_USER.id);syncCurrentVoicePreference();flushWatchTimeQueue(AUTH_USER.id);await xhyd();myListCloudAt=Date.now();var feedback=await loadRecommendationFeedback(AUTH_USER.id);S.recommendationDismissed={...(S.recommendationDismissed||{}),...feedback};saveLocalState(S,M);if(activePage()==="home"){refreshContinueShelf();loadHomeRecommendations()}else if(activePage()==="mylist")V.mylist();else if(activePage()==="favorites")V.favorites();else if(activePage()==="profile")V.profile();else if(activePage()==="calendar")V.calendar()}}catch(e){console.warn("[AniWatch] Supabase session restore failed:",e)}})();
  app.innerHTML='<p class="empty">Загрузка каталога…</p>';
  await ensureRouteItem();
  var hydration=xhyd();
@@ -1334,7 +1571,7 @@ function shikiToItem(a){
  return {id:1000000000+Number(a.id),shikiId:Number(a.id),source:"shikimori",
   detailsLoaded:Array.isArray(a.genres)&&Object.hasOwn(a,"duration"),
   mal:Number(a.malId||a.myanimelist_id)||null,n:esc(a.russian||a.name||"Без названия"),
-  o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),g:genres.length?genres:["Аниме"],
+  o:esc(a.russian&&a.name&&a.russian!==a.name?a.name:""),romaji:a.name,japanese:a.japanese,english:Array.isArray(a.english)?a.english[0]:a.english,synonyms:Array.isArray(a.synonyms)?a.synonyms:[],g:genres.length?genres:["Аниме"],
   y:Number(airDate.slice(0,4))||0,mth:Number(airDate.slice(5,7))||0,r:Number(a.score)||0,
   e:Number(a.episodes)||0,ae:Number(a.episodes_aired??a.episodesAired)||0,s:st,d:cleanDesc(a.description||""),
   c:["#7c3aed","#0f0f1a"],img:shikiImageUrl(path),ban:"",kind:String(a.kind||"").toLowerCase()};
@@ -1413,8 +1650,36 @@ function syncCatalogUrl(){
  var o={q:xCF.q,g:xCF.g,y:xCF.y,season:xCF.season,status:xCF.st,format:xCF.f,sort:xCF.o==="POPULARITY_DESC"?"":xCF.o,score:xCF.minScore};
  try{history.replaceState(null,"",pageUrl("catalog",o))}catch(e){}
 }
-function draw(){renderRoute(V,T,()=>{P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
-function msg(a,t){var m=$("#ms");if(!m)return;var d=document.createElement("div"),e=document.createElement("em");e.textContent=a;d.append(e,document.createTextNode(String(t||"")));m.append(d);m.scrollTop=1e5}
+function draw(){renderRoute(V,T,()=>{if(STREAM_PLAYER){stopWatchParty();disconnectRoom();STREAM_PLAYER.destroy();STREAM_PLAYER=null}P=null;if(INLINE_STREAM_PLAYER){INLINE_STREAM_PLAYER.destroy();INLINE_STREAM_PLAYER=null}},S);var visible=[];document.querySelectorAll("[data-anime-id]").forEach(el=>{var d=M[Number(el.dataset.animeId)];if(d)visible.push(d)});if(activePage()==="title"||activePage()==="watch"){var current=M[routeArgs()[0]];if(current)visible.push(current)}if(visible.length)xshikiPosters([...new Map(visible.map(d=>[d.id,d])).values()])}
+function msg(author,text,incoming=false){
+ const list=$("#ms");
+ if(!list)return;
+ const row=document.createElement("div"),name=document.createElement("em"),body=document.createElement("span");
+ name.textContent=author;
+ body.textContent=String(text||"");
+ row.append(name,body);
+ list.append(row);
+ while(list.childElementCount>200)list.firstElementChild.remove();
+ list.scrollTop=list.scrollHeight;
+ if(!incoming||!$("#room-auto-translate")?.checked)return;
+ const language=getLanguage();
+ translateRoomMessage(body.textContent,language).then(value=>{
+  if(!row.isConnected||!$("#room-auto-translate")?.checked||getLanguage()!==language)return;
+  if(value===null){
+   const status=document.createElement("small");
+   status.className="chat-translation-status";
+   status.textContent=t("translationUnavailable");
+   row.append(status);
+  }else if(value){
+   const original=document.createElement("details"),summary=document.createElement("summary");
+   original.className="chat-original";
+   summary.textContent=t("original");
+   original.append(summary,document.createTextNode(body.textContent));
+   body.textContent=value;
+   row.append(original);
+  }
+ });
+}
 
 var heroTouch=null;listen(document,"touchstart",e=>{var h=e.target.closest("#hw .hero-editorial");if(!h||e.touches.length!==1)return;heroTouch={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});listen(document,"touchend",e=>{if(!heroTouch)return;var p=heroTouch;heroTouch=null;if(!e.changedTouches.length||H.length<2)return;var dx=e.changedTouches[0].clientX-p.x,dy=e.changedTouches[0].clientY-p.y;if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.25){featuredIndex=(featuredIndex+(dx<0?1:-1)+H.length)%H.length;showFeatured()}},{passive:true});
 listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=+t.dataset.i,v=t.dataset.v;
@@ -1520,7 +1785,7 @@ listen(document,"click",e=>{var t=e.target.closest("[data-a]");if(!t)return;var 
   else if(a==="invite-decline"){if(!AUTH_USER)return;respondWatchInvite(t.dataset.id,AUTH_USER.id,false).then(()=>{toast("Приглашение отклонено");loadTogetherView()}).catch(error=>toast(error.message||"Не удалось отклонить приглашение"))}
   else if(a==="social-reload"){loadTogetherView()}
   else if(a=="room-copy"&&S.room){var invite=new URL(location.href);invite.searchParams.set("room",S.room);invite.searchParams.set("guest","1");var inviteText=invite.toString();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inviteText).then(()=>toast("Ссылка-приглашение скопирована")).catch(()=>prompt("Скопируй ссылку на комнату:",inviteText));else prompt("Скопируй ссылку на комнату:",inviteText)}
- else if(a=="room-leave"){disconnectRoom();ROOM_CONNECTED=false;S.room="";S.roomHost=false;S.roomAnime=0;S.roomEpisode=0;sv();toast("Вы вышли из комнаты");location.href=watchUrl(P.d.id,P.n)}
+ else if(a=="room-leave"){stopWatchParty();disconnectRoom();S.room="";S.roomHost=false;S.roomAnime=0;S.roomEpisode=0;sv();toast("Вы вышли из комнаты");location.href=watchUrl(P.d.id,P.n)}
  else if(a==="auth-mode"){var mode=v==="signup"?"signup":"login";document.querySelectorAll("[data-auth-mode]").forEach(b=>b.classList.toggle("on",b.dataset.authMode===mode));var modeInput=document.querySelector("#auth-form [name=auth-mode]");if(modeInput)modeInput.value=mode;var pass=$("#auth-password");if(pass)pass.autocomplete=mode==="signup"?"new-password":"current-password";var n=$("#auth-username-wrap");if(n)n.hidden=mode!=="signup";var ew=$("#auth-email-wrap");if(ew)ew.hidden=mode!=="signup";var emailInput=$("#auth-email");if(emailInput)emailInput.required=mode==="signup";var lw=$("#auth-login-wrap");if(lw)lw.hidden=mode==="signup";var loginInput=$("#auth-login");if(loginInput)loginInput.required=mode!=="signup";var submit=$("#auth-submit");if(submit)submit.textContent=mode==="signup"?"Создать аккаунт":"Войти";var status=$("#auth-message");if(status)status.textContent=""}
  else if(a==="profile-avatar"){var avatarInput=$("#profile-avatar-file");if(avatarInput)avatarInput.click()}else if(a==="profile-banner"){var bannerInput=$("#profile-banner-file");if(bannerInput)bannerInput.click()}else if(a==="profile-share"){var shareUrl=location.origin+location.pathname+"?user="+encodeURIComponent(AUTH_USER?.id||"");if(navigator.clipboard?.writeText){navigator.clipboard.writeText(shareUrl).then(()=>toast("Ссылка скопирована")).catch(()=>toast(shareUrl))}else toast(shareUrl)}else if(a==="auth-logout"){handleAuthLogout()}
  else if(a=="acc"){S.acc=v;sv();hd()}
@@ -1574,7 +1839,18 @@ listen(document,"submit",async e=>{e.preventDefault();var f=e.target.id;
   return;
  }
  if(f==="auth-form"){handleAuthSubmit(e.target);return}
- if(f=="cf"){var v=$("#ci").value.trim();if(!v)return;if(!ROOM_CONNECTED){toast("Нет соединения с комнатой");return}msg(S.name||"Вы",v);sendRoomEvent("chat",{name:S.name||"Гость",text:v.slice(0,500)}).catch(()=>toast("Не удалось отправить сообщение"));$("#ci").value=""}
+ if(f==="cf"){
+  const input=$("#ci"),value=input.value.trim().slice(0,500),now=Date.now();
+  if(!value||now-roomChatSentAt<700)return;
+  if(!ROOM_CONNECTED){toast("Нет соединения с комнатой");return}
+  roomChatSentAt=now;
+  try{
+   if(!await sendRoomEvent("chat",{name:S.name||t("guest"),text:value}))throw new Error("Chat broadcast failed");
+   msg(S.name||"Вы",value);
+   if(input.value.trim()===value)input.value="";
+  }catch{toast("Не удалось отправить сообщение")}
+ }
+
  if(f==="jf"){var code=$("#jc").value.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);if(!code)return;var joinSettled=false,joinTimer=null;toast("Ищем ведущего комнаты…");connectRoom(code,{name:S.name||"Гость",host:false,onEvent:payload=>{if(joinSettled||payload.type!=="state"||!payload.host||!Number(payload.animeId))return;var animeId=Number(payload.animeId),episode=Math.max(1,Number(payload.episode)||1);joinSettled=true;if(joinTimer)clearTimeout(joinTimer);S.room=code;S.roomHost=false;S.roomAnime=animeId;S.roomEpisode=episode;sv();location.href=routeWatchUrl(animeId,episode)+"&room="+encodeURIComponent(code)+"&guest=1"}}).then(()=>{joinTimer=setTimeout(()=>{if(joinSettled)return;joinSettled=true;disconnectRoom();toast("Ведущий не ответил. Проверь код и попробуй снова.")},8000);return sendRoomEvent("request-state",{name:S.name||"Гость"})}).catch(error=>{if(joinSettled)return;joinSettled=true;if(joinTimer)clearTimeout(joinTimer);disconnectRoom();toast(error.message||"Не удалось подключиться к комнате")});return}});
 listen(document,"input",e=>{if(e.target.id==="collection-anime-search"){clearTimeout(collectionSearchTimer);var value=e.target.value;collectionSearchTimer=setTimeout(()=>searchCollectionAnime(value),350)}});
 listen(document,"input",e=>{var i=e.target.id;

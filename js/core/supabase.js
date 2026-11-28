@@ -641,3 +641,18 @@ export async function loadWatchTimeStats(userId) {
   }
   return stats;
 }
+
+export async function loadProfileLanguage(userId) {
+  const client = await getSupabaseClient();
+  const { data, error } = await client.from("user_interface_preferences")
+    .select("locale").eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return data?.locale ?? null;
+}
+
+export async function saveProfileLanguage(locale, userId) {
+  if (!["ru","es-419"].includes(locale) || !userId) return;
+  const client = await getSupabaseClient();
+  const { error } = await client.from("user_interface_preferences").upsert({ user_id: userId, locale });
+  if (error) throw error;
+}
