@@ -457,7 +457,23 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    const el=document.createElement("video");el.className="stream-video";el.controls=true;el.playsInline=true;stage.replaceChildren(el);bindVideo(el);
    el.addEventListener("loadedmetadata",()=>{if(video()===el)onReady()},{once:true});el.src=url.href;setStatus("Español Latino · MP4");
   };
-  setStatus("Fuente experimental · URL manual");
+  const search=document.createElement("button");search.type="button";search.textContent="Buscar en AnimeAV1";options.prepend(search);
+  const query=document.createElement("input");query.type="search";query.value=anime?.o||anime?.originalTitle||anime?.n||"";query.setAttribute("aria-label","Título");options.prepend(query);
+  const results=document.createElement("div");options.append(results);
+  search.onclick=async()=>{
+   search.disabled=true;results.replaceChildren();
+   try{
+    const payload=await requestJson("https://animeav1.ahmedrangel.com/api/search?query="+encodeURIComponent(query.value.trim()));
+    if(!search.isConnected)return;
+    const list=payload?.data?.media;if(!Array.isArray(list)||!list.length)throw Error("Sin resultados");
+    for(const item of list.slice(0,12)){
+     let url;try{url=new URL(item.url);if(url.protocol!=="https:"||url.hostname!=="animeav1.com")continue}catch{continue}
+     const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";link.textContent=String(item.title||item.slug);link.style.display="block";results.append(link);
+    }
+    setStatus("AnimeAV1 · catálogo; sincronización solo con vídeo MP4 autorizado");
+   }catch(error){if(search.isConnected)setStatus("AnimeAV1: "+error.message)}finally{search.disabled=false}
+  };
+  setStatus("AnimeAV1 · búsqueda experimental / MP4 autorizado");
  };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   userSelectedProvider=true;
