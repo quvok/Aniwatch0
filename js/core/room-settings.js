@@ -86,7 +86,7 @@ export function mountRoomSettings(root, { onLanguage, onOffset, onAlign, warmTra
       messages.push(t("durationMismatch", { seconds: Math.round(Math.abs(local.duration - state.duration)) }));
     }
     info.textContent = messages.join(" · ");
-    const unsupported = source?.provider === "animeav1" && source.compatibility === "unsupported";
+    const unsupported = ["animeav1","jkanime"].includes(source?.provider) && source.compatibility === "unsupported";
     fallback.hidden = !unsupported;
     offsets.hidden = host || source?.compatibility !== "ready";
     if (unsupported) {

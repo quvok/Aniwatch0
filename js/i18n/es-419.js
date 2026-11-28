@@ -1,4 +1,13 @@
 export default {
+  jkLatino: "Doblaje latino",
+  jkSub: "Audio japonés · subtítulos en español",
+  jkOpen: "Abrir el episodio en JKAnime",
+  jkAuth: "Inicia sesión en AniWatch para usar JKAnime",
+  jkNoEpisode: "JKAnime no tiene una fuente disponible para este episodio",
+  jkUnavailable: "JKAnime no está disponible por el momento",
+  jkLoading: "Cargando JKAnime…",
+  jkNoEmbed: "Esta pista no tiene un reproductor integrado compatible",
+  jkNoSync: "El reproductor de JKAnime no confirmó el control. Si hay video disponible, inicia la reproducción manualmente.",
   language: "Idioma de la interfaz",
   preferredAudio: "Idioma de audio preferido",
   independentAudio: "Cada participante elige su propia fuente y audio",

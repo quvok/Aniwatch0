@@ -1,4 +1,13 @@
 export default {
+  jkLatino: "Озвучка Español Latino",
+  jkSub: "Японская озвучка · испанские субтитры",
+  jkOpen: "Открыть серию в JKAnime",
+  jkAuth: "Войдите в AniWatch, чтобы использовать JKAnime",
+  jkNoEpisode: "В JKAnime нет доступного источника для этой серии",
+  jkUnavailable: "JKAnime сейчас недоступен",
+  jkLoading: "Загружаем JKAnime…",
+  jkNoEmbed: "Для этой дорожки нет совместимого встроенного плеера",
+  jkNoSync: "Плеер JKAnime не подтвердил управление. Если видео доступно, запустите его вручную.",
   language: "Язык интерфейса",
   preferredAudio: "Предпочитаемый язык озвучки",
   independentAudio: "Каждый участник выбирает свой источник и озвучку",

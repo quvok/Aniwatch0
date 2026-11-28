@@ -64,9 +64,12 @@ const requiredMethods = ["play", "pause", "setCurrentTime"];
 const requiredEvents = ["play", "pause", "timeupdate", "ended"];
 
 export class PlayerJsAdapter extends PlayerAdapter {
-  constructor(frame) {
+  constructor(frame, {verifyPlayback = false} = {}) {
     super();
     this.frame = frame;
+    this.verifyPlayback = verifyPlayback;
+    this.responses = new Set();
+    this.lastProbe = 0;
     this.state = { time: 0, duration: 0, speed: 1, playing: false, buffering: false };
     this.listeners = new AbortController();
     window.addEventListener("message", event => this.receive(event), { signal: this.listeners.signal });
@@ -93,7 +96,8 @@ export class PlayerJsAdapter extends PlayerAdapter {
       if (!Array.isArray(methods) || !Array.isArray(events) ||
         !requiredMethods.every(method => methods.includes(method)) ||
         !requiredEvents.every(name => events.includes(name))) return;
-      clearTimeout(this.timer);
+      if (this.verifyPlayback && !["getDuration", "getCurrentTime", "getPaused"].every(name => methods.includes(name))) return;
+      if (!this.verifyPlayback) clearTimeout(this.timer);
       this.ready = true;
       for (const name of [...requiredEvents, "seeked", "error"].filter(name => events.includes(name))) {
         this.send("addEventListener", name, "aw-event-" + name);
@@ -101,14 +105,24 @@ export class PlayerJsAdapter extends PlayerAdapter {
       for (const method of ["getDuration", "getCurrentTime", "getPaused"]) {
         if (methods.includes(method)) this.send(method, undefined, "aw-initial-" + method);
       }
-      this.emit("ready");
+      if (!this.verifyPlayback) this.emit("ready");
       return;
     }
     if (!this.ready) return;
     if (data.listener === "aw-initial-" + data.event) {
-      if (data.event === "getDuration" && Number.isFinite(data.value) && data.value > 0) this.state.duration = data.value;
-      if (data.event === "getCurrentTime" && Number.isFinite(data.value) && data.value >= 0) this.state.time = data.value;
-      if (data.event === "getPaused" && typeof data.value === "boolean") this.state.playing = !data.value;
+      if (data.event === "getDuration" && Number.isFinite(data.value) && data.value > 0) {
+        this.state.duration = data.value;
+        this.responses.add(data.event);
+      }
+      if (data.event === "getCurrentTime" && Number.isFinite(data.value) && data.value >= 0) {
+        this.state.time = data.value;
+        this.responses.add(data.event);
+      }
+      if (data.event === "getPaused" && typeof data.value === "boolean") {
+        this.state.playing = !data.value;
+        this.responses.add(data.event);
+      }
+      this.confirmPlayback();
       return;
     }
     if (!["play", "pause", "timeupdate", "ended", "seeked", "error"].includes(data.event) ||
@@ -119,7 +133,20 @@ export class PlayerJsAdapter extends PlayerAdapter {
     if (Number.isFinite(duration) && duration > 0) this.state.duration = duration;
     if (data.event === "play") this.state.playing = true;
     if (data.event === "pause" || data.event === "ended") this.state.playing = false;
+    if (this.verifyPlayback && data.event === "timeupdate" && this.responses.size < 3 && Date.now() - this.lastProbe >= 1000) {
+      this.lastProbe = Date.now();
+      for (const method of ["getDuration", "getCurrentTime", "getPaused"]) {
+        if (!this.responses.has(method)) this.send(method, undefined, "aw-initial-" + method);
+      }
+    }
     this.emit(data.event);
+  }
+
+  confirmPlayback() {
+    if (!this.verifyPlayback || this.responses.size < 3 || this.confirmed) return;
+    this.confirmed = true;
+    clearTimeout(this.timer);
+    this.emit("ready");
   }
 
   send(method, value, listener) {

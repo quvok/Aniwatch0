@@ -80,3 +80,30 @@ ANIMEAV1_LIVE=1 npm run test:e2e -- tests/animeav1.live.spec.js --project=deskto
 | Код и сборка | `npm run check` и `npm run build` прошли. |
 
 Сквозной прогон с настоящими Kodik, AnimeAV1 и Supabase Realtime остаётся открытым. Локализация охватывает навигацию, основные страницы и состояния комнаты. Редкие сообщения старых компонентов и данные без проверенного испанского перевода могут остаться на исходном языке.
+
+## JKAnime (experimental)
+
+- The watch page offers JKAnime as a separate provider for signed-in users. The
+  `jkanime-catalog` Supabase Edge Function fetches public catalog HTML from
+  `jkanime.net`, returns validated response fields and does not fetch or proxy
+  video. Deploy the function with JWT verification enabled. The function uses
+  the automatically supplied Supabase environment variables. No provider key
+  is required. Cached pages and request quotas are local to each Edge instance.
+- AniWatch auto-selects a unique exact title match only when format, year and
+  total episode count also match. Users can select another search result. The
+  confirmed title and audio variant are saved on the device. Episode number
+  comes from AniWatch or the room and is checked against the episode page's URL.
+- The language choices reflect per-episode JKAnime metadata. Latino is preferred
+  when published, and Japanese audio with Spanish subtitles is a separate
+  choice. Metadata does not establish that Latino audio and Spanish captions
+  are available together. Only public Streamtape embeds are used in the room,
+  via its documented Player.js interface. If the player fails to provide
+  position, duration and paused state, the room reports that sync is unavailable.
+  Playback rate remains under local control on that embed.
+- Public metadata checked on Dragon Ball episode 15 and Death Note episode 15.
+  The available variants were Latino and Latino plus Spanish-subtitled Japanese,
+  respectively. The embed returned HTTP 403 during the live probe. Playwright
+  tests model the documented Player.js messages and exercise the room flow in
+  two browser contexts. Live playback and live control remain unverified.
+
+Run the catalog-only check with `JKANIME_LIVE=1 npm run test:e2e -- tests/jkanime.live.spec.js`.

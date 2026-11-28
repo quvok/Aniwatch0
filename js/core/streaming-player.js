@@ -1,3 +1,4 @@
+import { mountJKAnime } from "./jkanime-player.js";
 import { mountAnimeAV1 } from "./animeav1-player.js";
 import { playbackCorrection } from "./watch-sync.js";
 import { t } from "../i18n/index.js";
@@ -65,12 +66,12 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  root.innerHTML=`
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> ОСНОВНОЙ ПЛЕЕР</span></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Основной <em>Рекомендуем</em></button><button type="button" data-provider="liberty">Резервный 1</button><button type="button" data-provider="animevost">Резервный 2 <em>RU</em></button><button type="button" data-provider="animelib">Дополнительный</button>${enableAnimeAV1?'<button type="button" data-provider="animeav1">AnimeAV1 <em>ES</em></button>':""}</div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Основной <em>Рекомендуем</em></button><button type="button" data-provider="liberty">Резервный 1</button><button type="button" data-provider="animevost">Резервный 2 <em>RU</em></button><button type="button" data-provider="animelib">Дополнительный</button>${enableAnimeAV1?'<button type="button" data-provider="animeav1">AnimeAV1 <em>ES</em></button><button type="button" data-provider="jkanime">JKAnime <em>ES</em></button>':""}</div><div class="stream-options" id="stream-options"></div></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите плеер</b><small>Плеер загружается только после выбора источника</small></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
  const stage=root.querySelector("#stream-stage"),options=root.querySelector("#stream-options"),status=root.querySelector("#stream-status"),reload=root.querySelector("#player-reload");
- let animeAV1=null,closed=false,lastTransport=null,lastSeekAt=0,lastPlayAt=0,videoBuffering=false,kodikTimeAt=0;
+ let externalPlayer=null,closed=false,lastTransport=null,lastSeekAt=0,lastPlayAt=0,videoBuffering=false,kodikTimeAt=0;
  let releases=[],selectedRelease=null,releaseData=null,lastEmit=0,remoteApplying=false,emitTimer=null,remoteApplyTimer=null,lastSentState="",kodikLoadSequence=0,kodikFrame=null,kodikTranslationSync=null,libertyReleaseSync=null,userSelectedProvider=false,lastWatchSample=null,kodikTranslation={id:null,title:""},kodikMedia={time:0,duration:0,playing:false,speed:1};
  const setStatus=s=>{if(status)status.textContent=s};
  const destroyHls=()=>{if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}};
@@ -123,9 +124,9 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  window.addEventListener("message",onKodikMessage);
  const getPlaybackState=()=>{
   const v=video();
-  if(v&&(!animeAV1||animeAV1.compatibility==="ready"))return {time:Number(v.currentTime)||0,duration:Number.isFinite(v.duration)?Math.max(0,v.duration):0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1,buffering:!v.paused&&videoBuffering};
+  if(v&&(!externalPlayer||externalPlayer.compatibility==="ready"))return {time:Number(v.currentTime)||0,duration:Number.isFinite(v.duration)?Math.max(0,v.duration):0,playing:!v.paused&&!v.ended,speed:Number(v.playbackRate)||1,buffering:!v.paused&&videoBuffering};
   if(kodikFrame)return {time:kodikMedia.time+(kodikMedia.playing&&kodikTimeAt?Math.min(0.99,(Date.now()-kodikTimeAt)/1000)*kodikMedia.speed:0),duration:kodikMedia.duration,playing:kodikMedia.playing,speed:kodikMedia.speed,translationId:kodikTranslation.id,translationTitle:kodikTranslation.title,buffering:false};
-  return animeAV1?.adapter?.state||null;
+  return externalPlayer?.adapter?.state||null;
  };
  const sampleWatchTime=(state,reason="reset")=>{const now=Date.now();if(!state){lastWatchSample=null;return}const previous=lastWatchSample;let sent=false;if(previous&&previous.playing&&(["timeupdate","pause","stop"].includes(reason))){const delta=Math.max(0,(Number(state.time)||0)-previous.time),elapsed=Math.max(0,now-previous.at)/1000,speed=Math.max(.25,previous.speed),maxExpected=elapsed*speed+1.25,watchedSeconds=Math.min(elapsed,delta/speed);if(delta>=.15&&delta<=Math.min(30,maxExpected)&&watchedSeconds>=.15){try{onWatchTime(watchedSeconds,{flush:reason==="pause"||reason==="stop"});sent=true}catch(error){console.warn("[AniWatch] Watch-time callback failed:",error)}}}if(!sent&&(reason==="pause"||reason==="stop"))try{onWatchTime(0,{flush:true})}catch(error){console.warn("[AniWatch] Watch-time flush callback failed:",error)}lastWatchSample={time:Math.max(0,Number(state.time)||0),playing:!!state.playing,at:now,speed:Number(state.speed)>0?Number(state.speed):1}};
  const emit=force=>{const state=getPlaybackState();if(!state||remoteApplying)return;const now=Date.now();if(!force&&now-lastEmit<2500)return;if(force){clearTimeout(emitTimer);emitTimer=setTimeout(()=>{if(remoteApplying)return;const latest=getPlaybackState();if(!latest)return;const key=[latest.time.toFixed(1),latest.playing,latest.speed,latest.buffering].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=Date.now();onPlayback(latest)},100);return}const key=[state.time.toFixed(1),state.playing,state.speed,state.buffering].join("|");if(key===lastSentState)return;lastSentState=key;lastEmit=now;onPlayback(state)};
@@ -157,7 +158,7 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  };
  root.addEventListener("keydown",handlePlayerKeys);
  const syncPlayback=async state=>{
-  const v=video(), adapter=animeAV1?.adapter, local=getPlaybackState();
+  const v=video(), adapter=externalPlayer?.adapter, local=getPlaybackState();
   if(!state||!local||(!v&&!kodikFrame&&!adapter?.state))return false;
   if(v&&v.readyState<1)return false;
   const transport=v||kodikFrame||adapter;
@@ -479,17 +480,18 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  const selectedProvider=()=>root.querySelector("[data-provider].on")?.dataset.provider||"kodik";
  function sourceState(){
   const provider=selectedProvider();
-  const av=provider==="animeav1"?animeAV1:null;
+  const av=externalPlayer;
   return {provider, sourceId:av?.sourceId||getPlaybackState()?.translationId||preferredVoice?.id||provider,
    compatibility:av?.compatibility||(getPlaybackState()?"ready":provider==="animelib"||provider==="animevost"?"unsupported":"loading")};
  }
- function showAnimeAV1(){
-  stopAnimeAV1();
+ function showExternal(provider){
+  stopExternal();
   destroyHls();kodikLoadSequence++;kodikFrame=null;savedProgressApplied=false;
-  animeAV1=mountAnimeAV1({options,stage,anime,episode,setStatus,loadHls,bindVideo,
-   changed:()=>queueMicrotask(()=>{if(!closed&&selectedProvider()==="animeav1")onSourceChange(sourceState())}),
+  const mount=provider==="jkanime"?mountJKAnime:mountAnimeAV1;
+  externalPlayer=mount({options,stage,anime,episode,setStatus,loadHls,bindVideo,resumeAt:savedTime,
+   changed:()=>queueMicrotask(()=>{if(!closed&&selectedProvider()===provider)onSourceChange(sourceState())}),
    onReady:()=>{
-    if(initialPlaying)animeAV1?.adapter?.play().catch(()=>setStatus(t("alignHint")));
+    if(initialPlaying)externalPlayer?.adapter?.play().catch(()=>setStatus(t("alignHint")));
     onReady();
    },
    onEvent:name=>{
@@ -499,13 +501,13 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
     emit(name!=="timeupdate");
    }});
  }
- const stopAnimeAV1=()=>{animeAV1?.destroy();animeAV1=null};
- const showProvider={animeav1:showAnimeAV1,animevost:showAnimeVost,animelib:showAnimeLib,kodik:showKodik,liberty:showLiberty};
+ const stopExternal=()=>{externalPlayer?.destroy();externalPlayer=null};
+ const showProvider={animeav1:()=>showExternal("animeav1"),jkanime:()=>showExternal("jkanime"),animevost:showAnimeVost,animelib:showAnimeLib,kodik:showKodik,liberty:showLiberty};
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   const provider=button.dataset.provider;
   userSelectedProvider=true;
   if(provider!=="kodik"){kodikLoadSequence++;kodikFrame=null;}
-  stopAnimeAV1();
+  stopExternal();
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
   if(enableAnimeAV1)try{localStorage.setItem(providerKey,provider)}catch{}
   showProvider[provider]();
@@ -524,5 +526,5 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
  root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===initialProvider));
  showProvider[initialProvider]();
  queueMicrotask(()=>{if(!closed)onSourceChange(sourceState())});
- return {getPlaybackState,syncPlayback,sourceState,syncTranslation(voiceId,state,provider="kodik"){const active=root.querySelector("[data-provider].on")?.dataset.provider||"kodik";if(userSelectedProvider&&active!==provider)return Promise.resolve(false);if(active!==provider){root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===provider));const load=provider==="liberty"?showLiberty():showKodik();return load.then(()=>provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):false):(kodikTranslationSync?kodikTranslationSync(voiceId,state):false))}return provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):Promise.resolve(false)):(kodikTranslationSync?kodikTranslationSync(voiceId,state):Promise.resolve(false))},destroy(){closed=true;sampleWatchTime(getPlaybackState(),"stop");stopAnimeAV1();destroyHls();kodikTranslationSync=null;libertyReleaseSync=null;kodikFrame=null;window.removeEventListener("message",onKodikMessage);clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
+ return {getPlaybackState,syncPlayback,sourceState,syncTranslation(voiceId,state,provider="kodik"){const active=root.querySelector("[data-provider].on")?.dataset.provider||"kodik";if(userSelectedProvider&&active!==provider)return Promise.resolve(false);if(active!==provider){root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===provider));const load=provider==="liberty"?showLiberty():showKodik();return load.then(()=>provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):false):(kodikTranslationSync?kodikTranslationSync(voiceId,state):false))}return provider==="liberty"?(libertyReleaseSync?libertyReleaseSync(voiceId,state):Promise.resolve(false)):(kodikTranslationSync?kodikTranslationSync(voiceId,state):Promise.resolve(false))},destroy(){closed=true;sampleWatchTime(getPlaybackState(),"stop");stopExternal();destroyHls();kodikTranslationSync=null;libertyReleaseSync=null;kodikFrame=null;window.removeEventListener("message",onKodikMessage);clearTimeout(emitTimer);clearTimeout(remoteApplyTimer);root.removeEventListener("keydown",handlePlayerKeys);root.innerHTML=""}};
 }
