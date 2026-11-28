@@ -63,9 +63,18 @@ export function mountRoomSettings(root, { onLanguage, onOffset, onAlign, warmTra
   offsets.append(align);
   const note = document.createElement("small");
   note.textContent = t("independentAudio");
-  panel.append(languages, audio, auto, note, offsets, info);
+  const fallback = document.createElement("div");
+  fallback.className = "room-offset-controls";
+  fallback.hidden = true;
+  const guide = document.createElement("span");
+  const switchToKodik = document.createElement("button");
+  switchToKodik.type = "button";
+  switchToKodik.textContent = t("roomSwitchKodik");
+  switchToKodik.onclick = () => root.querySelector('[data-provider="kodik"]')?.click();
+  fallback.append(guide, switchToKodik);
+  panel.append(languages, audio, auto, note, offsets, info, fallback);
   root.parentElement.after(panel);
-  return ({ source, local, state, offset, drift }) => {
+  return ({ source, local, state, offset, target, drift }) => {
     const messages = [];
     if (source?.compatibility === "ready") messages.push(t("syncReady"));
     else if (source?.compatibility === "unsupported") messages.push(t("syncUnsupported"));
@@ -77,6 +86,18 @@ export function mountRoomSettings(root, { onLanguage, onOffset, onAlign, warmTra
       messages.push(t("durationMismatch", { seconds: Math.round(Math.abs(local.duration - state.duration)) }));
     }
     info.textContent = messages.join(" · ");
+    const unsupported = source?.provider === "animeav1" && source.compatibility === "unsupported";
+    fallback.hidden = !unsupported;
+    offsets.hidden = host || source?.compatibility !== "ready";
+    if (unsupported) {
+      if (Number.isFinite(target)) {
+        const seconds = Math.floor(target);
+        const time = Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+        guide.textContent = t("roomManualPosition", { time });
+      } else {
+        guide.textContent = t(host ? "roomUnsupportedHost" : "roomWaitForPosition");
+      }
+    }
     offsetLabel.textContent = t("offset") + " " + offset.toFixed(1);
     align.disabled = !local || !state;
     offsets.querySelectorAll("button").forEach(button => { if (button !== align) button.disabled = !local; });

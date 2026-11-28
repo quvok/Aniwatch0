@@ -311,3 +311,23 @@ test("authenticated Edge fallback receives protected emoji and keeps the origina
   await expect(page.locator("#ms")).toContainText("Привет 👩‍🚀");
   await expect(page.locator("#ms")).not.toContainText("Hola desde el servidor");
 });
+
+test("unsupported embed shows the host's position and offers Kodik",async ({page})=>{
+  await setup(page);
+  await page.route("https://animeav1.ahmedrangel.com/api/anime/correct/1", route=>route.fulfill({
+    json:{success:true,data:{number:1,embeds:[{name:"Voe",type:"DUB",url:"https://voe.sx/e/fixture"}]}}
+  }));
+  await page.route("https://voe.sx/e/fixture", route=>route.fulfill({body:"<html></html>",contentType:"text/html"}));
+  await page.goto(watch(true));
+  await expect(page.locator("#room-status")).toHaveText("На связи");
+  await page.locator('[data-provider="animeav1"]').click();
+  await expect(page.locator("#stream-status")).toContainText("Синхронизация с выбранным источником недоступна");
+  await page.evaluate(id=>window.mockReceive({
+    type:"state",host:true,animeId:id,episode:1,position:65,duration:1000,playing:false,
+    playbackRate:1,sentAt:Date.now(),sequence:100,buffering:false
+  }),animeId);
+  await expect(page.getByText("Поставь видео вручную на 1:05, позицию ведущего.")).toBeVisible();
+  await page.getByRole("button",{name:"Перейти на Kodik · русский звук"}).click();
+  await expect(page.locator('[data-provider="kodik"]')).toHaveClass(/\bon\b/);
+  await expect(page.getByRole("button",{name:"Перейти на Kodik · русский звук"})).toBeHidden();
+});
