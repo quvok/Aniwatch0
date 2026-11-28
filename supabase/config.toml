@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.calendar-release-push]
 verify_jwt = false
+
+[functions.translate-room-chat]
+verify_jwt = false

@@ -2,6 +2,8 @@ var V="aw-v237",SHELL=[
  "./","index.html","stats.html","catalog.html","favorites.html","lists.html","together.html",
  "profile.html","random.html","anime.html","watch.html","collections.html","calendar.html",
  "css/style.css","css/brand-refresh.css","css/favorite-position-fix.css","css/home-banner-background.css",
+ "js/api/animeav1.js","js/core/animeav1-player.js","js/core/chat-translation.js","js/core/player-adapter.js","js/core/room-settings.js","js/core/watch-sync.js",
+ "js/i18n/index.js","js/i18n/ru.js","js/i18n/es-419.js","js/i18n/site-labels.js",
  "js/app.js","js/components/site-header.js","js/components/anime-card.js","js/components/banner.js",
  "js/api/shikimori.js","js/api/anilibria.js","js/api/genders.js","js/api/kodik.js","js/api/kodik-replacer.js",
  "js/core/anime-theme.js","js/core/storage.js","js/core/library-import.js","js/core/recommendations.js",

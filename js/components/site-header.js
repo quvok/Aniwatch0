@@ -1,4 +1,5 @@
 // Shared navigation: desktop sidebar and compact mobile bottom bar.
+import { getLanguage, t } from "../i18n/index.js";
 import {PAGES} from "../core/router.js";
 import { trackPageView } from "../core/analytics.js";
 
@@ -26,7 +27,7 @@ function navLinks(){
  }).join("");
 }
 
-export function renderSiteHeader(){
+export function renderSiteHeader(onLanguage){
  trackPageView();
  const host=document.getElementById("site-header");
  if(!host)return;
@@ -35,7 +36,13 @@ export function renderSiteHeader(){
  const themeToggle='<button class="theme-toggle" type="button" data-a="theme-toggle" aria-label="'+(light?'Переключить на тёмную тему':'Переключить на светлую тему')+'" title="'+(light?'Тёмная тема':'Светлая тема')+'">'+(light?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A8.5 8.5 0 0 1 11 3.1 8.5 8.5 0 1 0 20.9 13Z"></path></svg>')+'</button>';
  const saver='<button class="theme-toggle data-saver-toggle" type="button" data-a="data-saver" aria-pressed="'+(document.documentElement.dataset.dataSaver==="true")+'" aria-label="Экономия трафика" title="Экономия трафика">⇣</button>';
  const profile='<a class="av profile-link" href="'+PAGES.profile+'" aria-label="Профиль" title="Профиль"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"></path></svg></a>';
- host.innerHTML='<aside class="desktop-sidebar"><a class="sidebar-logo logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><nav class="desktop-sidebar-nav" aria-label="Основная навигация">'+links+'</nav></aside><div class="header-top"><a class="logo mobile-logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><div class="header-tools">'+themeToggle+saver+profile+'</div></div>';
+ const locale='<select class="site-language" aria-label="'+t("language")+'"><option value="ru">RU</option><option value="es-419">ES</option></select>';
+ host.innerHTML='<aside class="desktop-sidebar"><a class="sidebar-logo logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><nav class="desktop-sidebar-nav" aria-label="Основная навигация">'+links+'</nav></aside><div class="header-top"><a class="logo mobile-logo" href="'+PAGES.home+'" data-page="home">AniWatch</a><div class="header-tools">'+locale+themeToggle+saver+profile+'</div></div>';
+ const switcher=host.querySelector(".site-language");
+ switcher.value=getLanguage();
+ switcher.options[0].textContent="Русский";
+ switcher.options[1].textContent="Español latino";
+ switcher.onchange=()=>onLanguage?.(switcher.value);
  const old=document.getElementById("mobile-bottom-nav");
  if(old)old.remove();
  const bottom=document.createElement("nav");
