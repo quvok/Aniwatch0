@@ -23,7 +23,7 @@ MAL ID позволяет различать продолжения и спин-
 | UPNShare, Voe, Byse, YourUpload, MP4Upload | Проверенные DUB-ссылки вернули HTML с HTTP 200. Ответ страницы не доказывает воспроизведение. Для этих URL не подтверждён документированный интерфейс всех нужных команд. AniWatch обозначает их как источники без синхронизации. |
 | Прямой MP4 или HLS | HTML5 и HLS.js умеют синхронизировать такие источники. Требуется опубликованный провайдером HTTPS URL с разрешённого хоста. В проверенных ответах AnimeAV1 этих URL не было. MP4 прошёл браузерную проверку с управляемым тестовым видео. |
 
-Встроенные страницы открываются в ограниченном iframe. Для просмотра без синхронизации доступна исходная ссылка. Для стабильной кросс-языковой комнаты подойдёт поставщик с разрешёнными прямыми MP4/HLS либо iframe с документированным API. Текущий адаптер не извлекает поток из HTML-страницы или секции загрузок.
+Встроенные страницы открываются в ограниченном iframe. Для просмотра без автоматической синхронизации доступны исходная ссылка, позиция ведущего для ручной сверки и переход на Kodik с русской озвучкой. Для стабильной кросс-языковой комнаты подойдёт поставщик с разрешёнными прямыми MP4/HLS либо iframe с документированным API. Текущий адаптер не извлекает поток из HTML-страницы или секции загрузок.
 
 - [Документация AnimeAV1](https://animeav1.ahmedrangel.com/)
 - [Документация StreamTape](https://adblockstrtape.link/api)
@@ -45,12 +45,16 @@ MAL ID позволяет различать продолжения и спин-
 
 | Переменная | Значение |
 | --- | --- |
-| `CHAT_TRANSLATOR_PROVIDER` | `deepl` либо `google` |
+| `CHAT_TRANSLATOR_PROVIDER` | `cloudflare`, `deepl` или `google` |
 | `CHAT_TRANSLATOR_API_KEY` | Секрет выбранного сервиса в Supabase |
+| `CHAT_TRANSLATOR_CLOUDFLARE_ACCOUNT_ID` | ID аккаунта Cloudflare для провайдера `cloudflare` |
 | `CHAT_TRANSLATOR_DEEPL_PAID` | `true` для платного endpoint DeepL |
 | `CHAT_TRANSLATOR_ALLOWED_ORIGINS` | Список дополнительных origin тестовых сборок через запятую |
 
-Миграция и Edge Function подготовлены в ветке. На рабочий Supabase и опубликованный сайт изменения в ходе проверки не разворачивались.
+Cloudflare Workers AI использует модель `@cf/meta/m2m100-1.2b`. Для тарифа Workers Free нужен API-токен с доступом **Workers AI Read** к выбранному аккаунту. Лимит бесплатного тарифа сбрасывается ежедневно. При недоступности API чат показывает исходное сообщение.
+
+- [Workers AI REST API](https://developers.cloudflare.com/workers-ai/get-started/rest-api/)
+- [Тарифы Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/)
 
 ## Воспроизводимые проверки
 
@@ -76,3 +80,30 @@ ANIMEAV1_LIVE=1 npm run test:e2e -- tests/animeav1.live.spec.js --project=deskto
 | Код и сборка | `npm run check` и `npm run build` прошли. |
 
 Сквозной прогон с настоящими Kodik, AnimeAV1 и Supabase Realtime остаётся открытым. Локализация охватывает навигацию, основные страницы и состояния комнаты. Редкие сообщения старых компонентов и данные без проверенного испанского перевода могут остаться на исходном языке.
+
+## JKAnime (experimental)
+
+- The watch page offers JKAnime as a separate provider for signed-in users. The
+  `jkanime-catalog` Supabase Edge Function fetches public catalog HTML from
+  `jkanime.net`, returns validated response fields and does not fetch or proxy
+  video. Deploy the function with JWT verification enabled. The function uses
+  the automatically supplied Supabase environment variables. No provider key
+  is required. Cached pages and request quotas are local to each Edge instance.
+- AniWatch auto-selects a unique exact title match only when format, year and
+  total episode count also match. Users can select another search result. The
+  confirmed title and audio variant are saved on the device. Episode number
+  comes from AniWatch or the room and is checked against the episode page's URL.
+- The language choices reflect per-episode JKAnime metadata. Latino is preferred
+  when published, and Japanese audio with Spanish subtitles is a separate
+  choice. Metadata does not establish that Latino audio and Spanish captions
+  are available together. Only public Streamtape embeds are used in the room,
+  via its documented Player.js interface. If the player fails to provide
+  position, duration and paused state, the room reports that sync is unavailable.
+  Playback rate remains under local control on that embed.
+- Public metadata checked on Dragon Ball episode 15 and Death Note episode 15.
+  The available variants were Latino and Latino plus Spanish-subtitled Japanese,
+  respectively. The embed returned HTTP 403 during the live probe. Playwright
+  tests model the documented Player.js messages and exercise the room flow in
+  two browser contexts. Live playback and live control remain unverified.
+
+Run the catalog-only check with `JKANIME_LIVE=1 npm run test:e2e -- tests/jkanime.live.spec.js`.

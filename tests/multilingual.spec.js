@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { test, expect, installApiMocks, seedState, SHIKI_ITEM } from "./fixtures.js";
+import { parseEpisode, searchResults, titleDetails } from "../supabase/functions/jkanime-catalog/catalog.mjs";
+import { matchJKAnime } from "../js/core/jkanime-player.js";
 import { matchAnimeAV1Title, animeAV1Sources } from "../js/api/animeav1.js";
 import { playbackCorrection, readRoomPlayback, roomPosition } from "../js/core/watch-sync.js";
 
@@ -18,6 +20,14 @@ export function createClient() {
     from:()=>({select(){return this},eq(){return this},maybeSingle:async()=>({data:null,error:null})}),
     rpc:async()=>({data:null,error:null}),
     functions:{invoke:async (name,options)=>{
+      if(name.startsWith("jkanime-catalog?")){
+        const query=new URLSearchParams(name.split("?")[1]);
+        if(query.has("q"))return {data:{results: [{title:query.get("q"),slug:"naruto",kind:"serie",year:2002,episodes:${SHIKI_ITEM.episodes}}]}};
+        const episode=query.get("episode");
+        return {data: {available:["latino","sub"],streams:{
+          latino:"https://streamtape.com/e/fixture-jk-latino-"+episode,
+          sub:"https://streamtape.com/e/fixture-jk-sub-"+episode}}};
+      }
       if(name!=="translate-room-chat")return {data:{ok:true}};
       window.mockEdgeCalls=(window.mockEdgeCalls||0)+1;
       return {data:{translation:"Hola desde el servidor "+(options.body.text.match(/AW[A-Z0-9]+EM0X/)?.[0]||"")}};
@@ -73,17 +83,19 @@ let time=0, playing=false;
 const send=(event,value,listener)=>parent.postMessage(JSON.stringify({context:"player.js",version:"0.0.11",event,value,listener}),"*");
 const emit=(event,value)=>send(event,value,names[event]);
 window.sampleTime=()=>time;
+window.samplePlaying=()=>playing;
 addEventListener("message",({data})=>{
  const {method,value,listener}=JSON.parse(data);
  if(method==="addEventListener")names[value]=listener;
  if(method==="getDuration")send(method,75,listener);
  if(method==="getCurrentTime")send(method,time,listener);
+ if(method==="getPaused" && !location.hash)send(method,!playing,listener);
  if(method==="play"){playing=true;emit("play")}
  if(method==="pause"){playing=false;emit("pause")}
  if(method==="setCurrentTime"){time=value;emit("timeupdate",{seconds:time,duration:75})}
 });
 setInterval(()=>{if(playing){time++;emit("timeupdate",{seconds:time,duration:75})}},1000);
-send("ready",{events:["play","pause","timeupdate","ended"],methods:["play","pause","setCurrentTime","getCurrentTime","getDuration"]});
+send("ready",{events:["play","pause","timeupdate","ended"],methods:["play","pause","setCurrentTime","getCurrentTime","getDuration","getPaused"]});
 </script>`;
 
 function avTitle({ title = SHIKI_ITEM.name, mal = 20, episodes = 2 } = {}) {
@@ -310,4 +322,101 @@ test("authenticated Edge fallback receives protected emoji and keeps the origina
   await page.locator("#room-auto-translate").uncheck();
   await expect(page.locator("#ms")).toContainText("Привет 👩‍🚀");
   await expect(page.locator("#ms")).not.toContainText("Hola desde el servidor");
+});
+
+test("unsupported embed shows the host's position and offers Kodik",async ({page})=>{
+  await setup(page);
+  await page.route("https://animeav1.ahmedrangel.com/api/anime/correct/1", route=>route.fulfill({
+    json:{success:true,data:{number:1,embeds:[{name:"Voe",type:"DUB",url:"https://voe.sx/e/fixture"}]}}
+  }));
+  await page.route("https://voe.sx/e/fixture", route=>route.fulfill({body:"<html></html>",contentType:"text/html"}));
+  await page.goto(watch(true));
+  await expect(page.locator("#room-status")).toHaveText("На связи");
+  await page.locator('[data-provider="animeav1"]').click();
+  await expect(page.locator("#stream-status")).toContainText("Синхронизация с выбранным источником недоступна");
+  await page.evaluate(id=>window.mockReceive({
+    type:"state",host:true,animeId:id,episode:1,position:65,duration:1000,playing:false,
+    playbackRate:1,sentAt:Date.now(),sequence:100,buffering:false
+  }),animeId);
+  await expect(page.getByText("Поставь видео вручную на 1:05, позицию ведущего.")).toBeVisible();
+  await page.getByRole("button",{name:"Перейти на Kodik · русский звук"}).click();
+  await expect(page.locator('[data-provider="kodik"]')).toHaveClass(/\bon\b/);
+  await expect(page.getByRole("button",{name:"Перейти на Kodik · русский звук"})).toBeHidden();
+});
+
+test("JKAnime parser reads separate language variants and rejects unknown or unsafe embeds",()=>{
+  const makeRow=(server,lang,url)=>({server,lang,remote:Buffer.from(url).toString("base64")});
+  const rows=[
+    makeRow("Streamtape",3,"https://streamtape.com.evil.test/e/forbidden"),
+    makeRow("Streamtape",3,"https://streamtape.com/e/valid-latino/episode.mp4"),
+    makeRow("Streamtape",1,"https://streamtape.com/e/valid-sub"),
+    makeRow("Streamtape",2,"https://streamtape.com/e/unlabelled"),
+    makeRow("Mp4upload",3,"https://www.mp4upload.com/embed-test.html")
+  ];
+  const html='<meta property="og:url" content="https://jkanime.net/show/15/">' +
+    '<select id="deflang"><option value="1">Japones Sub. Español</option><option value="3">Español Latino</option></select>' +
+    '<script>var servers = '+JSON.stringify(rows)+';</script>';
+  expect(parseEpisode(html,"show",14)).toBeNull();
+  expect(parseEpisode(html,"show",15)).toEqual({available:["latino","sub"],streams:{
+    latino:"https://streamtape.com/e/valid-latino/episode.mp4",sub:"https://streamtape.com/e/valid-sub"
+  }});
+  expect(searchResults('<h5><a href="https://jkanime.net/show/">A &amp; B</a></h5>')).toEqual([{slug:"show",title:"A & B"}]);
+  const details=titleDetails('<li><span>Tipo:</span> Serie</li><li><span>Emitido: </span> 1 de Junio de 2019</li><li><span>Episodios:</span> 15</li>');
+  expect(details).toEqual({kind:"serie",year:2019,episodes:15});
+  const candidate={slug:"show",title:"A & B",...details};
+  const anime={romaji:"A & B",kind:"tv",y:2019,e:15};
+  expect(matchJKAnime(anime,[{...candidate,year:2021},candidate])).toBe(candidate);
+  expect(matchJKAnime(anime,[{...candidate,slug:"remake"},candidate])).toBeNull();
+});
+
+test("Kodik and JKAnime synchronize with independent audio across room episodes",async ({browser})=>{
+  const hostContext=await browser.newContext();
+  const guestContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  try {
+    const host=await hostContext.newPage();
+    const guest=await guestContext.newPage();
+    const pages=[host,guest];
+    await setup(host,{pages,host:true});
+    await setup(guest,{pages,locale:"es-419"});
+    await guest.addInitScript(()=>window.mockUseEdge=true);
+    await host.goto(watch());
+    const hostFrame=host.frameLocator("iframe.stream-video").locator("body");
+    await expect(hostFrame).toBeAttached();
+    await guest.goto(watch(true));
+    await guest.locator('[data-provider="jkanime"]').click();
+    const grade=guest.getByLabel("Versión del episodio");
+    await expect(grade).toHaveValue("latino");
+    await expect(guest.locator("#stream-status")).toContainText("admite la sincronización");
+    const guestFrame=guest.frameLocator("iframe.stream-video").locator("body");
+    await hostFrame.evaluate(()=>window.kodikControl.seek(15));
+    await expect.poll(()=>guestFrame.evaluate(()=>window.sampleTime())).toBe(15);
+    await hostFrame.evaluate(()=>window.kodikControl.play());
+    await expect.poll(()=>guestFrame.evaluate(()=>window.samplePlaying())).toBe(true);
+    await hostFrame.evaluate(()=>window.kodikControl.pause());
+    await expect.poll(()=>guestFrame.evaluate(()=>window.samplePlaying())).toBe(false);
+    await grade.selectOption("sub");
+    await expect(guest.locator("iframe.stream-video")).toHaveAttribute("src",/fixture-jk-sub-1/);
+    await hostFrame.evaluate(()=>window.kodikControl.ended());
+    await expect(guest).toHaveURL(/ep=2/);
+    await expect(grade).toHaveValue("sub");
+    await expect(guest.locator("iframe.stream-video")).toHaveAttribute("src",/fixture-jk-sub-2/);
+    expect(await guest.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  } finally {
+    await hostContext.close();
+    await guestContext.close();
+  }
+});
+
+test("JKAnime does not mark an iframe ready on capability claims alone",async ({page})=>{
+  await setup(page);
+  await page.addInitScript(()=>window.mockUseEdge=true);
+  await page.route("https://streamtape.com/e/fixture-jk-latino-1",route=>route.fulfill({
+    contentType:"text/html",body:playerJs.replace('method==="getPaused" && !location.hash','false')
+  }));
+  await page.goto(watch(true));
+  await page.locator('[data-provider="jkanime"]').click();
+  await expect(page.locator("iframe.stream-video")).toHaveAttribute("src",/fixture-jk-latino-1/);
+  await expect(page.locator("#stream-status")).toContainText("Проверяем");
+  await expect(page.locator("#stream-status")).toContainText("не подтвердил управление",{timeout:13000});
+  await expect(page.getByRole("button",{name:/Перейти на Kodik/})).toBeVisible();
 });

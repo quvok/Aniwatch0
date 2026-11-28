@@ -644,10 +644,11 @@ function saveRoomOffset(value){
 function applyRoomPlayback(){
  const state=roomState,local=STREAM_PLAYER?.getPlaybackState(),source=STREAM_PLAYER?.sourceState();
  const offset=readRoomOffset();
- const target=state&&roomPosition(state,Date.now()+roomClock,offset);
- roomRender?.({source,local,state,offset,drift:state&&local?target-local.time:null});
- if(!ROOM_CONNECTED||!state||!P||S.roomHost||state.animeId!==P.d.id||state.episode!==P.n||
-    Date.now()+roomClock-state.sentAt>12000||source?.compatibility!=="ready")return;
+ const hostNow=Date.now()+roomClock;
+ const following=ROOM_CONNECTED&&state&&P&&!S.roomHost&&state.animeId===P.d.id&&state.episode===P.n&&hostNow-state.sentAt<=12000;
+ const target=following?roomPosition(state,hostNow,offset):null;
+ roomRender?.({source,local,state:following?state:null,offset,target,drift:target!==null&&local?target-local.time:null});
+ if(!following||source?.compatibility!=="ready")return;
  STREAM_PLAYER.syncPlayback({time:target,duration:state.duration,playing:state.playing,speed:state.playbackRate,buffering:state.buffering});
 }
 function broadcastPlayback(type="playback",media,episode){

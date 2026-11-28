@@ -10,6 +10,7 @@ for (const origin of (Deno.env.get("CHAT_TRANSLATOR_ALLOWED_ORIGINS") || "").spl
 
 const provider = Deno.env.get("CHAT_TRANSLATOR_PROVIDER");
 const key = Deno.env.get("CHAT_TRANSLATOR_API_KEY");
+const cloudflareAccount = Deno.env.get("CHAT_TRANSLATOR_CLOUDFLARE_ACCOUNT_ID");
 
 async function readPayload(req: Request) {
   const reader = req.body?.getReader();
@@ -34,6 +35,9 @@ function endpointForProvider() {
   if (provider === "deepl") return Deno.env.get("CHAT_TRANSLATOR_DEEPL_PAID") === "true"
     ? "https://api.deepl.com/v2/translate" : "https://api-free.deepl.com/v2/translate";
   if (provider === "google") return "https://translation.googleapis.com/language/translate/v2";
+  if (provider === "cloudflare" && cloudflareAccount && /^[a-f0-9]{32}$/i.test(cloudflareAccount)) {
+    return "https://api.cloudflare.com/client/v4/accounts/" + cloudflareAccount + "/ai/run/@cf/meta/m2m100-1.2b";
+  }
   return null;
 }
 
@@ -54,7 +58,8 @@ Deno.serve(async req => {
   const auth = createClient(url, publicKey, { auth: { persistSession: false } });
   const { data, error: authError } = await auth.auth.getUser(token);
   if (authError || !data.user) return json(401, { error: "auth" });
-  if (!key || !endpointForProvider()) return json(503, { error: "configuration" });
+  const endpoint = endpointForProvider();
+  if (!key || !endpoint) return json(503, { error: "configuration" });
 
   let payload;
   try { payload = await readPayload(req); } catch { return json(400, { error: "body" }); }
@@ -69,19 +74,26 @@ Deno.serve(async req => {
   if (error) return json(503, { error: "quota" });
   if (!allowedRequest) return json(429, { error: "quota" });
   try {
-    const endpoint = endpointForProvider()!;
-    const deepL = provider === "deepl";
+    const headers = new Headers({ "Content-Type": "application/json" });
+    let input;
+    if (provider === "cloudflare") {
+      headers.set("Authorization", "Bearer " + key);
+      input = { text, source_lang: source, target_lang: target };
+    } else if (provider === "deepl") {
+      headers.set("Authorization", "DeepL-Auth-Key " + key);
+      input = { text: [text], source_lang: source.toUpperCase(), target_lang: target.toUpperCase() };
+    } else {
+      headers.set("X-Goog-Api-Key", key);
+      input = { q: text, source, target, format: "text" };
+    }
     const response = await fetch(endpoint, {
       method: "POST", redirect: "error", signal: AbortSignal.timeout(4500),
-      headers: { "Content-Type": "application/json",
-        ...(deepL ? { Authorization: "DeepL-Auth-Key " + key } : { "X-Goog-Api-Key": key }) },
-      body: JSON.stringify(deepL ? {
-        text: [text], source_lang: source.toUpperCase(), target_lang: target.toUpperCase()
-      } : { q: text, source, target, format: "text" })
+      headers, body: JSON.stringify(input)
     });
     if (!response.ok) return json(response.status === 429 ? 429 : 502, { error: "provider" });
     const body = await response.json();
-    const translation = deepL ? body?.translations?.[0]?.text : body?.data?.translations?.[0]?.translatedText;
+    const translation = provider === "cloudflare" ? (body?.success === true ? body.result?.translated_text : null)
+      : provider === "deepl" ? body?.translations?.[0]?.text : body?.data?.translations?.[0]?.translatedText;
     if (typeof translation !== "string" || !translation.trim() || translation.length > 6000) {
       return json(502, { error: "provider" });
     }
