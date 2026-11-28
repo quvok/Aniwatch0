@@ -56,13 +56,13 @@ async function requestAnimeLibEpisodes(shikiId){
  }
  throw new Error("Список серий недоступен: "+[...new Set(errors)].join("; "));
 }
-export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onEpisodeChange=()=>{},onTranslationChange=()=>{},onWatchTime=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1,preferredVoice=null}){
+export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisodeEnded=()=>{},onEpisodeChange=()=>{},onTranslationChange=()=>{},onWatchTime=()=>{},onReady=()=>{},resumeAt=0,resumeSpeed=1,preferredVoice=null,experimentalSpanish=false}){
  if(!root)return {destroy(){},getPlaybackState(){return null},syncPlayback(){}};
  if(hlsInstance){try{hlsInstance.destroy()}catch{}hlsInstance=null}
  root.innerHTML=`
  <div class="aw-player-shell">
   <div class="aw-player-heading"><div class="aw-player-brand"><span class="aw-player-logo">N</span><div><b>AniWatch <i>PLAYER</i></b><small>${esc(anime?.n||"Просмотр аниме")} <span>·</span> серия ${episode}</small></div></div><span class="aw-player-chip"><i></i> ОСНОВНОЙ ПЛЕЕР</span></div>
-  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Основной <em>Рекомендуем</em></button><button type="button" data-provider="liberty">Резервный 1</button><button type="button" data-provider="animevost">Резервный 2 <em>RU</em></button><button type="button" data-provider="animelib">Дополнительный</button></div><div class="stream-options" id="stream-options"></div></div>
+  <div class="aw-player-controls"><div class="stream-provider-tabs"><button type="button" class="on" data-provider="kodik">Основной <em>Рекомендуем</em></button><button type="button" data-provider="liberty">Резервный 1</button><button type="button" data-provider="animevost">Резервный 2 <em>RU</em></button><button type="button" data-provider="animelib">Дополнительный</button>${experimentalSpanish?'<button type="button" data-provider="spanish">Español Latino</button>':""}</div><div class="stream-options" id="stream-options"></div></div>
   <div class="stream-stage" id="stream-stage"><div class="stream-placeholder"><span class="stream-placeholder-mark">AW</span><b>Выберите плеер</b><small>Плеер загружается только после выбора источника</small></div></div>
   <div class="aw-player-footer"><span class="stream-status" id="stream-status" role="status">Основной плеер</span><button type="button" class="aw-player-reload" id="player-reload" aria-label="Перезагрузить источник" title="Перезагрузить">↻</button></div>
  </div>`;
@@ -447,13 +447,25 @@ export function mountStreamPlayer({root,anime,episode,onPlayback=()=>{},onEpisod
    }
   }
  };
+ const showSpanish=()=>{
+  destroyHls();kodikLoadSequence++;kodikFrame=null;savedProgressApplied=false;
+  stage.innerHTML='<div class="stream-placeholder"><b>Español Latino</b><small>Introduce una URL HTTPS de un vídeo MP4 autorizado para este episodio.</small></div>';
+  options.innerHTML='<input type="url" id="spanish-url" placeholder="https://…/video.mp4" aria-label="URL del vídeo"><button type="button" id="spanish-open">Reproducir</button>';
+  const input=options.querySelector("#spanish-url");
+  options.querySelector("#spanish-open").onclick=()=>{
+   let url;try{url=new URL(input.value);if(url.protocol!=="https:"||url.username||url.password||!url.pathname.toLowerCase().endsWith(".mp4"))throw Error()}catch{setStatus("URL HTTPS MP4 no válida");return}
+   const el=document.createElement("video");el.className="stream-video";el.controls=true;el.playsInline=true;stage.replaceChildren(el);bindVideo(el);
+   el.addEventListener("loadedmetadata",()=>{if(video()===el)onReady()},{once:true});el.src=url.href;setStatus("Español Latino · MP4");
+  };
+  setStatus("Fuente experimental · URL manual");
+ };
  root.querySelectorAll("[data-provider]").forEach(button=>button.addEventListener("click",()=>{
   userSelectedProvider=true;
   if(button.dataset.provider!=="kodik"){kodikLoadSequence++;kodikFrame=null;}
   root.querySelectorAll("[data-provider]").forEach(item=>item.classList.toggle("on",item===button));
-  if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
+  if(button.dataset.provider==="spanish")showSpanish();else if(button.dataset.provider==="animevost")showAnimeVost();else if(button.dataset.provider==="animelib")showAnimeLib();else if(button.dataset.provider==="kodik")showKodik();else showLiberty();
  }));
- reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
+ reload.addEventListener("click",()=>{destroyHls();if(root.querySelector('[data-provider="spanish"]')?.classList.contains("on")){showSpanish();return}if(root.querySelector('[data-provider="animevost"]')?.classList.contains("on"))showAnimeVost();else if(root.querySelector('[data-provider="animelib"]')?.classList.contains("on"))showAnimeLib();else if(root.querySelector('[data-provider="kodik"]')?.classList.contains("on"))showKodik();else{releaseData=null;showLiberty()}});;
  const initialProvider=preferredVoice?.provider==="kodik"?"kodik":preferredVoice?.provider==="liberty"?"liberty":readSavedLibertyVoice()?"liberty":"kodik";
  root.querySelectorAll("[data-provider]").forEach(button=>button.classList.toggle("on",button.dataset.provider===initialProvider));
  if(initialProvider==="liberty")showLiberty();else showKodik();
