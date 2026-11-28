@@ -47,9 +47,6 @@ export default {
   avOpen: "Abrir en el proveedor",
   avRetry: "Reintentar",
   avFailed: "El reproductor no respondió. Elige otro servidor o abre el video en el proveedor.",
-  youtubeSource: "YouTube · ES",
-  youtubeOpen: "Abrir en YouTube",
-  youtubeUnavailable: "YouTube no permite la reproducción aquí o no se pudo cargar el reproductor.",
   participants: "Participantes",
   guest: "Invitado"
 };
