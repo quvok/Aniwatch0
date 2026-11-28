@@ -47,6 +47,9 @@ export default {
   avOpen: "Открыть у провайдера",
   avRetry: "Повторить",
   avFailed: "Плеер не ответил. Выберите другой сервер или откройте видео у провайдера.",
+  youtubeSource: "YouTube · ES",
+  youtubeOpen: "Открыть на YouTube",
+  youtubeUnavailable: "YouTube не разрешил воспроизведение здесь или плеер не загрузился.",
   participants: "Участники",
   guest: "Гость"
 };

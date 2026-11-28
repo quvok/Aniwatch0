@@ -29,7 +29,8 @@ export function mountRoomSettings(root, { onLanguage, onOffset, onAlign, warmTra
   const audio = selectSetting("preferredAudio", [["ru", "Русский"], ["es-419", "Español latino"]],
     readPreference("aw.player.audio") || "ru", value => {
       writePreference("aw.player.audio", value);
-      root.querySelector('[data-provider="' + (value === "es-419" ? "animeav1" : "kodik") + '"]')?.click();
+      const preferred = value === "es-419" ? '[data-provider="youtube"], [data-provider="animeav1"]' : '[data-provider="kodik"]';
+      root.querySelector(preferred)?.click();
     });
   const auto = document.createElement("label");
   const checkbox = document.createElement("input");
@@ -86,7 +87,7 @@ export function mountRoomSettings(root, { onLanguage, onOffset, onAlign, warmTra
       messages.push(t("durationMismatch", { seconds: Math.round(Math.abs(local.duration - state.duration)) }));
     }
     info.textContent = messages.join(" · ");
-    const unsupported = source?.provider === "animeav1" && source.compatibility === "unsupported";
+    const unsupported = ["animeav1", "youtube"].includes(source?.provider) && source.compatibility === "unsupported";
     fallback.hidden = !unsupported;
     offsets.hidden = host || source?.compatibility !== "ready";
     if (unsupported) {
